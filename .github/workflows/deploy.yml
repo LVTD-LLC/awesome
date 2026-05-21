@@ -7,6 +7,7 @@ on:
 
 env:
   PROJECT_NAME: awesome_repos
+  CAPROVER_APP_NAME: awesome-repos
 
 permissions:
   contents: read
@@ -49,7 +50,7 @@ jobs:
         uses: caprover/deploy-from-github@main
         with:
           server: ${{ secrets.CAPROVER_SERVER }}
-          app: ${{ env.PROJECT_NAME }}
+          app: ${{ env.CAPROVER_APP_NAME }}
           token: ${{ secrets.APP_TOKEN }}
           image: ${{ steps.image.outputs.image_name }}:${{ github.sha }}
 
@@ -59,7 +60,7 @@ jobs:
           WORKERS_APP_PROCESS_TYPE: ${{ vars.WORKERS_APP_PROCESS_TYPE }}
         run: |
           if [ "$WORKERS_APP_PROCESS_TYPE" != "worker" ]; then
-            echo "::error::Set the WORKERS_APP_PROCESS_TYPE repository variable to 'worker' after setting APP_PROCESS_TYPE=worker on the $PROJECT_NAME-workers CapRover app."
+            echo "::error::Set the WORKERS_APP_PROCESS_TYPE repository variable to 'worker' after setting APP_PROCESS_TYPE=worker on the $CAPROVER_APP_NAME-workers CapRover app."
             exit 1
           fi
 
@@ -67,6 +68,6 @@ jobs:
         uses: caprover/deploy-from-github@main
         with:
           server: ${{ secrets.CAPROVER_SERVER }}
-          app: ${{ env.PROJECT_NAME }}-workers
+          app: ${{ env.CAPROVER_APP_NAME }}-workers
           token: ${{ secrets.WORKERS_APP_TOKEN }}
           image: ${{ steps.image.outputs.image_name }}:${{ github.sha }}
