@@ -10,6 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -578,7 +579,11 @@ def _apply_repository_semantic_search(qs, q: str):
         return qs, False
 
     return (
-        qs.filter(vector__isnull=False).annotate(
+        qs.filter(
+            vector__isnull=False,
+            vector__model=settings.REPOSITORY_EMBEDDING_MODEL,
+            vector__dimensions=REPOSITORY_EMBEDDING_DIMENSIONS,
+        ).annotate(
             vector_distance=CosineDistance("vector__embedding", response.vector)
         ),
         True,

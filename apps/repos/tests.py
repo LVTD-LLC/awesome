@@ -926,6 +926,14 @@ def test_repository_search_semantic_mode_orders_by_vector(monkeypatch, settings)
         description="Terminal theme",
         stars=100,
     )
+    stale_model = Repository.objects.create(
+        full_name="owner/stale-model",
+        owner="owner",
+        name="stale-model",
+        url="https://github.com/owner/stale-model",
+        description="Old embedding model",
+        stars=1000,
+    )
     RepositoryEmbedding.objects.create(
         repository=near,
         model="openai/text-embedding-3-small",
@@ -942,6 +950,15 @@ def test_repository_search_semantic_mode_orders_by_vector(monkeypatch, settings)
         source_text_hash="b" * 64,
         source_text_chars=10,
         embedding=[0.0, 1.0] + [0.0] * (REPOSITORY_EMBEDDING_DIMENSIONS - 2),
+        embedded_at=timezone.now(),
+    )
+    RepositoryEmbedding.objects.create(
+        repository=stale_model,
+        model="older-embedding-model",
+        dimensions=REPOSITORY_EMBEDDING_DIMENSIONS,
+        source_text_hash="c" * 64,
+        source_text_chars=10,
+        embedding=[1.0] + [0.0] * (REPOSITORY_EMBEDDING_DIMENSIONS - 1),
         embedded_at=timezone.now(),
     )
 
