@@ -38,6 +38,8 @@ from apps.repos.tags import (
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
+# Process-local snapshot from the most recent GitHub response. Treat this as a
+# best-effort hint; callers must still handle actual 403/429 responses.
 _github_rate_limit_state: dict[str, str] = {}
 GITHUB_API_VERSION = "2026-03-10"
 
