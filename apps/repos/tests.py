@@ -44,6 +44,7 @@ from apps.repos.tags import (
     save_repository_tags,
 )
 from apps.repos.tasks import refresh_repositories_task, refresh_repository_task
+from apps.repos.views import repository_json_value_counts
 
 
 @pytest.fixture(autouse=True)
@@ -1259,6 +1260,39 @@ def test_repository_search_filters_by_topic_and_generated_tag():
     assert list(repository_search_queryset({"topic": "django"})) == [django_repo]
     assert list(repository_search_queryset({"generated_tag": "server runtime"})) == [node_repo]
     assert list(repository_search_queryset({"q": "orm"})) == [django_repo]
+
+
+@pytest.mark.django_db
+def test_repository_json_value_counts_aggregates_server_side():
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        topics=["django", "python", "web"],
+        generated_tags=["web-framework", "orm"],
+    )
+    Repository.objects.create(
+        full_name="django/channels",
+        owner="django",
+        name="channels",
+        url="https://github.com/django/channels",
+        topics=["django", "python", "async"],
+        generated_tags=["web-framework", "websocket"],
+    )
+
+    assert repository_json_value_counts("topics")[:2] == [
+        {"name": "django", "count": 2},
+        {"name": "python", "count": 2},
+    ]
+    assert repository_json_value_counts("generated_tags", limit=1) == [
+        {"name": "web-framework", "count": 2}
+    ]
+
+
+def test_repository_json_value_counts_rejects_unknown_fields():
+    with pytest.raises(ValueError, match="Unsupported repository JSON filter field"):
+        repository_json_value_counts("readme")
 
 
 @pytest.mark.django_db

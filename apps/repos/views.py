@@ -1,6 +1,5 @@
-from collections import Counter
-
 from django.core.paginator import Paginator
+from django.db import connection
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.views.generic import DetailView, ListView
@@ -8,17 +7,32 @@ from django.views.generic import DetailView, ListView
 from apps.repos.models import AwesomeList, Repository
 from apps.repos.services import repository_performance_summary, repository_search_queryset
 
+REPOSITORY_JSON_FILTER_FIELDS = {"topics", "generated_tags"}
 
-def repository_json_value_counts(field_name: str) -> list[dict[str, int | str]]:
-    counts = Counter()
-    for values in Repository.objects.values_list(field_name, flat=True).iterator():
-        if not isinstance(values, list):
-            continue
-        counts.update(value for value in values if value)
-    return [
-        {"name": name, "count": count}
-        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-    ]
+
+def repository_json_value_counts(
+    field_name: str,
+    *,
+    limit: int = 200,
+) -> list[dict[str, int | str]]:
+    if field_name not in REPOSITORY_JSON_FILTER_FIELDS:
+        raise ValueError(f"Unsupported repository JSON filter field: {field_name}")
+
+    table_name = connection.ops.quote_name(Repository._meta.db_table)
+    column_name = connection.ops.quote_name(field_name)
+    query = f"""
+        SELECT item.value AS name, COUNT(*) AS count
+        FROM {table_name} AS repository
+        CROSS JOIN LATERAL jsonb_array_elements_text(repository.{column_name}) AS item(value)
+        WHERE jsonb_typeof(repository.{column_name}) = 'array'
+            AND item.value <> ''
+        GROUP BY item.value
+        ORDER BY count DESC, item.value ASC
+        LIMIT %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(query, [limit])
+        return [{"name": name, "count": count} for name, count in cursor.fetchall()]
 
 
 class RepositorySearchView(ListView):

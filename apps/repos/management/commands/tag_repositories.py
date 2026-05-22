@@ -23,7 +23,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not repository_tagging_configured():
             raise CommandError(
-                "Repository tagging is enabled but no provider API key is configured."
+                "Repository tagging is not configured: ensure REPOSITORY_TAGGING_ENABLED=True "
+                "and the provider API key is set."
             )
 
         queryset = Repository.objects.order_by("full_name")
