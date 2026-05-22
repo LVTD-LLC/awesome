@@ -1,3 +1,5 @@
+from collections import Counter
+
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
@@ -5,6 +7,18 @@ from django.views.generic import DetailView, ListView
 
 from apps.repos.models import AwesomeList, Repository
 from apps.repos.services import repository_performance_summary, repository_search_queryset
+
+
+def repository_json_value_counts(field_name: str) -> list[dict[str, int | str]]:
+    counts = Counter()
+    for values in Repository.objects.values_list(field_name, flat=True).iterator():
+        if not isinstance(values, list):
+            continue
+        counts.update(value for value in values if value)
+    return [
+        {"name": name, "count": count}
+        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
 
 class RepositorySearchView(ListView):
@@ -28,6 +42,8 @@ class RepositorySearchView(ListView):
             .distinct()
             .order_by("language")
         )
+        context["topic_options"] = repository_json_value_counts("topics")
+        context["generated_tag_options"] = repository_json_value_counts("generated_tags")
         context["params"] = self.request.GET.copy()
         context["total_repositories"] = Repository.objects.count()
         context["total_lists"] = AwesomeList.objects.count()
