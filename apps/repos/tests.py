@@ -1653,6 +1653,8 @@ def test_search_page_renders(client):
     response = client.get(reverse("repos:search"), {"q": "framework"})
     assert response.status_code == 200
     assert b"django/django" in response.content
+    assert b"Open filters" in response.content
+    assert b"Repository filters" in response.content
     assert b"Any GitHub topic" in response.content
     assert b"django (1)" in response.content
     assert b"web-framework (1)" in response.content
