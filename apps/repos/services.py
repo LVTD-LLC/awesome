@@ -242,8 +242,15 @@ def _format_delta(value: int | None) -> str:
 
 def repository_performance_summary(repository: Repository, limit: int = 12) -> dict:
     snapshot_qs = repository.snapshots.order_by("-captured_at", "-id")
-    recent_snapshots = list(snapshot_qs[:limit])
-    first_snapshot = repository.snapshots.order_by("captured_at", "id").first()
+    snapshots_with_extra = list(snapshot_qs[: limit + 1])
+    has_more_snapshots = len(snapshots_with_extra) > limit
+    recent_snapshots = snapshots_with_extra[:limit]
+    if has_more_snapshots:
+        snapshot_count = repository.snapshots.count()
+        first_snapshot = repository.snapshots.order_by("captured_at", "id").first()
+    else:
+        snapshot_count = len(recent_snapshots)
+        first_snapshot = recent_snapshots[-1] if recent_snapshots else None
     latest_snapshot = recent_snapshots[0] if recent_snapshots else None
     previous_snapshot = recent_snapshots[1] if len(recent_snapshots) > 1 else None
 
@@ -269,7 +276,7 @@ def repository_performance_summary(repository: Repository, limit: int = 12) -> d
 
     return {
         "has_history": bool(recent_snapshots),
-        "snapshot_count": repository.snapshots.count(),
+        "snapshot_count": snapshot_count,
         "first_snapshot": first_snapshot,
         "latest_snapshot": latest_snapshot,
         "previous_snapshot": previous_snapshot,

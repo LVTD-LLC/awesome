@@ -9,7 +9,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("repos", "0002_schedule_daily_missing_repo_sync"),
+        ("repos", "0003_schedule_monthly_repository_refresh"),
     ]
 
     operations = [
