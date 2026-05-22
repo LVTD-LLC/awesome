@@ -343,6 +343,7 @@ def test_upsert_repository_from_github_stores_readme(monkeypatch):
 
 @pytest.mark.django_db
 def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monkeypatch):
+    previous_readme_synced_at = timezone.now() - timedelta(days=1)
     repo = Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -351,6 +352,7 @@ def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monke
         readme="# Existing README\n",
         readme_path="README.md",
         readme_url="https://raw.githubusercontent.com/django/django/main/README.md",
+        readme_synced_at=previous_readme_synced_at,
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
@@ -374,7 +376,7 @@ def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monke
     assert repo.readme_path == "README.md"
     assert repo.readme_url == ("https://raw.githubusercontent.com/django/django/main/README.md")
     assert repo.readme_last_error == "404 Not Found"
-    assert repo.readme_synced_at == repo.last_synced_at
+    assert repo.readme_synced_at == previous_readme_synced_at
 
 
 @pytest.mark.django_db

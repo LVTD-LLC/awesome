@@ -272,27 +272,16 @@ def _upsert_repository_metadata(data: dict, *, synced_at, readme_data: dict) -> 
     full_name = data["full_name"]
     license_data = data.get("license") or {}
     default_branch = data.get("default_branch") or ""
-    existing_repo = (
-        Repository.objects.filter(full_name=full_name)
-        .only(
-            "readme",
-            "readme_path",
-            "readme_url",
-        )
-        .first()
-    )
     if readme_data["ok"]:
         readme_defaults = {
             "readme": readme_data["readme"],
             "readme_path": readme_data["readme_path"],
             "readme_url": readme_data["readme_url"],
+            "readme_synced_at": synced_at,
             "readme_last_error": "",
         }
     else:
         readme_defaults = {
-            "readme": existing_repo.readme if existing_repo else "",
-            "readme_path": existing_repo.readme_path if existing_repo else "",
-            "readme_url": existing_repo.readme_url if existing_repo else "",
             "readme_last_error": readme_data["readme_last_error"],
         }
 
@@ -320,7 +309,6 @@ def _upsert_repository_metadata(data: dict, *, synced_at, readme_data: dict) -> 
             "github_updated_at": dt(data.get("updated_at")),
             "github_pushed_at": dt(data.get("pushed_at")),
             "last_synced_at": synced_at,
-            "readme_synced_at": synced_at,
             **readme_defaults,
             "raw": data,
         },
