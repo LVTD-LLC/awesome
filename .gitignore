@@ -24,6 +24,9 @@ __pycache__/
 build/
 develop-eggs/
 static/
+!frontend/static/
+!frontend/static/brand/
+!frontend/static/brand/*.svg
 assets/css/main.css
 dist/
 downloads/
