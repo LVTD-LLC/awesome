@@ -16,7 +16,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from pgvector.django import CosineDistance
 
-from apps.repos.embeddings import generate_embedding, sync_repository_embedding
+from apps.repos.embeddings import (
+    generate_embedding,
+    repository_embeddings_configured,
+    sync_repository_embedding,
+)
 from apps.repos.models import (
     REPOSITORY_EMBEDDING_DIMENSIONS,
     AwesomeList,
@@ -232,17 +236,18 @@ def upsert_repository_from_github(full_name: str) -> Repository:
             "raw": data,
         },
     )
-    try:
-        readme_text = fetch_repository_readme(full_name)
-    except Exception as exc:  # noqa: BLE001 - README/embedding should not block metadata sync
-        logger.warning(
-            "repository_readme_fetch_failed",
-            repo_full_name=full_name,
-            error=str(exc),
-            exc_info=True,
-        )
-    else:
-        sync_repository_embedding(repo, readme_text)
+    if repository_embeddings_configured():
+        try:
+            readme_text = fetch_repository_readme(full_name)
+        except Exception as exc:  # noqa: BLE001 - README/embedding should not block metadata sync
+            logger.warning(
+                "repository_readme_fetch_failed",
+                repo_full_name=full_name,
+                error=str(exc),
+                exc_info=True,
+            )
+        else:
+            sync_repository_embedding(repo, readme_text)
 
     return repo
 

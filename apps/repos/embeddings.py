@@ -6,9 +6,7 @@ from typing import Literal
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
-from django.db.models import QuerySet
 from django.utils import timezone
-from pgvector.django import CosineDistance
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -179,22 +177,3 @@ def sync_repository_embedding(
             exc_info=True,
         )
         return None
-
-
-def repository_vector_search_queryset(query: str, limit: int = 30) -> QuerySet[Repository]:
-    query = query.strip()
-    if not query:
-        return Repository.objects.none()
-
-    response = generate_embedding(query, input_type="query")
-    if len(response.vector) != settings.REPOSITORY_EMBEDDING_DIMENSIONS:
-        raise ValueError(
-            "Search query embedding dimensions do not match "
-            f"REPOSITORY_EMBEDDING_DIMENSIONS={settings.REPOSITORY_EMBEDDING_DIMENSIONS}."
-        )
-
-    return (
-        Repository.objects.filter(vector__isnull=False)
-        .annotate(vector_distance=CosineDistance("vector__embedding", response.vector))
-        .order_by("vector_distance", "-stars", "full_name")[:limit]
-    )

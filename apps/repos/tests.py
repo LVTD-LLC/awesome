@@ -406,8 +406,35 @@ def test_fetch_repository_readme_decodes_github_contents_payload(monkeypatch):
     assert fetch_repository_readme("django/django") == readme
 
 
+def github_repo_api_payload():
+    return {
+        "full_name": "django/django",
+        "owner": {"login": "django"},
+        "name": "django",
+        "html_url": "https://github.com/django/django",
+        "description": "The Web framework",
+        "homepage": "https://www.djangoproject.com/",
+        "language": "Python",
+        "license": {"spdx_id": "BSD-3-Clause"},
+        "topics": ["django", "web"],
+        "stargazers_count": 80000,
+        "forks_count": 32000,
+        "open_issues_count": 100,
+        "subscribers_count": 2000,
+        "default_branch": "main",
+        "archived": False,
+        "disabled": False,
+        "fork": False,
+        "created_at": "2005-07-21T00:00:00Z",
+        "updated_at": "2026-05-22T00:00:00Z",
+        "pushed_at": "2026-05-22T00:00:00Z",
+    }
+
+
 @pytest.mark.django_db
-def test_upsert_repository_from_github_syncs_embedding_from_readme(monkeypatch):
+def test_upsert_repository_from_github_syncs_embedding_from_readme(monkeypatch, settings):
+    settings.OPENROUTER_API_KEY = "or-test"
+    settings.REPOSITORY_EMBEDDINGS_ENABLED = True
     captured = {}
 
     def fake_fetch_json(url):
@@ -416,28 +443,7 @@ def test_upsert_repository_from_github_syncs_embedding_from_readme(monkeypatch):
                 "encoding": "base64",
                 "content": base64.b64encode(b"# Django\n").decode("ascii"),
             }
-        return {
-            "full_name": "django/django",
-            "owner": {"login": "django"},
-            "name": "django",
-            "html_url": "https://github.com/django/django",
-            "description": "The Web framework",
-            "homepage": "https://www.djangoproject.com/",
-            "language": "Python",
-            "license": {"spdx_id": "BSD-3-Clause"},
-            "topics": ["django", "web"],
-            "stargazers_count": 80000,
-            "forks_count": 32000,
-            "open_issues_count": 100,
-            "subscribers_count": 2000,
-            "default_branch": "main",
-            "archived": False,
-            "disabled": False,
-            "fork": False,
-            "created_at": "2005-07-21T00:00:00Z",
-            "updated_at": "2026-05-22T00:00:00Z",
-            "pushed_at": "2026-05-22T00:00:00Z",
-        }
+        return github_repo_api_payload()
 
     def fake_sync_repository_embedding(repository, readme_text):
         captured["repo"] = repository.full_name
@@ -458,6 +464,31 @@ def test_upsert_repository_from_github_syncs_embedding_from_readme(monkeypatch):
         "description": "The Web framework",
         "readme_text": "# Django\n",
     }
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_skips_readme_when_embeddings_unconfigured(
+    monkeypatch,
+    settings,
+):
+    settings.OPENROUTER_API_KEY = ""
+    settings.REPOSITORY_EMBEDDINGS_ENABLED = True
+
+    def fail_fetch_repository_readme(full_name):
+        raise AssertionError("README should not be fetched when embeddings are unconfigured")
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_json",
+        lambda url: github_repo_api_payload(),
+    )
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_readme",
+        fail_fetch_repository_readme,
+    )
+
+    repo = upsert_repository_from_github("django/django")
+
+    assert repo.description == "The Web framework"
 
 
 @pytest.mark.django_db
