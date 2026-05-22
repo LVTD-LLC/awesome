@@ -26,8 +26,12 @@
   </div>
 
   <form method="get" class="mb-8 rounded-3xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-    <div class="grid gap-3 md:grid-cols-6">
+    <div class="grid gap-3 md:grid-cols-7">
       <input name="q" value="{{ request.GET.q }}" placeholder="Search name, description, language, topics" class="rounded-xl border border-gray-300 bg-white px-4 py-3 md:col-span-2 dark:border-gray-700 dark:bg-gray-950" />
+      <select name="mode" aria-label="Search mode" class="rounded-xl border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-950">
+        <option value="" {% if request.GET.mode != "semantic" %}selected{% endif %}>Keyword match</option>
+        <option value="semantic" {% if request.GET.mode == "semantic" %}selected{% endif %}>Semantic relevance</option>
+      </select>
       <select name="list" class="rounded-xl border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-950">
         <option value="">Any list</option>
         {% for awesome_list in awesome_lists %}

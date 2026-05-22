@@ -1072,6 +1072,7 @@ def test_repository_search_semantic_mode_orders_by_vector(monkeypatch, settings)
         name="near",
         url="https://github.com/owner/near",
         description="Python web framework",
+        language="Python",
         stars=10,
     )
     far = Repository.objects.create(
@@ -1080,6 +1081,7 @@ def test_repository_search_semantic_mode_orders_by_vector(monkeypatch, settings)
         name="far",
         url="https://github.com/owner/far",
         description="Terminal theme",
+        language="JavaScript",
         stars=100,
     )
     stale_model = Repository.objects.create(
@@ -1133,6 +1135,12 @@ def test_repository_search_semantic_mode_orders_by_vector(monkeypatch, settings)
     qs = repository_search_queryset({"q": "web framework", "mode": "semantic"})
 
     assert list(qs) == [near, far]
+
+    qs = repository_search_queryset(
+        {"q": "web framework", "mode": "semantic", "language": "Python"}
+    )
+
+    assert list(qs) == [near]
 
 
 @pytest.mark.django_db
@@ -1238,6 +1246,15 @@ def test_search_page_renders(client):
     response = client.get(reverse("repos:search"), {"q": "framework"})
     assert response.status_code == 200
     assert b"django/django" in response.content
+
+
+@pytest.mark.django_db
+def test_search_page_exposes_semantic_search_filter(client):
+    response = client.get(reverse("repos:search"), {"q": "framework", "mode": "semantic"})
+
+    assert response.status_code == 200
+    assert b'name="mode"' in response.content
+    assert b'<option value="semantic" selected>Semantic relevance</option>' in response.content
 
 
 @pytest.mark.django_db
