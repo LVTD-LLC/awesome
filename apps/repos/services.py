@@ -513,10 +513,6 @@ def repository_search_queryset(params):
     qs = Repository.objects.annotate(
         awesome_count=Count("awesome_items", distinct=True),
         snapshot_count=Count("snapshots", distinct=True),
-        first_snapshot_at=models.Subquery(
-            first_snapshot.values("captured_at")[:1],
-            output_field=models.DateTimeField(),
-        ),
         first_snapshot_stars=models.Subquery(
             first_snapshot.values("stars")[:1],
             output_field=models.PositiveIntegerField(),
