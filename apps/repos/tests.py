@@ -1238,6 +1238,8 @@ def test_search_page_renders(client):
     response = client.get(reverse("repos:search"), {"q": "framework"})
     assert response.status_code == 200
     assert b"django/django" in response.content
+    assert b"Open filters" in response.content
+    assert b"Repository filters" in response.content
 
 
 @pytest.mark.django_db
