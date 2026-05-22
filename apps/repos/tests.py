@@ -1310,6 +1310,14 @@ def test_repository_search_filters_and_sorts():
         commit_count=40,
         github_pushed_at=timezone.now() - timedelta(days=500),
     )
+    unsynced = Repository.objects.create(
+        full_name="owner/unsynced",
+        owner="owner",
+        name="unsynced",
+        url="https://github.com/owner/unsynced",
+        description="Repo without commit count",
+        stars=75,
+    )
     awesome = AwesomeList.objects.create(
         name="Awesome Django",
         slug="awesome-django",
@@ -1324,7 +1332,7 @@ def test_repository_search_filters_and_sorts():
     assert list(qs) == [old]
 
     qs = repository_search_queryset({"sort": "commits"})
-    assert list(qs) == [old, recent]
+    assert list(qs) == [old, recent, unsynced]
 
 
 @pytest.mark.django_db

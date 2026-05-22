@@ -833,7 +833,7 @@ def repository_search_queryset(params):
         "stars": "-stars",
         "recent": "-github_pushed_at",
         "created": "-github_created_at",
-        "commits": "-commit_count",
+        "commits": models.F("commit_count").desc(nulls_last=True),
         "awesome": "-awesome_count",
         "name": "full_name",
     }
