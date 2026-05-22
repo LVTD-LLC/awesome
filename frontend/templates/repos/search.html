@@ -106,6 +106,15 @@
             {% elif repo.snapshot_count > 1 %}
               <div class="text-sm text-gray-500 dark:text-gray-400">0 tracked</div>
             {% endif %}
+            {% if repo.commits_since_first != None and repo.snapshot_count > 1 %}
+              {% if repo.commits_since_first > 0 %}
+                <div class="text-sm font-semibold text-green-700 dark:text-green-400">+{{ repo.commits_since_first }} commits tracked</div>
+              {% elif repo.commits_since_first < 0 %}
+                <div class="text-sm font-semibold text-red-600 dark:text-red-400">{{ repo.commits_since_first }} commits tracked</div>
+              {% else %}
+                <div class="text-sm text-gray-500 dark:text-gray-400">0 commits tracked</div>
+              {% endif %}
+            {% endif %}
             <a href="{{ repo.url }}" target="_blank" rel="noopener" class="text-sm font-semibold text-green-700 hover:underline">GitHub ↗</a>
           </div>
         </div>

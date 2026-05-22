@@ -1622,6 +1622,37 @@ def test_search_page_renders_negative_tracked_growth(client):
 
 
 @pytest.mark.django_db
+def test_search_page_renders_tracked_commit_growth(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+        language="Python",
+        stars=80,
+        commit_count=90,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=2),
+        stars=70,
+        commit_count=70,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=1),
+        stars=80,
+        commit_count=90,
+    )
+
+    response = client.get(reverse("repos:search"), {"q": "framework"})
+
+    assert response.status_code == 200
+    assert b"+20 commits tracked" in response.content
+
+
+@pytest.mark.django_db
 def test_repository_detail_page_renders_performance_history(client):
     repo = Repository.objects.create(
         full_name="django/django",
@@ -1660,4 +1691,5 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b"Tracked growth" in response.content
     assert b"+25" in response.content
     assert b"Commits since first" in response.content
+    assert b"Commits since last" in response.content
     assert b"+20" in response.content
