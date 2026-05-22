@@ -49,12 +49,6 @@ GITHUB_REPO_RE = re.compile(
 )
 SKIP_REPO_NAMES = {"stargazers", "network", "issues", "pulls", "pull", "wiki", "releases"}
 README_CANDIDATES = ("README.md", "readme.md", "README.markdown", "README.rst")
-GITHUB_ERROR_BODY_PARSE_ERRORS = (
-    AttributeError,
-    TypeError,
-    ValueError,
-    json.JSONDecodeError,
-)
 
 
 class GitHubAPIError(RuntimeError):
@@ -153,7 +147,12 @@ def _github_error_message(url: str, exc: HTTPError) -> str:
     if body:
         try:
             body_message = json.loads(body).get("message", "")
-        except GITHUB_ERROR_BODY_PARSE_ERRORS:
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ):
             body_message = body.strip()
 
     parts = [f"{exc.code} {exc.reason}", url]
