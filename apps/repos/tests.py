@@ -25,10 +25,13 @@ from apps.repos.models import (
     RepositorySnapshot,
 )
 from apps.repos.services import (
+    GitHubAPIError,
     add_repository_to_awesome_list,
+    attach_awesome_list_commit_count,
     detect_ai_development_signals,
     discover_missing_awesome_list_repositories,
     extract_github_repos,
+    fetch_github_commit_count,
     fetch_json,
     fetch_repository_readme,
     fetch_repository_readme_data,
@@ -38,6 +41,7 @@ from apps.repos.services import (
     repository_performance_summary,
     repository_search_queryset,
     sync_awesome_list,
+    update_awesome_list_metadata,
     upsert_repository_from_github,
 )
 from apps.repos.tags import (
@@ -46,8 +50,12 @@ from apps.repos.tags import (
     repository_tagging_model_id,
     save_repository_tags,
 )
-from apps.repos.tasks import refresh_repositories_task, refresh_repository_task
-from apps.repos.views import repository_json_value_counts
+from apps.repos.tasks import (
+    daily_repository_refresh_limit,
+    refresh_repositories_task,
+    refresh_repository_task,
+)
+from apps.repos.views import awesome_list_directory_totals, repository_json_value_counts
 
 
 @pytest.fixture(autouse=True)
@@ -116,6 +124,117 @@ def test_sync_awesome_list_marks_empty_scan_as_error(monkeypatch):
     assert result["discovered"] == 0
     assert result["synced"] == 0
     assert awesome_list.last_error == "No GitHub repository links found in README."
+
+
+def github_awesome_list_payload(
+    full_name="wsvincent/awesome-django",
+    stars=1200,
+    forks=100,
+    watchers=25,
+    commits_count=350,
+):
+    owner, name = full_name.split("/", 1)
+    return {
+        "full_name": full_name,
+        "owner": {"login": owner},
+        "name": name,
+        "html_url": f"https://github.com/{full_name}",
+        "description": "Curated Django resources.",
+        "topics": ["django", "awesome-list"],
+        "stargazers_count": stars,
+        "forks_count": forks,
+        "open_issues_count": 7,
+        "subscribers_count": watchers,
+        "watchers_count": watchers,
+        "default_branch": "main",
+        "archived": False,
+        "disabled": False,
+        "created_at": "2015-01-01T00:00:00Z",
+        "updated_at": "2026-05-20T00:00:00Z",
+        "pushed_at": "2026-05-21T00:00:00Z",
+        "commits_count": commits_count,
+    }
+
+
+@pytest.mark.django_db
+def test_sync_awesome_list_stores_list_activity_metadata(monkeypatch):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+    markdown = """
+    - [Django](https://github.com/django/django)
+    - [Channels](https://github.com/django/channels)
+    """
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_awesome_readme",
+        lambda full_name: (markdown, github_awesome_list_payload(full_name)),
+    )
+    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", lambda *args: 350)
+
+    def fake_upsert(full_name):
+        owner, name = full_name.split("/", 1)
+        return Repository.objects.create(
+            full_name=full_name,
+            owner=owner,
+            name=name,
+            url=f"https://github.com/{full_name}",
+            stars=10,
+        )
+
+    monkeypatch.setattr("apps.repos.services.upsert_repository_from_github", fake_upsert)
+
+    result = sync_awesome_list(awesome_list, limit=1)
+    awesome_list.refresh_from_db()
+
+    assert result["discovered"] == 1
+    assert result["synced"] == 1
+    assert awesome_list.description == "Curated Django resources."
+    assert awesome_list.topics == ["django", "awesome-list"]
+    assert awesome_list.stars == 1200
+    assert awesome_list.forks == 100
+    assert awesome_list.watchers == 25
+    assert awesome_list.open_issues == 7
+    assert awesome_list.commits_count == 350
+    assert awesome_list.readme_repository_count == 2
+    assert awesome_list.default_branch == "main"
+    assert awesome_list.github_pushed_at is not None
+    assert awesome_list.last_error == ""
+    assert "commits_count" not in awesome_list.raw
+    assert awesome_list.items.count() == 1
+
+
+@pytest.mark.django_db
+def test_update_awesome_list_metadata_preserves_missing_commit_count():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        commits_count=350,
+    )
+    awesome_list.commits_count = None
+
+    update_awesome_list_metadata(
+        awesome_list,
+        {
+            "full_name": "wsvincent/awesome-django",
+            "description": "Curated Django resources.",
+            "stargazers_count": 1200,
+            "forks_count": 100,
+            "open_issues_count": 7,
+            "default_branch": "main",
+        },
+        repo_full_name="wsvincent/awesome-django",
+        readme_repository_count=42,
+        scanned_at=timezone.now(),
+    )
+
+    awesome_list.refresh_from_db()
+    assert awesome_list.commits_count == 350
+    assert awesome_list.readme_repository_count == 42
 
 
 @pytest.mark.django_db
@@ -377,6 +496,72 @@ def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch)
         fetch_repository_tree_items("django/django", "main")
 
 
+def test_fetch_github_commit_count_uses_last_link_page(monkeypatch):
+    captured = {}
+
+    class DummyResponse:
+        headers = {
+            "Link": (
+                "<https://api.github.com/repositories/1/commits?sha=main&per_page=1&page=2>;"
+                ' rel="next", '
+                "<https://api.github.com/repositories/1/commits?sha=main&per_page=1&page=456>;"
+                ' rel="last"'
+            )
+        }
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'[{"sha": "abc"}]'
+
+    def fake_urlopen(request, timeout=30):
+        captured["url"] = request.full_url
+        return DummyResponse()
+
+    monkeypatch.setattr("apps.repos.services.urlopen", fake_urlopen)
+
+    assert fetch_github_commit_count("owner/repo", "main") == 456
+    assert captured["url"].startswith("https://api.github.com/repos/owner/repo/commits?")
+    assert "per_page=1" in captured["url"]
+
+
+def test_fetch_github_commit_count_requires_default_branch():
+    with pytest.raises(ValueError, match="default branch"):
+        fetch_github_commit_count("owner/repo", "")
+
+
+def test_attach_awesome_list_commit_count_is_explicit_about_commit_fetch(monkeypatch):
+    calls = []
+
+    def fake_fetch_commit_count(full_name, default_branch):
+        calls.append((full_name, default_branch))
+        return 456
+
+    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", fake_fetch_commit_count)
+    meta = {"default_branch": "trunk"}
+
+    attach_awesome_list_commit_count("owner/repo", meta)
+
+    assert calls == [("owner/repo", "trunk")]
+    assert meta["commits_count"] == 456
+
+
+def test_attach_awesome_list_commit_count_skips_missing_default_branch(monkeypatch):
+    def fail_fetch_commit_count(full_name, default_branch):
+        raise AssertionError("commit count should not be fetched without a default branch")
+
+    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", fail_fetch_commit_count)
+    meta = {}
+
+    attach_awesome_list_commit_count("owner/repo", meta)
+
+    assert "commits_count" not in meta
+
+
 @pytest.mark.django_db
 def test_upsert_repository_from_github_stores_readme(monkeypatch):
     readme = "# Django\nThe Web framework.\n"
@@ -522,6 +707,45 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_fetch_fail
 
 
 @pytest.mark.django_db
+def test_upsert_repository_from_github_can_refresh_metadata_without_readme(monkeypatch):
+    previous_readme_synced_at = timezone.now() - timedelta(days=1)
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        readme="# Existing README\n",
+        readme_path="README.md",
+        readme_url="https://raw.githubusercontent.com/django/django/main/README.md",
+        readme_synced_at=previous_readme_synced_at,
+        readme_last_error="old README error",
+        stars=10,
+    )
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_json",
+        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+    )
+
+    def fail_readme_fetch(full_name):
+        raise AssertionError(f"should not fetch README for {full_name}")
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_readme_data",
+        fail_readme_fetch,
+    )
+
+    repo = upsert_repository_from_github(repo.full_name, include_readme=False)
+
+    assert repo.stars == 15
+    assert repo.readme == "# Existing README\n"
+    assert repo.readme_path == "README.md"
+    assert repo.readme_url == "https://raw.githubusercontent.com/django/django/main/README.md"
+    assert repo.readme_last_error == "old README error"
+    assert repo.readme_synced_at == previous_readme_synced_at
+    assert RepositorySnapshot.objects.filter(repository=repo).count() == 1
+
+
+@pytest.mark.django_db
 def test_upsert_repository_from_github_preserves_ai_signals_when_tree_is_truncated(
     monkeypatch,
 ):
@@ -566,7 +790,11 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_is_truncat
 
 
 @pytest.mark.django_db
-def test_enqueue_awesome_list_missing_repo_syncs_task_queues_active_lists(monkeypatch):
+def test_enqueue_awesome_list_missing_repo_syncs_task_queues_daily_budget(
+    monkeypatch,
+    settings,
+):
+    settings.GITHUB_DAILY_DISCOVERY_REPOSITORY_LIMIT = 1
     active = AwesomeList.objects.create(
         name="Awesome Django",
         slug="awesome-django",
@@ -590,13 +818,18 @@ def test_enqueue_awesome_list_missing_repo_syncs_task_queues_active_lists(monkey
 
     result = enqueue_awesome_list_missing_repo_syncs_task(limit_per_list=5)
 
-    assert result == {"queued": 1, "task_ids": ["task-1"]}
+    assert result == {
+        "queued": 1,
+        "task_ids": ["task-1"],
+        "daily_limit": 1,
+    }
     assert queued == [
         (
             "apps.repos.tasks.enqueue_missing_repositories_for_awesome_list_task",
             (active.id,),
             {
                 "limit": 5,
+                "daily_limit": 1,
                 "group": "Daily awesome-list missing repo discovery",
             },
         )
@@ -631,6 +864,10 @@ def test_enqueue_missing_repositories_for_awesome_list_task_queues_missing_repos
         "apps.repos.tasks.discover_missing_awesome_list_repositories",
         fake_discover,
     )
+    monkeypatch.setattr(
+        "apps.repos.tasks._try_reserve_daily_missing_repository_slot",
+        lambda daily_limit: True,
+    )
     monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
 
     from apps.repos.tasks import enqueue_missing_repositories_for_awesome_list_task
@@ -639,6 +876,8 @@ def test_enqueue_missing_repositories_for_awesome_list_task_queues_missing_repos
 
     assert result["queued"] == 2
     assert result["task_ids"] == ["task-1", "task-2"]
+    assert result["daily_limit"] == 250
+    assert result["budget_exhausted"] is False
     assert queued == [
         (
             "apps.repos.tasks.add_missing_repository_to_awesome_list_task",
@@ -689,6 +928,10 @@ def test_enqueue_missing_repositories_for_awesome_list_task_truncates_logged_ids
         "apps.repos.tasks.discover_missing_awesome_list_repositories",
         fake_discover,
     )
+    monkeypatch.setattr(
+        "apps.repos.tasks._try_reserve_daily_missing_repository_slot",
+        lambda daily_limit: True,
+    )
     monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
     monkeypatch.setattr("apps.repos.tasks.logger", FakeLogger())
 
@@ -707,6 +950,60 @@ def test_enqueue_missing_repositories_for_awesome_list_task_truncates_logged_ids
     assert finished_event["result"]["queued"] == 30
     assert len(finished_event["result"]["task_ids"]) == 25
     assert len(finished_event["result"]["missing"]) == 25
+
+
+@pytest.mark.django_db
+def test_enqueue_missing_repositories_for_awesome_list_task_stops_at_daily_budget(
+    monkeypatch,
+):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Python",
+        slug="awesome-python-budget",
+        source_url="https://github.com/vinta/awesome-python",
+    )
+    queued = []
+    budget_results = iter([True, False])
+
+    monkeypatch.setattr(
+        "apps.repos.tasks.discover_missing_awesome_list_repositories",
+        lambda awesome_list, limit=None: {
+            "awesome_list": awesome_list.slug,
+            "discovered": 2,
+            "missing": ["django/django", "encode/httpx"],
+            "missing_count": 2,
+            "linked_existing": 0,
+            "skipped_existing": 0,
+        },
+    )
+    monkeypatch.setattr(
+        "apps.repos.tasks._try_reserve_daily_missing_repository_slot",
+        lambda daily_limit: next(budget_results),
+    )
+
+    def fake_async_task(func_path, *args, **kwargs):
+        queued.append((func_path, args, kwargs))
+        return f"task-{len(queued)}"
+
+    monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
+
+    from apps.repos.tasks import enqueue_missing_repositories_for_awesome_list_task
+
+    result = enqueue_missing_repositories_for_awesome_list_task(
+        awesome_list.id,
+        daily_limit=1,
+    )
+
+    assert result["queued"] == 1
+    assert result["task_ids"] == ["task-1"]
+    assert result["daily_limit"] == 1
+    assert result["budget_exhausted"] is True
+    assert queued == [
+        (
+            "apps.repos.tasks.add_missing_repository_to_awesome_list_task",
+            (awesome_list.id, "django/django"),
+            {"group": "Add missing awesome-list repos"},
+        )
+    ]
 
 
 @pytest.mark.django_db
@@ -1214,7 +1511,8 @@ def test_refresh_repository_task_updates_single_repository(monkeypatch):
     )
     refreshed = []
 
-    def fake_upsert_repository_from_github(full_name):
+    def fake_upsert_repository_from_github(full_name, *, include_readme=True):
+        assert include_readme is True
         refreshed.append(full_name)
         return repository
 
@@ -1287,7 +1585,7 @@ def test_refresh_repository_task_logs_and_reraises_failures(monkeypatch):
 
     dummy_logger = DummyLogger()
 
-    def fake_upsert_repository_from_github(full_name):
+    def fake_upsert_repository_from_github(full_name, *, include_readme=True):
         raise RuntimeError(f"could not refresh {full_name}")
 
     monkeypatch.setattr("apps.repos.tasks.logger", dummy_logger)
@@ -1312,8 +1610,18 @@ def test_refresh_repository_task_logs_and_reraises_failures(monkeypatch):
     ]
 
 
+def test_daily_repository_refresh_limit_uses_target_days_and_cap(settings):
+    settings.GITHUB_REPOSITORY_REFRESH_TARGET_DAYS = 14
+    settings.GITHUB_DAILY_REPOSITORY_REFRESH_LIMIT = 1000
+
+    assert daily_repository_refresh_limit(0) == 0
+    assert daily_repository_refresh_limit(10) == 1
+    assert daily_repository_refresh_limit(10_000) == 715
+    assert daily_repository_refresh_limit(30_000) == 1000
+
+
 @pytest.mark.django_db
-def test_refresh_repositories_task_queues_one_task_per_repository(monkeypatch):
+def test_refresh_repositories_task_refreshes_oldest_metadata_only(monkeypatch):
     stale = Repository.objects.create(
         full_name="owner/stale",
         owner="owner",
@@ -1321,7 +1629,7 @@ def test_refresh_repositories_task_queues_one_task_per_repository(monkeypatch):
         url="https://github.com/owner/stale",
         last_synced_at=timezone.now() - timedelta(days=7),
     )
-    fresh = Repository.objects.create(
+    Repository.objects.create(
         full_name="owner/fresh",
         owner="owner",
         name="fresh",
@@ -1336,40 +1644,82 @@ def test_refresh_repositories_task_queues_one_task_per_repository(monkeypatch):
         return task_id
 
     monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
+    monkeypatch.setattr("apps.repos.tasks.github_rate_limit_remaining", lambda: None)
+    monkeypatch.setattr("apps.repos.tasks.github_rate_limit_status", lambda: {"ok": False})
 
-    result = refresh_repositories_task()
+    result = refresh_repositories_task(limit=1)
 
     assert queued == [
         (
             "apps.repos.tasks.refresh_repository_task",
             stale.id,
             "owner/stale",
-            {"group": "Refresh repositories"},
+            {"include_readme": False, "group": "Refresh repositories"},
             f"task-{stale.id}",
-        ),
-        (
-            "apps.repos.tasks.refresh_repository_task",
-            fresh.id,
-            "owner/fresh",
-            {"group": "Refresh repositories"},
-            f"task-{fresh.id}",
-        ),
+        )
     ]
     assert result == {
-        "queued": 2,
+        "queued": 1,
+        "limit": 1,
+        "total_repositories": 2,
+        "include_readme": False,
+        "rate_limit_remaining": None,
         "repositories": [
             {
                 "repository_id": stale.id,
                 "full_name": "owner/stale",
                 "task_id": f"task-{stale.id}",
             },
-            {
-                "repository_id": fresh.id,
-                "full_name": "owner/fresh",
-                "task_id": f"task-{fresh.id}",
-            },
         ],
     }
+
+
+@pytest.mark.django_db
+def test_refresh_repositories_task_stops_before_reserved_rate_limit(monkeypatch, settings):
+    settings.GITHUB_REPOSITORY_REFRESH_MIN_RATE_LIMIT_REMAINING = 1000
+    Repository.objects.create(
+        full_name="owner/stale",
+        owner="owner",
+        name="stale",
+        url="https://github.com/owner/stale",
+    )
+
+    def fail_async_task(*args, **kwargs):
+        raise AssertionError("should not queue repository refresh")
+
+    monkeypatch.setattr("apps.repos.tasks.async_task", fail_async_task)
+    monkeypatch.setattr("apps.repos.tasks.github_rate_limit_remaining", lambda: 999)
+
+    result = refresh_repositories_task(limit=1)
+
+    assert result["queued"] == 0
+    assert result["limit"] == 0
+    assert result["rate_limit_remaining"] == 999
+
+
+@pytest.mark.django_db
+def test_refresh_repository_task_stops_on_rate_limit_error(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="owner/stale",
+        owner="owner",
+        name="stale",
+        url="https://github.com/owner/stale",
+    )
+
+    def fail_upsert(full_name, *, include_readme=True):
+        raise GitHubAPIError(
+            "403 Forbidden | rate_limit_remaining=0",
+            status_code=403,
+            rate_limit_remaining="0",
+        )
+
+    monkeypatch.setattr("apps.repos.tasks.upsert_repository_from_github", fail_upsert)
+
+    result = refresh_repository_task(repository.id, repository.full_name)
+
+    assert result["stopped_for_rate_limit"] is True
+    assert result["repository_id"] == repository.id
+    assert result["full_name"] == "owner/stale"
 
 
 @pytest.mark.django_db
@@ -1479,6 +1829,52 @@ def test_repository_json_value_counts_aggregates_server_side():
 def test_repository_json_value_counts_rejects_unknown_fields():
     with pytest.raises(ValueError, match="Unsupported repository JSON filter field"):
         repository_json_value_counts("readme")
+
+
+@pytest.mark.django_db
+def test_awesome_list_directory_totals_aggregates_in_one_query():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        stars=1200,
+        readme_repository_count=42,
+        last_scanned_at=timezone.now(),
+    )
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=80000,
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    inactive_list = AwesomeList.objects.create(
+        name="Inactive List",
+        slug="inactive-list",
+        source_url="https://github.com/example/inactive-list",
+        stars=9999,
+        readme_repository_count=500,
+        is_active=False,
+    )
+    inactive_repo = Repository.objects.create(
+        full_name="example/inactive",
+        owner="example",
+        name="inactive",
+        url="https://github.com/example/inactive",
+        stars=1,
+    )
+    AwesomeListItem.objects.create(awesome_list=inactive_list, repository=inactive_repo)
+
+    with CaptureQueriesContext(connection) as queries:
+        totals = awesome_list_directory_totals()
+
+    assert len(queries) == 1
+    assert totals["total_lists"] == 1
+    assert totals["total_readme_repositories"] == 42
+    assert totals["total_list_stars"] == 1200
+    assert totals["total_indexed_links"] == 1
+    assert totals["latest_scan"] is not None
 
 
 @pytest.mark.django_db
@@ -1654,6 +2050,17 @@ def test_repository_performance_summary_reuses_recent_snapshots_for_short_histor
 
 @pytest.mark.django_db
 def test_search_page_renders(client):
+    active_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeList.objects.create(
+        name="Inactive List",
+        slug="inactive-list",
+        source_url="https://github.com/example/inactive-list",
+        is_active=False,
+    )
     Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -1668,9 +2075,14 @@ def test_search_page_renders(client):
     response = client.get(reverse("repos:search"), {"q": "framework"})
     assert response.status_code == 200
     assert b"django/django" in response.content
+    assert b"Open filters" in response.content
+    assert b"Repository filters" in response.content
     assert b"Any GitHub topic" in response.content
     assert b"django (1)" in response.content
     assert b"web-framework (1)" in response.content
+    assert response.context["total_lists"] == 1
+    assert list(response.context["awesome_lists"].values_list("id", flat=True)) == [active_list.id]
+    assert b"Inactive List" not in response.content
 
 
 @pytest.mark.django_db
@@ -1685,7 +2097,7 @@ def test_search_page_exposes_semantic_search_filter(client):
 
     sort_select = re.search(r'<select\b[^>]*\bname="sort"[^>]*>', content)
     assert sort_select is not None
-    assert 'x-bind:disabled="searchMode === \'semantic\'"' in sort_select.group(0)
+    assert "x-bind:disabled=\"searchMode === 'semantic'\"" in sort_select.group(0)
     assert re.search(r"\sdisabled(?=[\s>])", sort_select.group(0))
 
 
@@ -1716,6 +2128,109 @@ def test_search_page_renders_negative_tracked_growth(client):
     assert response.status_code == 200
     assert b"-20 tracked" in response.content
     assert b">0 tracked<" not in response.content
+
+
+@pytest.mark.django_db
+def test_awesome_list_list_page_renders_activity_metrics(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        description="Curated Django resources.",
+        topics=["django", "awesome-list"],
+        stars=1200,
+        forks=100,
+        open_issues=7,
+        commits_count=350,
+        readme_repository_count=42,
+        github_pushed_at=timezone.now(),
+        last_scanned_at=timezone.now(),
+    )
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+        stars=80000,
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    AwesomeList.objects.create(
+        name="Inactive List",
+        slug="inactive-list",
+        source_url="https://github.com/example/inactive-list",
+        is_active=False,
+        stars=9999,
+        readme_repository_count=500,
+    )
+
+    response = client.get(reverse("repos:list"))
+
+    assert response.status_code == 200
+    assert b"Awesome Django" in response.content
+    assert b"Inactive List" not in response.content
+    assert b"wsvincent/awesome-django" in response.content
+    assert b"README repos" in response.content
+    assert b"42" in response.content
+    assert b"350" in response.content
+    assert b"django" in response.content
+
+
+@pytest.mark.django_db
+def test_awesome_list_detail_page_renders_activity_metrics(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        description="Curated Django resources.",
+        topics=["django"],
+        stars=1200,
+        forks=100,
+        open_issues=7,
+        watchers=25,
+        commits_count=350,
+        readme_repository_count=42,
+        default_branch="main",
+        github_pushed_at=timezone.now(),
+        last_scanned_at=timezone.now(),
+    )
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+        language="Python",
+        stars=80000,
+        forks=32000,
+        github_pushed_at=timezone.now(),
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+
+    response = client.get(reverse("repos:list_detail", kwargs={"slug": "awesome-django"}))
+
+    assert response.status_code == 200
+    assert b"Awesome Django" in response.content
+    assert b"README repos" in response.content
+    assert b"Commits" in response.content
+    assert b"django/django" in response.content
+    assert b"Python" in response.content
+
+
+@pytest.mark.django_db
+def test_awesome_list_detail_page_hides_inactive_lists(client):
+    AwesomeList.objects.create(
+        name="Inactive List",
+        slug="inactive-list",
+        source_url="https://github.com/example/inactive-list",
+        is_active=False,
+    )
+
+    response = client.get(reverse("repos:list_detail", kwargs={"slug": "inactive-list"}))
+
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
