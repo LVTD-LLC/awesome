@@ -7,7 +7,7 @@ import os
 import re
 from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -98,6 +98,33 @@ def fetch_text(url: str) -> str:
         raise RuntimeError(_github_error_message(url, exc)) from exc
 
 
+def _last_page_from_link_header(link_header: str) -> int | None:
+    for link in link_header.split(","):
+        if 'rel="last"' not in link:
+            continue
+        match = re.search(r"[?&]page=(\d+)", link)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def fetch_github_commit_count(full_name: str, default_branch: str = "") -> int:
+    query = urlencode({"sha": default_branch or "main", "per_page": 1})
+    url = f"https://api.github.com/repos/{full_name}/commits?{query}"
+    request = Request(url, headers=github_headers())
+    try:
+        with urlopen(request, timeout=30) as response:
+            commits = json.loads(response.read().decode("utf-8"))
+            link_header = response.headers.get("Link", "")
+    except HTTPError as exc:
+        raise RuntimeError(_github_error_message(url, exc)) from exc
+
+    last_page = _last_page_from_link_header(link_header)
+    if last_page is not None:
+        return last_page
+    return len(commits) if isinstance(commits, list) else 0
+
+
 def github_rate_limit_status() -> dict:
     token_configured = bool(github_token())
     status = {
@@ -178,7 +205,17 @@ def fetch_awesome_readme(full_name: str) -> tuple[str, dict]:
     last_error = None
     for _filename, url in readme_candidate_urls(full_name, branch):
         try:
-            return fetch_text(url), repo_meta
+            readme = fetch_text(url)
+            try:
+                repo_meta["commits_count"] = fetch_github_commit_count(full_name, branch)
+            except Exception as exc:  # noqa: BLE001 - commit count is useful but optional
+                logger.warning(
+                    "awesome_list_commit_count_fetch_failed",
+                    repo_full_name=full_name,
+                    error=str(exc),
+                    exc_info=True,
+                )
+            return readme, repo_meta
         except (RuntimeError, URLError, TimeoutError) as exc:
             last_error = exc
     raise RuntimeError(f"Could not fetch README for {full_name}: {last_error}")
@@ -241,6 +278,59 @@ def dt(value: str | None):
     if parsed and timezone.is_naive(parsed):
         return timezone.make_aware(parsed)
     return parsed
+
+
+def update_awesome_list_metadata(
+    awesome_list: AwesomeList,
+    meta: dict,
+    *,
+    repo_full_name: str,
+    readme_repository_count: int,
+    scanned_at,
+    last_error: str = "",
+) -> None:
+    awesome_list.repo_full_name = meta.get("full_name", repo_full_name)
+    awesome_list.description = meta.get("description") or awesome_list.description
+    awesome_list.topics = meta.get("topics") or []
+    awesome_list.stars = meta.get("stargazers_count") or 0
+    awesome_list.forks = meta.get("forks_count") or 0
+    awesome_list.open_issues = meta.get("open_issues_count") or 0
+    awesome_list.watchers = meta.get("subscribers_count") or meta.get("watchers_count") or 0
+    if meta.get("commits_count") is not None:
+        awesome_list.commits_count = meta["commits_count"]
+    awesome_list.readme_repository_count = readme_repository_count
+    awesome_list.default_branch = meta.get("default_branch") or ""
+    awesome_list.is_archived = bool(meta.get("archived"))
+    awesome_list.is_disabled = bool(meta.get("disabled"))
+    awesome_list.github_created_at = dt(meta.get("created_at"))
+    awesome_list.github_updated_at = dt(meta.get("updated_at"))
+    awesome_list.github_pushed_at = dt(meta.get("pushed_at"))
+    awesome_list.last_scanned_at = scanned_at
+    awesome_list.last_error = last_error
+    awesome_list.raw = meta
+    awesome_list.save(
+        update_fields=[
+            "repo_full_name",
+            "description",
+            "topics",
+            "stars",
+            "forks",
+            "open_issues",
+            "watchers",
+            "commits_count",
+            "readme_repository_count",
+            "default_branch",
+            "is_archived",
+            "is_disabled",
+            "github_created_at",
+            "github_updated_at",
+            "github_pushed_at",
+            "last_scanned_at",
+            "last_error",
+            "raw",
+            "updated_at",
+        ]
+    )
 
 
 def record_repository_snapshot(
@@ -426,14 +516,21 @@ def sync_awesome_list(awesome_list: AwesomeList, limit: int | None = None) -> di
         limit=limit,
     )
     markdown, meta = fetch_awesome_readme(full_name)
-    repo_names = extract_github_repos(markdown)
+    discovered_repo_names = extract_github_repos(markdown)
+    scanned_at = timezone.now()
+    repo_names = discovered_repo_names
     if limit:
         repo_names = repo_names[:limit]
 
     if not repo_names:
-        awesome_list.last_scanned_at = timezone.now()
-        awesome_list.last_error = "No GitHub repository links found in README."
-        awesome_list.save(update_fields=["last_scanned_at", "last_error", "updated_at"])
+        update_awesome_list_metadata(
+            awesome_list,
+            meta,
+            repo_full_name=full_name,
+            readme_repository_count=len(discovered_repo_names),
+            scanned_at=scanned_at,
+            last_error="No GitHub repository links found in README.",
+        )
         logger.warning(
             "awesome_list_scan_found_no_repos",
             awesome_list_id=awesome_list.id,
@@ -449,18 +546,13 @@ def sync_awesome_list(awesome_list: AwesomeList, limit: int | None = None) -> di
             "failure_count": 0,
         }
 
-    awesome_list.repo_full_name = meta.get("full_name", full_name)
-    awesome_list.description = meta.get("description") or awesome_list.description
-    awesome_list.last_scanned_at = timezone.now()
-    awesome_list.last_error = ""
-    awesome_list.save(
-        update_fields=[
-            "repo_full_name",
-            "description",
-            "last_scanned_at",
-            "last_error",
-            "updated_at",
-        ]
+    update_awesome_list_metadata(
+        awesome_list,
+        meta,
+        repo_full_name=full_name,
+        readme_repository_count=len(discovered_repo_names),
+        scanned_at=scanned_at,
+        last_error="",
     )
 
     created_links = 0
@@ -515,14 +607,21 @@ def discover_missing_awesome_list_repositories(
         limit=limit,
     )
     markdown, meta = fetch_awesome_readme(full_name)
-    repo_names = extract_github_repos(markdown)
+    discovered_repo_names = extract_github_repos(markdown)
+    scanned_at = timezone.now()
+    repo_names = discovered_repo_names
     if limit:
         repo_names = repo_names[:limit]
 
     if not repo_names:
-        awesome_list.last_scanned_at = timezone.now()
-        awesome_list.last_error = "No GitHub repository links found in README."
-        awesome_list.save(update_fields=["last_scanned_at", "last_error", "updated_at"])
+        update_awesome_list_metadata(
+            awesome_list,
+            meta,
+            repo_full_name=full_name,
+            readme_repository_count=len(discovered_repo_names),
+            scanned_at=scanned_at,
+            last_error="No GitHub repository links found in README.",
+        )
         logger.warning(
             "awesome_list_missing_repo_discovery_found_no_repos",
             awesome_list_id=awesome_list.id,
@@ -538,18 +637,13 @@ def discover_missing_awesome_list_repositories(
             "skipped_existing": 0,
         }
 
-    awesome_list.repo_full_name = meta.get("full_name", full_name)
-    awesome_list.description = meta.get("description") or awesome_list.description
-    awesome_list.last_scanned_at = timezone.now()
-    awesome_list.last_error = ""
-    awesome_list.save(
-        update_fields=[
-            "repo_full_name",
-            "description",
-            "last_scanned_at",
-            "last_error",
-            "updated_at",
-        ]
+    update_awesome_list_metadata(
+        awesome_list,
+        meta,
+        repo_full_name=full_name,
+        readme_repository_count=len(discovered_repo_names),
+        scanned_at=scanned_at,
+        last_error="",
     )
 
     existing_repositories = {

@@ -1,10 +1,10 @@
 from django.core.paginator import Paginator
 from django.db import connection
-from django.db.models import Count
+from django.db.models import Count, F, Max, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.views.generic import DetailView, ListView
 
-from apps.repos.models import AwesomeList, Repository
+from apps.repos.models import AwesomeList, AwesomeListItem, Repository
 from apps.repos.services import repository_performance_summary, repository_search_queryset
 
 REPOSITORY_JSON_FILTER_FIELDS = {"topics", "generated_tags"}
@@ -64,6 +64,54 @@ class RepositorySearchView(ListView):
         return context
 
 
+class AwesomeListListView(ListView):
+    model = AwesomeList
+    template_name = "repos/lists.html"
+    context_object_name = "awesome_lists"
+    paginate_by = 30
+
+    def get_queryset(self):
+        qs = AwesomeList.objects.annotate(indexed_repo_count=Count("items", distinct=True))
+        q = (self.request.GET.get("q") or "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(description__icontains=q)
+                | Q(repo_full_name__icontains=q)
+                | Q(topics__icontains=q)
+            )
+
+        sort = self.request.GET.get("sort") or "stars"
+        sort_map = {
+            "stars": "-stars",
+            "repos": "-readme_repository_count",
+            "indexed": "-indexed_repo_count",
+            "commits": F("commits_count").desc(nulls_last=True),
+            "recent": F("github_pushed_at").desc(nulls_last=True),
+            "scanned": F("last_scanned_at").desc(nulls_last=True),
+            "name": "name",
+        }
+        return qs.order_by(sort_map.get(sort, "-stars"), "name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET.copy()
+        params.pop("page", None)
+        totals = AwesomeList.objects.aggregate(
+            readme_repository_count=Sum("readme_repository_count"),
+            stars=Sum("stars"),
+            latest_scan=Max("last_scanned_at"),
+        )
+        context["params"] = params
+        context["querystring"] = params.urlencode()
+        context["total_lists"] = AwesomeList.objects.count()
+        context["total_indexed_links"] = AwesomeListItem.objects.count()
+        context["total_readme_repositories"] = totals["readme_repository_count"] or 0
+        context["total_list_stars"] = totals["stars"] or 0
+        context["latest_scan"] = totals["latest_scan"]
+        return context
+
+
 class RepositoryDetailView(DetailView):
     model = Repository
     template_name = "repos/detail.html"
@@ -85,10 +133,27 @@ class AwesomeListDetailView(DetailView):
     template_name = "repos/list_detail.html"
     context_object_name = "awesome_list"
 
+    def get_queryset(self):
+        return AwesomeList.objects.annotate(indexed_repo_count=Count("items", distinct=True))
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         repos = Repository.objects.filter(awesome_items__awesome_list=self.object).order_by(
-            "-stars"
+            "-stars",
+            "full_name",
+        )
+        context["repo_stats"] = repos.aggregate(
+            total_stars=Sum("stars"),
+            total_forks=Sum("forks"),
+            active_count=Count("id", filter=Q(is_archived=False)),
+            archived_count=Count("id", filter=Q(is_archived=True)),
+            latest_repo_push=Max("github_pushed_at"),
+        )
+        context["language_counts"] = (
+            repos.exclude(language="")
+            .values("language")
+            .annotate(count=Count("id"))
+            .order_by("-count", "language")[:12]
         )
         context["page_obj"] = Paginator(repos, 50).get_page(self.request.GET.get("page"))
         return context
