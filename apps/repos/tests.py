@@ -7,6 +7,8 @@ from django.utils import timezone
 from apps.repos.forms import AwesomeListCreateForm
 from apps.repos.models import AwesomeList, AwesomeListItem, Repository
 from apps.repos.services import (
+    add_repository_to_awesome_list,
+    discover_missing_awesome_list_repositories,
     extract_github_repos,
     fetch_json,
     github_rate_limit_status,
@@ -48,9 +50,7 @@ def test_awesome_list_form_derives_name_and_unique_slug_from_url():
         source_url="https://github.com/old/awesome-django",
     )
 
-    form = AwesomeListCreateForm(
-        data={"source_url": "https://github.com/wsvincent/awesome-django"}
-    )
+    form = AwesomeListCreateForm(data={"source_url": "https://github.com/wsvincent/awesome-django"})
 
     assert form.is_valid()
     awesome_list = form.save()
@@ -79,6 +79,170 @@ def test_sync_awesome_list_marks_empty_scan_as_error(monkeypatch):
     assert result["discovered"] == 0
     assert result["synced"] == 0
     assert awesome_list.last_error == "No GitHub repository links found in README."
+
+
+@pytest.mark.django_db
+def test_discover_missing_awesome_list_repositories_skips_existing_repos(monkeypatch):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Python",
+        slug="awesome-python",
+        source_url="https://github.com/vinta/awesome-python",
+        repo_full_name="vinta/awesome-python",
+    )
+    existing_unlinked = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=100,
+    )
+    existing_linked = Repository.objects.create(
+        full_name="pallets/flask",
+        owner="pallets",
+        name="flask",
+        url="https://github.com/pallets/flask",
+        stars=50,
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=existing_linked)
+
+    markdown = """
+    - [Django](https://github.com/django/django)
+    - [Flask](https://github.com/pallets/flask)
+    - [HTTPX](https://github.com/encode/httpx)
+    """
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_awesome_readme",
+        lambda full_name: (
+            markdown,
+            {"full_name": full_name, "description": "Python resources"},
+        ),
+    )
+
+    result = discover_missing_awesome_list_repositories(awesome_list)
+
+    assert result["discovered"] == 3
+    assert result["missing"] == ["encode/httpx"]
+    assert result["linked_existing"] == 1
+    assert result["skipped_existing"] == 1
+    assert AwesomeListItem.objects.filter(
+        awesome_list=awesome_list, repository=existing_unlinked
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_add_repository_to_awesome_list_skips_existing_repo_refresh(monkeypatch):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=100,
+    )
+
+    def fail_upsert(full_name):
+        raise AssertionError(f"should not refresh existing repository {full_name}")
+
+    monkeypatch.setattr("apps.repos.services.upsert_repository_from_github", fail_upsert)
+
+    result = add_repository_to_awesome_list(awesome_list, "django/django")
+
+    assert result["repository_created"] is False
+    assert result["link_created"] is True
+    repo.refresh_from_db()
+    assert repo.stars == 100
+
+
+@pytest.mark.django_db
+def test_enqueue_awesome_list_missing_repo_syncs_task_queues_active_lists(monkeypatch):
+    active = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeList.objects.create(
+        name="Inactive List",
+        slug="inactive-list",
+        source_url="https://github.com/example/inactive-list",
+        is_active=False,
+    )
+    queued = []
+
+    def fake_async_task(func_path, *args, **kwargs):
+        queued.append((func_path, args, kwargs))
+        return f"task-{len(queued)}"
+
+    monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
+
+    from apps.repos.tasks import enqueue_awesome_list_missing_repo_syncs_task
+
+    result = enqueue_awesome_list_missing_repo_syncs_task(limit_per_list=5)
+
+    assert result == {"queued": 1, "task_ids": ["task-1"]}
+    assert queued == [
+        (
+            "apps.repos.tasks.enqueue_missing_repositories_for_awesome_list_task",
+            (active.id,),
+            {
+                "limit": 5,
+                "group": "Daily awesome-list missing repo discovery",
+            },
+        )
+    ]
+
+
+@pytest.mark.django_db
+def test_enqueue_missing_repositories_for_awesome_list_task_queues_missing_repos(monkeypatch):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Python",
+        slug="awesome-python",
+        source_url="https://github.com/vinta/awesome-python",
+    )
+    queued = []
+
+    def fake_discover(awesome_list, limit=None):
+        assert limit == 10
+        return {
+            "awesome_list": awesome_list.slug,
+            "discovered": 3,
+            "missing": ["django/django", "encode/httpx"],
+            "missing_count": 2,
+            "linked_existing": 1,
+            "skipped_existing": 0,
+        }
+
+    def fake_async_task(func_path, *args, **kwargs):
+        queued.append((func_path, args, kwargs))
+        return f"task-{len(queued)}"
+
+    monkeypatch.setattr(
+        "apps.repos.tasks.discover_missing_awesome_list_repositories",
+        fake_discover,
+    )
+    monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
+
+    from apps.repos.tasks import enqueue_missing_repositories_for_awesome_list_task
+
+    result = enqueue_missing_repositories_for_awesome_list_task(awesome_list.id, limit=10)
+
+    assert result["queued"] == 2
+    assert result["task_ids"] == ["task-1", "task-2"]
+    assert queued == [
+        (
+            "apps.repos.tasks.add_missing_repository_to_awesome_list_task",
+            (awesome_list.id, "django/django"),
+            {"group": "Add missing awesome-list repos"},
+        ),
+        (
+            "apps.repos.tasks.add_missing_repository_to_awesome_list_task",
+            (awesome_list.id, "encode/httpx"),
+            {"group": "Add missing awesome-list repos"},
+        ),
+    ]
 
 
 @pytest.mark.django_db

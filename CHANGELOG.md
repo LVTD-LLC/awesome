@@ -20,6 +20,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome Repos: added an admin-panel flow to create new awesome-list sources and queue their initial scan.
 - Awesome Repos admin panel now shows GitHub API rate-limit status for the configured scanner token.
 - Awesome Repos admin panel now lets superusers retry scans for existing awesome-list repos.
+- Awesome Repos: added a daily scheduled task that queues per-list missing repository discovery and only ingests newly discovered repositories.
 
 ### Changed
 - Awesome Repos admin-panel add flow now only asks for the GitHub URL; list names and slugs are derived automatically from the source repo.

@@ -288,6 +288,116 @@ def sync_awesome_list(awesome_list: AwesomeList, limit: int | None = None) -> di
     }
 
 
+def discover_missing_awesome_list_repositories(
+    awesome_list: AwesomeList, limit: int | None = None
+) -> dict:
+    full_name = awesome_list.repo_full_name or parse_github_repo_url(awesome_list.source_url)
+    logger.info(
+        "awesome_list_missing_repo_discovery_started",
+        awesome_list_id=awesome_list.id,
+        awesome_list_slug=awesome_list.slug,
+        source_url=awesome_list.source_url,
+        repo_full_name=full_name,
+        limit=limit,
+    )
+    markdown, meta = fetch_awesome_readme(full_name)
+    repo_names = extract_github_repos(markdown)
+    if limit:
+        repo_names = repo_names[:limit]
+
+    if not repo_names:
+        awesome_list.last_scanned_at = timezone.now()
+        awesome_list.last_error = "No GitHub repository links found in README."
+        awesome_list.save(update_fields=["last_scanned_at", "last_error", "updated_at"])
+        logger.warning(
+            "awesome_list_missing_repo_discovery_found_no_repos",
+            awesome_list_id=awesome_list.id,
+            awesome_list_slug=awesome_list.slug,
+            repo_full_name=full_name,
+        )
+        return {
+            "awesome_list": awesome_list.slug,
+            "discovered": 0,
+            "missing": [],
+            "missing_count": 0,
+            "linked_existing": 0,
+            "skipped_existing": 0,
+        }
+
+    awesome_list.repo_full_name = meta.get("full_name", full_name)
+    awesome_list.description = meta.get("description") or awesome_list.description
+    awesome_list.last_scanned_at = timezone.now()
+    awesome_list.last_error = ""
+    awesome_list.save(
+        update_fields=[
+            "repo_full_name",
+            "description",
+            "last_scanned_at",
+            "last_error",
+            "updated_at",
+        ]
+    )
+
+    existing_repositories = {
+        repo.full_name: repo
+        for repo in Repository.objects.filter(full_name__in=repo_names).only("id", "full_name")
+    }
+    linked_existing = 0
+    skipped_existing = 0
+    missing = []
+
+    for repo_name in repo_names:
+        repo = existing_repositories.get(repo_name)
+        if repo is None:
+            missing.append(repo_name)
+            continue
+
+        _, created = AwesomeListItem.objects.get_or_create(
+            awesome_list=awesome_list,
+            repository=repo,
+        )
+        linked_existing += int(created)
+        skipped_existing += int(not created)
+
+    logger.info(
+        "awesome_list_missing_repo_discovery_finished",
+        awesome_list_id=awesome_list.id,
+        awesome_list_slug=awesome_list.slug,
+        discovered=len(repo_names),
+        missing_count=len(missing),
+        linked_existing=linked_existing,
+        skipped_existing=skipped_existing,
+    )
+
+    return {
+        "awesome_list": awesome_list.slug,
+        "discovered": len(repo_names),
+        "missing": missing,
+        "missing_count": len(missing),
+        "linked_existing": linked_existing,
+        "skipped_existing": skipped_existing,
+    }
+
+
+def add_repository_to_awesome_list(awesome_list: AwesomeList, repo_full_name: str) -> dict:
+    repo = Repository.objects.filter(full_name=repo_full_name).first()
+    repository_created = repo is None
+    if repo is None:
+        repo = upsert_repository_from_github(repo_full_name)
+
+    _, link_created = AwesomeListItem.objects.get_or_create(
+        awesome_list=awesome_list,
+        repository=repo,
+    )
+
+    return {
+        "awesome_list": awesome_list.slug,
+        "repository": repo.full_name,
+        "repository_created": repository_created,
+        "link_created": link_created,
+    }
+
+
 def refresh_repositories(queryset=None, limit: int | None = None) -> dict:
     queryset = queryset or Repository.objects.all()
     if limit:
