@@ -14,6 +14,7 @@ from django_q.tasks import async_task
 
 from apps.repos.models import AwesomeList, AwesomeListItem, Repository
 from apps.repos.services import (
+    repository_history_chart_data,
     repository_performance_summary,
     repository_search_queryset,
     similar_repositories_for_repository,
@@ -365,7 +366,10 @@ class RepositoryDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["performance"] = repository_performance_summary(self.object)
+        performance = repository_performance_summary(self.object)
+        context["performance"] = performance
+        if performance["has_history"]:
+            context["repository_history_chart_data"] = repository_history_chart_data(self.object)
         context["similar_repositories"] = similar_repositories_for_repository(self.object)
         return context
 
