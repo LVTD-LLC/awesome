@@ -2720,12 +2720,14 @@ def test_awesome_list_request_page_rate_limits_public_posts(client, monkeypatch)
     response = client.post(
         reverse("repos:request_list"),
         data={"source_url": "https://github.com/wsvincent/awesome-django"},
+        HTTP_X_FORWARDED_FOR="203.0.113.10",
     )
     assert response.status_code == 302
 
     response = client.post(
         reverse("repos:request_list"),
         data={"source_url": "https://github.com/vinta/awesome-python"},
+        HTTP_X_FORWARDED_FOR="203.0.113.11",
     )
 
     assert response.status_code == 429

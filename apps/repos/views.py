@@ -281,9 +281,7 @@ def awesome_list_repository_queryset(awesome_list: AwesomeList, params):
 
 
 def awesome_list_request_client_ip(request) -> str:
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip()
+    # X-Forwarded-For is only safe behind a trusted proxy that strips spoofed headers.
     return request.META.get("REMOTE_ADDR", "unknown")
 
 
