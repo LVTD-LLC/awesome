@@ -2281,6 +2281,8 @@ def test_search_page_renders(client):
     assert b"Any GitHub topic" in response.content
     assert b"django (1)" in response.content
     assert b"web-framework (1)" in response.content
+    assert b'data-ad-slot="search-left-rail"' in response.content
+    assert b'data-ad-slot="search-right-rail"' in response.content
     assert response.context["total_lists"] == 1
     assert list(response.context["awesome_lists"].values_list("id", flat=True)) == [active_list.id]
     assert b"Inactive List" not in response.content
