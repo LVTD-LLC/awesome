@@ -266,6 +266,14 @@ def sync_repository_tags(
 
     try:
         return save_repository_tags(repository, readme_text, force=force)
+    except EmptyRepositoryTagsError as exc:
+        logger.warning(
+            "repository_tagging_failed",
+            repo_full_name=repository.full_name,
+            error=str(exc),
+            exc_info=True,
+        )
+        return repository.generated_tags
     except Exception as exc:  # noqa: BLE001 - tagging failures should not block repo sync
         logger.warning(
             "repository_tagging_failed",
