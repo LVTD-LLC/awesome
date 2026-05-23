@@ -132,18 +132,6 @@ def repository_tags_are_current(
     )
 
 
-def repository_tagging_failure_is_current(
-    repository: Repository,
-    payload: RepositoryTaggingPayload,
-) -> bool:
-    return bool(
-        not repository.generated_tags
-        and repository.generated_tags_last_error == NO_USABLE_TAGS_ERROR
-        and repository.generated_tags_model == repository_tagging_model_id()
-        and repository.generated_tags_source_hash == payload.text_hash
-    )
-
-
 def _tagging_agent() -> Agent[None, RepositoryTagsOutput]:
     model = build_model(
         provider=settings.REPOSITORY_TAGGING_PROVIDER,
@@ -231,7 +219,11 @@ def save_repository_tags(
     if not force:
         if repository_tags_are_current(repository, payload):
             return repository.generated_tags
-        if repository_tagging_failure_is_current(repository, payload):
+        if (
+            repository.generated_tags_last_error
+            and repository.generated_tags_model == repository_tagging_model_id()
+            and repository.generated_tags_source_hash == payload.text_hash
+        ):
             return repository.generated_tags
 
     try:

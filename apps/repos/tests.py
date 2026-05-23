@@ -1522,11 +1522,13 @@ def test_sync_repository_tags_records_and_skips_current_empty_generation_failure
     monkeypatch.setattr("apps.repos.tags._tagging_agent", lambda: FakeAgent())
 
     tags = sync_repository_tags(repo, repo.readme)
+    assert calls == 1
     second = sync_repository_tags(repo, repo.readme)
+    assert calls == 1
     third = sync_repository_tags(repo, "# Django\nUpdated docs")
+    assert calls == 2
 
     repo.refresh_from_db()
-    assert calls == 2
     assert tags == []
     assert second == []
     assert third == []
