@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -14,6 +14,7 @@ from django_q.tasks import async_task
 
 from apps.repos.forms import AwesomeListRequestForm
 from apps.repos.models import AwesomeList, Repository
+from apps.repos.search_services import awesome_list_search_queryset
 from apps.repos.services import (
     awesome_list_directory_totals,
     awesome_list_repository_queryset,
@@ -139,29 +140,7 @@ class AwesomeListListView(ListView):
     paginate_by = 30
 
     def get_queryset(self):
-        qs = AwesomeList.objects.filter(is_active=True).annotate(
-            indexed_repo_count=Count("items", distinct=True)
-        )
-        q = (self.request.GET.get("q") or "").strip()
-        if q:
-            qs = qs.filter(
-                Q(name__icontains=q)
-                | Q(description__icontains=q)
-                | Q(repo_full_name__icontains=q)
-                | Q(topics__icontains=q)
-            )
-
-        sort = self.request.GET.get("sort") or "stars"
-        sort_map = {
-            "stars": "-stars",
-            "repos": "-readme_repository_count",
-            "indexed": "-indexed_repo_count",
-            "commits": F("commits_count").desc(nulls_last=True),
-            "recent": F("github_pushed_at").desc(nulls_last=True),
-            "scanned": F("last_scanned_at").desc(nulls_last=True),
-            "name": "name",
-        }
-        return qs.order_by(sort_map.get(sort, "-stars"), "name")
+        return awesome_list_search_queryset(self.request.GET)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

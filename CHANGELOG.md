@@ -34,10 +34,10 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome Repos: added an awesome-list directory and detail pages with stored list activity metrics including stars, commits, README repository counts, forks, issues, and scan freshness.
 - Awesome Repos: added D3 charts to repository detail pages for historical stars and commit counts.
 - Awesome Repos: added search, filters, and sorting to awesome-list detail repository tables.
-- Awesome Repos: added superuser-only rescan controls on awesome-list and repository detail pages, plus a missing-repository discovery action for awesome lists.
+- Awesome Repos: added superuser-only catalog maintenance controls on awesome-list and repository detail pages, plus a missing-repository discovery action for awesome lists.
 - Awesome Repos search now has desktop side sponsor placements for future ads.
 - Awesome Repos: show semantically similar repositories on repository detail pages when pgvector embeddings are available.
-- Awesome Repos: added API endpoints for authenticated repository search, awesome-list search/detail, list-scoped repository search, and superuser scan queue actions.
+- Awesome Repos: added API endpoints for authenticated repository search, repository detail, awesome-list search/detail, and list-scoped repository search.
 - Awesome Repos: added an authenticated Streamable HTTP MCP endpoint at `/mcp` for AI agents to search repositories and awesome lists.
 - Awesome Repos: added a public awesome-list request form with an admin-reviewable request queue.
 - Awesome Repos: repository topic badges now link to the matching topic-filtered search results.

@@ -67,9 +67,19 @@ This project keeps Django apps inside the `/apps` directory. This is both for hu
 - `apps/blog`: user-facing blog
 
 
-### Agent API endpoint
+### API endpoints
 
-All generated projects include `GET /api/user`, which returns safe account/profile details for the authenticated API key. This is intentionally small but useful as the first "agent can authenticate and know who it is acting for" endpoint.
+Authenticated API keys can read account and catalog data from the API:
+
+- `GET /api/user` returns safe account/profile details for the authenticated API key.
+- `GET /api/repositories` searches indexed repositories. Useful query parameters include `q`, `language`, `list`, `topic`, `generated_tag`, `min_stars`, `updated_days`, `archived`, `ai_development`, `sort`, `page`, and `page_size`.
+- `GET /api/repositories/{owner}/{name}` returns stored metadata, list membership, growth history, README content, and similar repositories for one indexed repository.
+- `GET /api/awesome-lists` searches active awesome lists by name, source repository, description, and topics.
+- `GET /api/awesome-lists/{slug}` returns stored metadata and aggregate repository stats for one active awesome list.
+- `GET /api/awesome-lists/{slug}/repositories` searches repositories indexed from one active awesome list.
+- `GET /api/awesome-lists/{slug}/repository-options` returns languages, topics, and generated tags for building list-scoped repository filters.
+
+Catalog refresh operations are administrative platform maintenance tasks and are intentionally not part of the public API documentation.
 
 ### MCP endpoint
 
