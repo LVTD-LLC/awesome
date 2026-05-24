@@ -2542,6 +2542,9 @@ def test_search_page_renders(client):
     assert b'href="/?topic=django"' in content
     assert b"web-framework (1)" in content
     assert b"data-page-ad-shell" in content
+    assert b"data-page-content" in content
+    assert b'data-ad-rail="left"' in content
+    assert b'data-ad-rail="right"' in content
     assert content.count(b'data-ad-slot="global-left-') == 4
     assert content.count(b'data-ad-slot="global-right-') == 4
     assert content.count(b"data-ad-slot=") == 8

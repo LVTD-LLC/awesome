@@ -4,7 +4,7 @@
   aria-label="{{ position }} sponsor placements"
   data-ad-rail="{{ side }}"
 >
-  <div class="sticky top-24 grid gap-4">
+  <div class="sticky {{ sticky_class|default:'top-6' }} grid gap-4">
     {% if side == "left" %}
       {% include "components/side_ad_slot.html" with slot_id="global-left-1" position="Left rail 1" headline="Sponsor Awesome Repos" body="Reach developers browsing curated GitHub projects." cta="Reserve" only %}
       {% include "components/side_ad_slot.html" with slot_id="global-left-2" position="Left rail 2" headline="Ship dev tools" body="Put your product beside high-intent repo search." cta="Sponsor" only %}
