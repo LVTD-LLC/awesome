@@ -2537,7 +2537,7 @@ def test_repository_history_chart_data_limits_latest_snapshots_chronologically()
 
 
 @pytest.mark.django_db
-def test_awesome_list_repository_history_chart_data_aggregates_list_snapshots():
+def test_awesome_list_repository_history_chart_data_aggregates_list_snapshots(monkeypatch):
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",
         slug="awesome-django",
@@ -2600,6 +2600,7 @@ def test_awesome_list_repository_history_chart_data_aggregates_list_snapshots():
 
     assert [point["stars"] for point in chart_data] == [15, 17, 20]
     assert [point["commit_count"] for point in chart_data] == [100, 120, 200]
+    monkeypatch.setattr("apps.repos.services.timezone.now", lambda: now + timedelta(hours=6))
     windowed_chart_data = awesome_list_repository_history_chart_data(awesome_list, limit=3)
     assert [point["stars"] for point in windowed_chart_data] == [17, 20]
 
