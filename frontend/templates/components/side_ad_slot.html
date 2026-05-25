@@ -1,7 +1,7 @@
 <a
   href="{% if href %}{{ href }}{% else %}mailto:rasul@lvtd.dev?subject=Sponsor%20Awesome%20Repos{% endif %}"
   {% if href %}target="_blank" rel="noreferrer sponsored"{% endif %}
-  class="group flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-lg border px-3 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if is_empty %}border-dashed border-gray-300 bg-gray-50/70 hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-green-700 dark:hover:bg-green-950/30{% else %}side-ad-card shadow-sm hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:hover:border-green-700 dark:hover:bg-green-950/30{% endif %}"
+  class="group relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-lg border px-3 py-3 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if is_empty %}border-dashed border-gray-300 bg-gray-50/70 hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-green-700 dark:hover:bg-green-950/30{% else %}side-ad-card {{ tone_class|default:'side-ad-card-blue' }} shadow-sm hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:hover:border-green-700 dark:hover:bg-green-950/30{% endif %}"
   data-ad-slot="{{ slot_id }}"
   {% if is_empty %}data-ad-empty-slot="{{ slot_id }}"{% endif %}
   aria-label="{{ position }} sponsor placement{% if headline %}: {{ headline }}{% endif %}"
@@ -25,7 +25,9 @@
       </svg>
     </span>
   {% else %}
-    <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-950">
+    <span class="absolute right-2 top-2 rounded-full border border-black/10 bg-white/80 px-1.5 py-0.5 text-[0.625rem] font-black uppercase leading-none text-gray-600 shadow-sm dark:border-white/10 dark:bg-gray-950/80 dark:text-gray-300">Ad</span>
+
+    <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-950">
       {% if logo_url %}
         <img src="{{ logo_url }}" alt="{{ headline }}" class="h-full w-full object-contain" loading="lazy" decoding="async" referrerpolicy="no-referrer">
       {% else %}
@@ -33,9 +35,19 @@
       {% endif %}
     </span>
 
-    <span class="mt-4 min-h-0">
+    <span class="mt-2 min-h-0">
+      {% if eyebrow %}
+        <span class="side-ad-eyebrow text-[0.625rem] font-black uppercase leading-4 text-green-700 dark:text-green-300">{{ eyebrow }}</span>
+      {% endif %}
       <span class="side-ad-title text-sm font-bold leading-5 text-gray-950 dark:text-white">{{ headline }}</span>
       <span class="side-ad-body mt-2 text-xs leading-4 text-gray-600 dark:text-gray-300">{{ body }}</span>
+    </span>
+
+    <span class="mt-2 inline-flex items-center gap-1 text-xs font-bold leading-4 text-green-700 transition group-hover:text-green-800 dark:text-green-400 dark:group-hover:text-green-300">
+      {{ cta }}
+      <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17 17 7M9 7h8v8" />
+      </svg>
     </span>
   {% endif %}
 </a>
