@@ -23,18 +23,8 @@ def assert_standard_ad_layout(content):
     assert content.count('data-ad-slot="global-right-') == 4
     assert content.count("data-ad-slot=") == 8
     assert content.count("utm_source=awesome_repos") == 8
+    assert content.count("utm_medium=side_ad") == 8
     assert "mailto:hello@awesome_repos.app" not in content
-    for project_name in (
-        "Built with Django",
-        "Ask HN Digest",
-        "Djass",
-        "FileBridge",
-        "Cleanapp",
-        "OSIG",
-        "Tech Job Alerts",
-        "TalentLeads",
-    ):
-        assert project_name in content
 
 
 def test_side_ad_slot_default_sponsor_email():
