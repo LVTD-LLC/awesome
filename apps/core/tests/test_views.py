@@ -220,8 +220,6 @@ def test_admin_panel_nav_links_to_repository_and_list_pages(
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert f'href="{reverse("repos:search")}"' in content
-    assert f'href="{reverse("repos:list")}"' in content
     repos_link = rf'<a href="{re.escape(reverse("repos:search"))}"[^>]*>\s*Repos\s*</a>'
     lists_link = rf'<a href="{re.escape(reverse("repos:list"))}"[^>]*>\s*Lists\s*</a>'
     assert re.search(repos_link, content)
