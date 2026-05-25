@@ -42,11 +42,13 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome Repos: added a public awesome-list request form with an admin-reviewable request queue.
 - Awesome Repos: repository topic badges now link to the matching topic-filtered search results.
 - Awesome Repos: added aggregate stars and commits history charts to awesome-list detail pages when repository snapshots exist.
+- Awesome Repos: expanded desktop side sponsor rails to ten placements, including one open "Get sponsored" slot.
 
 ### Changed
 - Awesome Repos: replaced placeholder side-rail sponsor slots with equal-height ads for LVTD projects and attribution-tagged outbound links.
-- Awesome Repos: standardized page width around global side ad rails with four sponsor slots on each side.
+- Awesome Repos: standardized page width around global side ad rails with five sponsor slots on each side.
 - Awesome Repos: repository search is now the root landing page, with `/repos/` permanently redirecting to `/` and a prominent link to the `/lists/` awesome-list directory.
+- Awesome Repos: admin navbar now links directly to Repos and Lists instead of Dashboard and Settings.
 - Awesome Repos: moved repository search filters into a compact vertical modal opened from a single filter button.
 - Awesome Repos admin-panel add flow now only asks for the GitHub URL; list names and slugs are derived automatically from the source repo.
 - Awesome-list scans now log start/finish/failure details and surface empty scans or sync failures in the admin panel.
@@ -78,6 +80,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Superuser-only admin blog API for creating, listing, reading, updating, patching, deleting, reviewing, and publishing blog posts when the blog app is generated.
 
 ### Removed
+- Awesome Repos: removed the feedback collection widget, API endpoint, admin feedback stats, and stored feedback model.
 - Stimulus, Webpack, `python-webpack-boilerplate`, manifest loading, and generated Webpack configuration.
 
 ### Fixed
