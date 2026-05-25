@@ -258,7 +258,7 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
     def retry_awesome_list_scan(self, request):
         try:
             awesome_list_id = int(request.POST.get("awesome_list_id", ""))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             messages.error(request, "Choose an awesome list to retry.")
             return redirect("admin_panel")
 
