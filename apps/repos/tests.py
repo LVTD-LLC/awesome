@@ -999,7 +999,7 @@ def test_enqueue_missing_repositories_for_awesome_list_task_queues_missing_repos
         return f"task-{len(queued)}"
 
     monkeypatch.setattr(
-        "apps.repos.tasks.discover_missing_awesome_list_repositories",
+        "apps.repos.tasks.AwesomeList.discover_missing_repositories_from_source",
         fake_discover,
     )
     monkeypatch.setattr(
@@ -1063,7 +1063,7 @@ def test_enqueue_missing_repositories_for_awesome_list_task_truncates_logged_ids
             log_events.append((event, kwargs))
 
     monkeypatch.setattr(
-        "apps.repos.tasks.discover_missing_awesome_list_repositories",
+        "apps.repos.tasks.AwesomeList.discover_missing_repositories_from_source",
         fake_discover,
     )
     monkeypatch.setattr(
@@ -1103,7 +1103,7 @@ def test_enqueue_missing_repositories_for_awesome_list_task_stops_at_daily_budge
     budget_results = iter([True, False])
 
     monkeypatch.setattr(
-        "apps.repos.tasks.discover_missing_awesome_list_repositories",
+        "apps.repos.tasks.AwesomeList.discover_missing_repositories_from_source",
         lambda awesome_list, limit=None: {
             "awesome_list": awesome_list.slug,
             "discovered": 2,
