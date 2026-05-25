@@ -49,6 +49,23 @@ class UserInfoApiUnitTests(SimpleTestCase):
         assert "key" not in response
 
 
+def test_openapi_schema_advertises_catalog_endpoints_without_refresh_actions():
+    from apps.api.views import api
+
+    paths = api.get_openapi_schema()["paths"]
+
+    assert "/api/repositories" in paths
+    assert "/api/repositories/{owner}/{name}" in paths
+    assert "/api/awesome-lists" in paths
+    assert "/api/awesome-lists/{slug}" in paths
+    assert "/api/awesome-lists/{slug}/repositories" in paths
+    assert "/api/awesome-lists/{slug}/repository-options" in paths
+    assert "get" in paths["/api/awesome-lists"]
+    assert "post" not in paths["/api/awesome-lists"]
+    assert not any("rescan" in path for path in paths)
+    assert not any("discover-missing" in path for path in paths)
+
+
 def test_api_key_auth_returns_profile_for_valid_key():
     from apps.api.auth import APIKeyHeaderAuth, BearerAPIKeyAuth
     from apps.core.models import Profile

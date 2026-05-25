@@ -221,6 +221,7 @@ def search_awesome_lists(
     "/awesome-lists",
     response={201: AwesomeListMutationOut},
     auth=superuser_api_auth,
+    include_in_schema=False,
     tags=["awesome-lists"],
 )
 def create_awesome_list(request: HttpRequest, data: AwesomeListCreateIn):
@@ -320,6 +321,7 @@ def get_awesome_list_repository_options(request: HttpRequest, slug: str):
     "/awesome-lists/{slug}/rescan",
     response=QueuedTaskOut,
     auth=superuser_api_auth,
+    include_in_schema=False,
     tags=["awesome-lists"],
 )
 def queue_awesome_list_rescan(request: HttpRequest, slug: str):
@@ -343,6 +345,7 @@ def queue_awesome_list_rescan(request: HttpRequest, slug: str):
     "/awesome-lists/{slug}/discover-missing",
     response=QueuedTaskOut,
     auth=superuser_api_auth,
+    include_in_schema=False,
     tags=["awesome-lists"],
 )
 def queue_awesome_list_missing_repo_discovery(request: HttpRequest, slug: str):
@@ -366,6 +369,7 @@ def queue_awesome_list_missing_repo_discovery(request: HttpRequest, slug: str):
     "/repositories/{owner}/{name}/rescan",
     response=QueuedTaskOut,
     auth=superuser_api_auth,
+    include_in_schema=False,
     tags=["repositories"],
 )
 def queue_repository_rescan(request: HttpRequest, owner: str, name: str):
