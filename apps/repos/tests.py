@@ -709,6 +709,45 @@ def test_minimum_age_cutoff_uses_calendar_years(monkeypatch):
     )
 
 
+@pytest.mark.django_db
+def test_backfill_first_commit_dates_command_updates_existing_rows(monkeypatch):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        default_branch="main",
+    )
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    fetched = {
+        "wsvincent/awesome-django": (350, datetime(2015, 1, 2, tzinfo=UTC)),
+        "django/django": (90000, datetime(2005, 7, 13, tzinfo=UTC)),
+    }
+
+    monkeypatch.setattr(
+        "apps.repos.management.commands.backfill_first_commit_dates."
+        "fetch_github_commit_count_and_first_commit_at",
+        lambda full_name, default_branch: fetched[full_name],
+    )
+
+    output = StringIO()
+    call_command("backfill_first_commit_dates", stdout=output)
+
+    awesome_list.refresh_from_db()
+    repository.refresh_from_db()
+    assert awesome_list.commits_count == 350
+    assert awesome_list.first_commit_at == datetime(2015, 1, 2, tzinfo=UTC)
+    assert repository.commit_count == 90000
+    assert repository.first_commit_at == datetime(2005, 7, 13, tzinfo=UTC)
+    assert "'updated': 1" in output.getvalue()
+
+
 def test_fetch_github_commit_count_counts_single_unpaginated_page(monkeypatch):
     monkeypatch.setattr(
         "apps.repos.services.fetch_github_commit_count_and_first_commit_at",

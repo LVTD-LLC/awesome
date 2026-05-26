@@ -80,6 +80,12 @@ Authenticated API keys can read account and catalog data from the API:
 - `GET /api/awesome-lists/{slug}/repository-options` returns languages, topics, and generated tags for building list-scoped repository filters.
 
 Catalog refresh operations are administrative platform maintenance tasks and are intentionally not part of the public API documentation.
+After deploying first-commit tracking, operators can populate existing rows incrementally with:
+
+```bash
+uv run python manage.py backfill_first_commit_dates --limit 100
+uv run python manage.py backfill_first_commit_dates --kind repositories --dry-run
+```
 
 ### MCP endpoint
 
