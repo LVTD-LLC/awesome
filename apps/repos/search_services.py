@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 
 from apps.repos.models import AwesomeList, Repository, RepositorySnapshot
 from apps.repos.services import (
+    active_awesome_list_source_repository_names,
     awesome_list_directory_totals,
     awesome_list_repository_queryset,
     minimum_age_cutoff,
@@ -15,10 +16,20 @@ from apps.repos.services import (
     repository_performance_summary,
     repository_search_queryset,
     similar_repositories_for_repository,
+    visible_repository_queryset,
 )
 
 DEFAULT_API_PAGE_SIZE = 30
 MAX_API_PAGE_SIZE = 100
+
+
+def visible_awesome_list_item_count():
+    return Count(
+        "items",
+        filter=Q(items__repository__is_awesome_list_candidate=False)
+        & ~Q(items__repository__full_name__in=active_awesome_list_source_repository_names()),
+        distinct=True,
+    )
 
 
 def normalized_query_params(**params) -> dict[str, str]:
@@ -52,7 +63,7 @@ def paginate_queryset(
 
 def awesome_list_search_queryset(params):
     qs = AwesomeList.objects.filter(is_active=True).annotate(
-        indexed_repo_count=Count("items", distinct=True)
+        indexed_repo_count=visible_awesome_list_item_count()
     )
     q = (params.get("q") or "").strip()
     if q:
@@ -155,6 +166,9 @@ def serialize_repository_summary(repository: Repository) -> dict:
         "is_disabled": repository.is_disabled,
         "is_fork": repository.is_fork,
         "uses_ai_for_development": repository.uses_ai_for_development,
+        "is_awesome_list_candidate": repository.is_awesome_list_candidate,
+        "awesome_list_detected_repo_count": repository.awesome_list_detected_repo_count,
+        "awesome_list_detection_reasons": repository.awesome_list_detection_reasons,
         "awesome_count": awesome_count,
         "snapshot_count": getattr(repository, "snapshot_count", None),
         "stars_since_first": getattr(repository, "stars_since_first", None),
@@ -330,11 +344,11 @@ def search_awesome_lists_payload(
 def get_awesome_list_detail_payload(*, slug: str) -> dict:
     awesome_list = get_object_or_404(
         AwesomeList.objects.filter(is_active=True).annotate(
-            indexed_repo_count=Count("items", distinct=True)
+            indexed_repo_count=visible_awesome_list_item_count()
         ),
         slug=slug,
     )
-    repos = Repository.objects.filter(awesome_items__awesome_list=awesome_list)
+    repos = visible_repository_queryset().filter(awesome_items__awesome_list=awesome_list)
     repo_stats = repos.aggregate(
         total_stars=Sum("stars"),
         total_forks=Sum("forks"),
@@ -399,7 +413,7 @@ def search_awesome_list_repositories_payload(
 
 def get_awesome_list_repository_options_payload(*, slug: str) -> dict:
     awesome_list = get_object_or_404(AwesomeList.objects.filter(is_active=True), slug=slug)
-    repos = Repository.objects.filter(awesome_items__awesome_list=awesome_list)
+    repos = visible_repository_queryset().filter(awesome_items__awesome_list=awesome_list)
     return {
         "languages": list(
             repos.exclude(language="")

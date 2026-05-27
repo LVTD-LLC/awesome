@@ -32,10 +32,12 @@ from apps.repos.models import (
 )
 from apps.repos.services import (
     GitHubAPIError,
+    active_awesome_list_source_repository_name_set,
     add_repository_to_awesome_list,
     attach_awesome_list_commit_count,
     awesome_list_repository_history_chart_data,
     detect_ai_development_signals,
+    detect_awesome_list_candidate,
     discover_missing_awesome_list_repositories,
     extract_github_repos,
     fetch_github_commit_count,
@@ -106,6 +108,68 @@ def test_extract_github_repos_dedupes_and_skips_non_repo_paths():
     - duplicate https://github.com/django/django
     """
     assert extract_github_repos(markdown) == ["django/django", "paperless-ngx/paperless-ngx"]
+
+
+@pytest.mark.django_db
+def test_detect_awesome_list_candidate_uses_readme_links():
+    readme = (
+        "# Awesome Django\n\n"
+        "- [Django](https://github.com/django/django)\n"
+        "- [Channels](https://github.com/django/channels)\n"
+        "- [Wagtail](https://github.com/wagtail/wagtail)\n"
+    )
+    result = detect_awesome_list_candidate(
+        github_repo_payload(full_name="wsvincent/awesome-django"),
+        readme,
+    )
+
+    assert result["is_candidate"] is True
+    assert result["detected_repo_count"] == 3
+    assert "awesome_readme_title" in result["reasons"]
+    assert "awesome_repo_name" in result["reasons"]
+
+
+@pytest.mark.django_db
+def test_detect_awesome_list_candidate_marks_tracked_source_repo():
+    AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+
+    result = detect_awesome_list_candidate(
+        github_repo_payload(full_name="wsvincent/awesome-django"),
+        "",
+        active_source_full_names=active_awesome_list_source_repository_name_set(),
+    )
+
+    assert result["is_candidate"] is True
+    assert result["detected_repo_count"] == 0
+    assert result["reasons"] == ["tracked_awesome_list_source"]
+
+
+@pytest.mark.django_db
+def test_detect_awesome_list_candidate_uses_preloaded_sources_without_queries(
+    django_assert_num_queries,
+):
+    AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+    active_source_full_names = active_awesome_list_source_repository_name_set()
+
+    with django_assert_num_queries(0):
+        result = detect_awesome_list_candidate(
+            github_repo_payload(full_name="wsvincent/awesome-django"),
+            "",
+            active_source_full_names=active_source_full_names,
+        )
+
+    assert result["is_candidate"] is True
+    assert result["reasons"] == ["tracked_awesome_list_source"]
 
 
 @pytest.mark.django_db
@@ -271,7 +335,7 @@ def test_sync_awesome_list_stores_list_activity_metadata(monkeypatch):
         lambda *args: (350, datetime(2015, 1, 2, tzinfo=UTC)),
     )
 
-    def fake_upsert(full_name):
+    def fake_upsert(full_name, *, active_source_full_names=None):
         owner, name = full_name.split("/", 1)
         return Repository.objects.create(
             full_name=full_name,
@@ -843,6 +907,44 @@ def test_upsert_repository_from_github_stores_readme(monkeypatch):
     assert repo.readme_url == ("https://raw.githubusercontent.com/django/django/main/README.md")
     assert repo.readme_synced_at == repo.last_synced_at
     assert repo.readme_last_error == ""
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_marks_awesome_list_candidates(monkeypatch):
+    readme = (
+        "# Awesome Django\n\n"
+        "- [Django](https://github.com/django/django)\n"
+        "- [Channels](https://github.com/django/channels)\n"
+        "- [Wagtail](https://github.com/wagtail/wagtail)\n"
+    )
+
+    def fake_fetch_json(url):
+        if url.endswith("/readme"):
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode(readme.encode("utf-8")).decode("ascii"),
+                "path": "README.md",
+                "download_url": (
+                    "https://raw.githubusercontent.com/wsvincent/awesome-django/main/README.md"
+                ),
+            }
+        if "/git/trees/" in url:
+            return {"tree": []}
+        payload = github_repo_payload(full_name="wsvincent/awesome-django")
+        payload["topics"] = ["django", "awesome-list"]
+        return payload
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+
+    repo = upsert_repository_from_github("wsvincent/awesome-django")
+
+    assert repo.is_awesome_list_candidate is True
+    assert repo.awesome_list_detected_repo_count == 3
+    assert repo.awesome_list_detection_reasons == [
+        "github_topic_awesome_list",
+        "awesome_readme_title",
+        "awesome_repo_name",
+    ]
 
 
 @pytest.mark.django_db
@@ -2108,8 +2210,13 @@ def test_refresh_repositories_defaults_to_full_sync(monkeypatch):
     )
     refreshed = []
 
-    def fake_upsert_repository_from_github(full_name, *, include_readme=True):
-        refreshed.append((full_name, include_readme))
+    def fake_upsert_repository_from_github(
+        full_name,
+        *,
+        include_readme=True,
+        active_source_full_names=None,
+    ):
+        refreshed.append((full_name, include_readme, active_source_full_names))
         return repository
 
     monkeypatch.setattr(
@@ -2120,7 +2227,7 @@ def test_refresh_repositories_defaults_to_full_sync(monkeypatch):
     result = refresh_repositories()
 
     assert result == {"synced": 1, "failure_count": 0, "failures": []}
-    assert refreshed == [("owner/project", True)]
+    assert refreshed == [("owner/project", True, set())]
 
 
 @pytest.mark.django_db
@@ -2326,6 +2433,59 @@ def test_repository_search_filters_by_topic_and_generated_tag():
 
 
 @pytest.mark.django_db
+def test_repository_search_hides_awesome_list_candidates_and_tracked_sources():
+    visible = Repository.objects.create(
+        full_name="owner/normal",
+        owner="owner",
+        name="normal",
+        url="https://github.com/owner/normal",
+        stars=10,
+    )
+    candidate = Repository.objects.create(
+        full_name="owner/awesome-tools",
+        owner="owner",
+        name="awesome-tools",
+        url="https://github.com/owner/awesome-tools",
+        is_awesome_list_candidate=True,
+        stars=100,
+    )
+    tracked_source = Repository.objects.create(
+        full_name="vinta/awesome-python",
+        owner="vinta",
+        name="awesome-python",
+        url="https://github.com/vinta/awesome-python",
+        stars=90,
+    )
+    inactive_source = Repository.objects.create(
+        full_name="old/awesome-list",
+        owner="old",
+        name="awesome-list",
+        url="https://github.com/old/awesome-list",
+        stars=80,
+    )
+    AwesomeList.objects.create(
+        name="Awesome Python",
+        slug="awesome-python",
+        source_url="https://github.com/vinta/awesome-python",
+        repo_full_name=tracked_source.full_name,
+    )
+    AwesomeList.objects.create(
+        name="Inactive Awesome List",
+        slug="inactive-awesome-list",
+        source_url="https://github.com/old/awesome-list",
+        repo_full_name=inactive_source.full_name,
+        is_active=False,
+    )
+
+    repos = list(repository_search_queryset({"sort": "name"}))
+
+    assert visible in repos
+    assert inactive_source in repos
+    assert candidate not in repos
+    assert tracked_source not in repos
+
+
+@pytest.mark.django_db
 def test_repository_json_value_counts_aggregates_server_side():
     Repository.objects.create(
         full_name="django/django",
@@ -2412,7 +2572,17 @@ def test_awesome_list_directory_totals_aggregates_in_one_query():
         url="https://github.com/django/django",
         stars=80000,
     )
+    candidate = Repository.objects.create(
+        full_name="vinta/awesome-python",
+        owner="vinta",
+        name="awesome-python",
+        url="https://github.com/vinta/awesome-python",
+        description="Curated Python resources",
+        stars=250000,
+        is_awesome_list_candidate=True,
+    )
     AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=candidate)
     inactive_list = AwesomeList.objects.create(
         name="Inactive List",
         slug="inactive-list",
@@ -2862,7 +3032,7 @@ def test_search_page_renders(client):
         source_url="https://github.com/example/inactive-list",
         is_active=False,
     )
-    Repository.objects.create(
+    repo = Repository.objects.create(
         full_name="django/django",
         owner="django",
         name="django",
@@ -2873,6 +3043,15 @@ def test_search_page_renders(client):
         generated_tags=["web-framework"],
         stars=80000,
     )
+    hidden_repo = Repository.objects.create(
+        full_name="wsvincent/awesome-django",
+        owner="wsvincent",
+        name="awesome-django",
+        url="https://github.com/wsvincent/awesome-django",
+        is_awesome_list_candidate=True,
+    )
+    AwesomeListItem.objects.create(awesome_list=active_list, repository=repo)
+    AwesomeListItem.objects.create(awesome_list=active_list, repository=hidden_repo)
     response = client.get(reverse("repos:search"), {"q": "framework"})
     content = response.content
     assert response.status_code == 200
@@ -2899,6 +3078,9 @@ def test_search_page_renders(client):
     assert b"mailto:hello@awesome_repos.app" not in content
     assert response.context["total_lists"] == 1
     assert list(response.context["awesome_lists"].values_list("id", flat=True)) == [active_list.id]
+    assert response.context["awesome_lists"][0].repo_count == 1
+    assert b"Awesome Django (1)" in content
+    assert b"Awesome Django (2)" not in content
     assert b"Inactive List" not in content
 
 
@@ -3044,6 +3226,8 @@ def test_awesome_list_list_page_renders_activity_metrics(client):
     response = client.get(reverse("repos:list"), {"min_age_years": "10", "sort": "oldest"})
 
     assert response.status_code == 200
+    assert response.context["awesome_lists"][0].indexed_repo_count == 1
+    assert response.context["total_indexed_links"] == 1
     assert b"Awesome Django" in response.content
     assert b"first commit" in response.content
     assert b"Young List" not in response.content
@@ -3275,6 +3459,40 @@ def test_awesome_list_detail_page_filters_repositories(client):
     assert response.context["page_obj"].paginator.count == 1
     assert response.context["repo_stats"]["active_count"] == 1
     assert response.context["repo_stats"]["archived_count"] == 1
+
+
+@pytest.mark.django_db
+def test_awesome_list_detail_page_hides_awesome_list_candidates(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        topics=["django"],
+    )
+    candidate = Repository.objects.create(
+        full_name="vinta/awesome-python",
+        owner="vinta",
+        name="awesome-python",
+        url="https://github.com/vinta/awesome-python",
+        topics=["python"],
+        is_awesome_list_candidate=True,
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=candidate)
+
+    response = client.get(reverse("repos:list_detail", kwargs={"slug": "awesome-django"}))
+
+    assert response.status_code == 200
+    assert response.context["page_obj"].paginator.count == 1
+    assert response.context["awesome_list"].indexed_repo_count == 1
+    assert b"django/django" in response.content
+    assert b"vinta/awesome-python" not in response.content
 
 
 @pytest.mark.django_db
@@ -3631,8 +3849,8 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b"/static/vendors/js/d3.min.js" in response.content
     assert b"/static/js/modules/repository-history-charts.js" in response.content
     assert b"repository-history-data" in response.content
-    assert b"data-metric=\"stars\"" in response.content
-    assert b"data-metric=\"commit_count\"" in response.content
+    assert b'data-metric="stars"' in response.content
+    assert b'data-metric="commit_count"' in response.content
     assert b'"stars": 123431' in response.content
     assert b'"commit_count": 90' in response.content
     assert b"Commits since first" not in response.content

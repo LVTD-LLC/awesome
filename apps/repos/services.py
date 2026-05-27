@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+from collections.abc import Collection
 from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlparse
@@ -50,6 +51,17 @@ GITHUB_REPO_RE = re.compile(
 )
 SKIP_REPO_NAMES = {"stargazers", "network", "issues", "pulls", "pull", "wiki", "releases"}
 README_CANDIDATES = ("README.md", "readme.md", "README.markdown", "README.rst")
+AWESOME_LIST_MIN_REPOSITORY_LINKS = 3
+AWESOME_LIST_TOPIC_MARKERS = {"awesome-list", "awesome-lists"}
+AWESOME_LIST_TITLE_RE = re.compile(
+    r"^\s{0,3}#{1,2}\s+awesome(?:[\s:,-]|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+AWESOME_LIST_DESCRIPTION_RE = re.compile(
+    r"\b(awesome[-\s]+list|curated\s+(?:list|collection)|"
+    r"collection\s+of\s+(?:awesome\s+)?(?:projects|resources|repositories))\b",
+    re.IGNORECASE,
+)
 AI_DEVELOPMENT_ANYWHERE_FILE_SIGNALS = {
     "agents.md": ("Agent instructions", "agent_instructions"),
     "agents.override.md": ("Codex", "codex_override_instructions"),
@@ -292,10 +304,9 @@ def _last_page_from_link_header(link_header: str) -> int | None:
 
 def _commit_datetime(commit: dict) -> datetime | None:
     commit_data = commit.get("commit") or {}
-    date_value = (
-        (commit_data.get("author") or {}).get("date")
-        or (commit_data.get("committer") or {}).get("date")
-    )
+    date_value = (commit_data.get("author") or {}).get("date") or (
+        commit_data.get("committer") or {}
+    ).get("date")
     return dt(date_value)
 
 
@@ -414,6 +425,69 @@ def extract_github_repos(markdown: str) -> list[str]:
             continue
         repos.add(f"{owner}/{repo}")
     return sorted(repos, key=str.lower)
+
+
+def active_awesome_list_source_repository_names():
+    return (
+        AwesomeList.objects.filter(is_active=True)
+        .exclude(repo_full_name="")
+        .values("repo_full_name")
+    )
+
+
+def active_awesome_list_source_repository_name_set() -> set[str]:
+    return {
+        full_name.casefold()
+        for full_name in AwesomeList.objects.filter(is_active=True)
+        .exclude(repo_full_name="")
+        .values_list("repo_full_name", flat=True)
+    }
+
+
+def visible_repository_queryset():
+    return Repository.objects.exclude(is_awesome_list_candidate=True).exclude(
+        full_name__in=active_awesome_list_source_repository_names()
+    )
+
+
+def detect_awesome_list_candidate(
+    data: dict,
+    readme_text: str = "",
+    *,
+    active_source_full_names: Collection[str] = (),
+) -> dict:
+    full_name = data.get("full_name") or ""
+    normalized_full_name = full_name.casefold()
+    repo_name = data.get("name") or full_name.rsplit("/", 1)[-1]
+    repo_name = repo_name.lower()
+    description = data.get("description") or ""
+    topics = {normalize_repository_tag(str(topic)) for topic in data.get("topics") or []}
+    detected_repos = extract_github_repos(readme_text or "")
+    detected_repo_count = len(detected_repos)
+    has_link_list = detected_repo_count >= AWESOME_LIST_MIN_REPOSITORY_LINKS
+    has_awesome_title = bool(AWESOME_LIST_TITLE_RE.search(readme_text or ""))
+    has_awesome_name = repo_name == "awesome" or repo_name.startswith(("awesome-", "awesome_"))
+    has_awesome_description = bool(AWESOME_LIST_DESCRIPTION_RE.search(description))
+
+    reasons = []
+    if normalized_full_name and normalized_full_name in active_source_full_names:
+        reasons.append("tracked_awesome_list_source")
+    if topics & AWESOME_LIST_TOPIC_MARKERS:
+        reasons.append("github_topic_awesome_list")
+    if "awesome" in topics and has_link_list:
+        reasons.append("github_topic_awesome")
+    if has_awesome_title and has_link_list:
+        reasons.append("awesome_readme_title")
+    if has_awesome_name and (has_awesome_title or has_link_list):
+        reasons.append("awesome_repo_name")
+    if has_awesome_description and has_link_list:
+        reasons.append("awesome_description")
+
+    return {
+        "is_candidate": bool(reasons),
+        "detected_repo_count": detected_repo_count,
+        "reasons": reasons,
+    }
 
 
 def raw_readme_url(
@@ -746,10 +820,23 @@ def _upsert_repository_metadata(
     ai_development_signals: list[dict] | None = None,
     commit_count: int | None = None,
     first_commit_at: datetime | None = None,
+    active_source_full_names: Collection[str] = (),
 ) -> Repository:
     full_name = data["full_name"]
     license_data = data.get("license") or {}
     default_branch = data.get("default_branch") or ""
+    stored_readme = ""
+    if readme_data is None or not readme_data.get("ok"):
+        stored_readme = (
+            Repository.objects.filter(full_name=full_name).values_list("readme", flat=True).first()
+            or ""
+        )
+    detection_readme = readme_data["readme"] if readme_data and readme_data["ok"] else stored_readme
+    awesome_list_detection = detect_awesome_list_candidate(
+        data,
+        detection_readme,
+        active_source_full_names=active_source_full_names,
+    )
     readme_defaults = {}
     if readme_data and readme_data["ok"]:
         readme_defaults = {
@@ -787,6 +874,9 @@ def _upsert_repository_metadata(
         "is_archived": bool(data.get("archived")),
         "is_disabled": bool(data.get("disabled")),
         "is_fork": bool(data.get("fork")),
+        "is_awesome_list_candidate": awesome_list_detection["is_candidate"],
+        "awesome_list_detected_repo_count": awesome_list_detection["detected_repo_count"],
+        "awesome_list_detection_reasons": awesome_list_detection["reasons"],
         "github_created_at": dt(data.get("created_at")),
         "github_updated_at": dt(data.get("updated_at")),
         "github_pushed_at": dt(data.get("pushed_at")),
@@ -808,8 +898,15 @@ def _upsert_repository_metadata(
     return repo
 
 
-def upsert_repository_from_github(full_name: str, *, include_readme: bool = True) -> Repository:
+def upsert_repository_from_github(
+    full_name: str,
+    *,
+    include_readme: bool = True,
+    active_source_full_names: Collection[str] | None = None,
+) -> Repository:
     data = fetch_json(f"https://api.github.com/repos/{full_name}")
+    if active_source_full_names is None:
+        active_source_full_names = active_awesome_list_source_repository_name_set()
     default_branch = data.get("default_branch") or ""
     existing_first_commit_at = (
         Repository.objects.filter(full_name=data["full_name"])
@@ -874,6 +971,7 @@ def upsert_repository_from_github(full_name: str, *, include_readme: bool = True
         ai_development_signals=ai_development_signals,
         commit_count=commit_count,
         first_commit_at=first_commit_at,
+        active_source_full_names=active_source_full_names,
     )
     if repository_tagging_configured() and (include_readme or not repo.generated_tags):
         sync_repository_tags(repo, repo.readme)
@@ -1119,9 +1217,13 @@ def sync_awesome_list(awesome_list: AwesomeList, limit: int | None = None) -> di
     created_links = 0
     synced = 0
     failures = []
+    active_source_full_names = active_awesome_list_source_repository_name_set()
     for repo_name in repo_names:
         try:
-            repo = upsert_repository_from_github(repo_name)
+            repo = upsert_repository_from_github(
+                repo_name,
+                active_source_full_names=active_source_full_names,
+            )
             _, created = AwesomeListItem.objects.get_or_create(
                 awesome_list=awesome_list,
                 repository=repo,
@@ -1278,9 +1380,14 @@ def refresh_repositories(
         queryset = queryset[:limit]
     synced = 0
     failures = []
+    active_source_full_names = active_awesome_list_source_repository_name_set()
     for repo in queryset:
         try:
-            upsert_repository_from_github(repo.full_name, include_readme=include_readme)
+            upsert_repository_from_github(
+                repo.full_name,
+                include_readme=include_readme,
+                active_source_full_names=active_source_full_names,
+            )
             synced += 1
         except Exception as exc:  # noqa: BLE001
             failures.append({"repo": repo.full_name, "error": str(exc)})
@@ -1298,7 +1405,16 @@ def repository_json_value_counts(
 
     table_name = connection.ops.quote_name(Repository._meta.db_table)
     repository_pk = connection.ops.quote_name(Repository._meta.pk.column)
+    repository_full_name = connection.ops.quote_name(Repository._meta.get_field("full_name").column)
+    repository_is_awesome_list_candidate = connection.ops.quote_name(
+        Repository._meta.get_field("is_awesome_list_candidate").column
+    )
     column_name = connection.ops.quote_name(field_name)
+    list_table = connection.ops.quote_name(AwesomeList._meta.db_table)
+    list_active = connection.ops.quote_name(AwesomeList._meta.get_field("is_active").column)
+    list_repo_full_name = connection.ops.quote_name(
+        AwesomeList._meta.get_field("repo_full_name").column
+    )
     join_clause = ""
     params = []
     if awesome_list is not None:
@@ -1323,6 +1439,13 @@ def repository_json_value_counts(
         CROSS JOIN LATERAL jsonb_array_elements_text(repository.{column_name}) AS item(value)
         WHERE jsonb_typeof(repository.{column_name}) = 'array'
             AND item.value <> ''
+            AND NOT repository.{repository_is_awesome_list_candidate}
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {list_table} AS tracked_list
+                WHERE tracked_list.{list_active}
+                    AND tracked_list.{list_repo_full_name} = repository.{repository_full_name}
+            )
         GROUP BY item.value
         ORDER BY count DESC, item.value ASC
         LIMIT %s
@@ -1336,12 +1459,24 @@ def repository_json_value_counts(
 def awesome_list_directory_totals() -> dict:
     list_table = connection.ops.quote_name(AwesomeList._meta.db_table)
     item_table = connection.ops.quote_name(AwesomeListItem._meta.db_table)
+    repo_table = connection.ops.quote_name(Repository._meta.db_table)
     list_pk = connection.ops.quote_name(AwesomeList._meta.pk.column)
     list_active = connection.ops.quote_name("is_active")
     list_last_scanned_at = connection.ops.quote_name("last_scanned_at")
     list_readme_repository_count = connection.ops.quote_name("readme_repository_count")
     list_stars = connection.ops.quote_name("stars")
+    list_repo_full_name = connection.ops.quote_name(
+        AwesomeList._meta.get_field("repo_full_name").column
+    )
     item_list_id = connection.ops.quote_name(AwesomeListItem._meta.get_field("awesome_list").column)
+    item_repository_id = connection.ops.quote_name(
+        AwesomeListItem._meta.get_field("repository").column
+    )
+    repo_pk = connection.ops.quote_name(Repository._meta.pk.column)
+    repo_full_name = connection.ops.quote_name(Repository._meta.get_field("full_name").column)
+    repo_is_awesome_list_candidate = connection.ops.quote_name(
+        Repository._meta.get_field("is_awesome_list_candidate").column
+    )
     query = f"""
         SELECT
             COUNT(*) AS total_lists,
@@ -1354,7 +1489,16 @@ def awesome_list_directory_totals() -> dict:
                 FROM {item_table} AS item
                 INNER JOIN {list_table} AS item_list
                     ON item.{item_list_id} = item_list.{list_pk}
+                INNER JOIN {repo_table} AS item_repo
+                    ON item.{item_repository_id} = item_repo.{repo_pk}
                 WHERE item_list.{list_active}
+                    AND NOT item_repo.{repo_is_awesome_list_candidate}
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {list_table} AS tracked_list
+                        WHERE tracked_list.{list_active}
+                            AND tracked_list.{list_repo_full_name} = item_repo.{repo_full_name}
+                    )
             ) AS total_indexed_links
         FROM {list_table} AS awesome_list
         WHERE awesome_list.{list_active}
@@ -1482,10 +1626,14 @@ def awesome_list_repository_queryset(awesome_list: AwesomeList, params):
         .annotate(total=Count("id"))
         .values("total")
     )
-    qs = Repository.objects.filter(awesome_items__awesome_list=awesome_list).annotate(
-        awesome_count=models.Subquery(
-            mention_count,
-            output_field=models.PositiveIntegerField(),
+    qs = (
+        visible_repository_queryset()
+        .filter(awesome_items__awesome_list=awesome_list)
+        .annotate(
+            awesome_count=models.Subquery(
+                mention_count,
+                output_field=models.PositiveIntegerField(),
+            )
         )
     )
     qs = _apply_list_repository_keyword_filter(qs, params)
@@ -1578,35 +1726,39 @@ def repository_search_queryset(params):
     first_snapshot = RepositorySnapshot.objects.filter(repository=models.OuterRef("pk")).order_by(
         "captured_at", "id"
     )
-    qs = Repository.objects.annotate(
-        awesome_count=Count("awesome_items", distinct=True),
-        snapshot_count=Count("snapshots", distinct=True),
-        first_snapshot_stars=models.Subquery(
-            first_snapshot.values("stars")[:1],
-            output_field=models.PositiveIntegerField(),
-        ),
-        first_snapshot_commit_count=models.Subquery(
-            first_snapshot.values("commit_count")[:1],
-            output_field=models.PositiveIntegerField(),
-        ),
-    ).annotate(
-        stars_since_first=models.Case(
-            models.When(
-                first_snapshot_stars__isnull=False,
-                then=models.F("stars") - models.F("first_snapshot_stars"),
+    qs = (
+        visible_repository_queryset()
+        .annotate(
+            awesome_count=Count("awesome_items", distinct=True),
+            snapshot_count=Count("snapshots", distinct=True),
+            first_snapshot_stars=models.Subquery(
+                first_snapshot.values("stars")[:1],
+                output_field=models.PositiveIntegerField(),
             ),
-            default=models.Value(0),
-            output_field=models.IntegerField(),
-        ),
-        commits_since_first=models.Case(
-            models.When(
-                commit_count__isnull=False,
-                first_snapshot_commit_count__isnull=False,
-                then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
+            first_snapshot_commit_count=models.Subquery(
+                first_snapshot.values("commit_count")[:1],
+                output_field=models.PositiveIntegerField(),
             ),
-            default=models.Value(None),
-            output_field=models.IntegerField(),
-        ),
+        )
+        .annotate(
+            stars_since_first=models.Case(
+                models.When(
+                    first_snapshot_stars__isnull=False,
+                    then=models.F("stars") - models.F("first_snapshot_stars"),
+                ),
+                default=models.Value(0),
+                output_field=models.IntegerField(),
+            ),
+            commits_since_first=models.Case(
+                models.When(
+                    commit_count__isnull=False,
+                    first_snapshot_commit_count__isnull=False,
+                    then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
+                ),
+                default=models.Value(None),
+                output_field=models.IntegerField(),
+            ),
+        )
     )
     q = (params.get("q") or "").strip()
     semantic_search = False
@@ -1642,7 +1794,8 @@ def similar_repositories_for_repository(repository: Repository, *, limit: int = 
         return Repository.objects.none()
 
     return (
-        Repository.objects.filter(
+        visible_repository_queryset()
+        .filter(
             vector__model=source_embedding.model,
             vector__dimensions=source_embedding.dimensions,
         )

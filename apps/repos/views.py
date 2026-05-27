@@ -14,7 +14,10 @@ from django_q.tasks import async_task
 
 from apps.repos.forms import AwesomeListRequestForm
 from apps.repos.models import AwesomeList, Repository
-from apps.repos.search_services import awesome_list_search_queryset
+from apps.repos.search_services import (
+    awesome_list_search_queryset,
+    visible_awesome_list_item_count,
+)
 from apps.repos.services import (
     awesome_list_directory_totals,
     awesome_list_repository_queryset,
@@ -23,6 +26,7 @@ from apps.repos.services import (
     repository_performance_summary,
     repository_search_queryset,
     similar_repositories_for_repository,
+    visible_repository_queryset,
 )
 
 AWESOME_LIST_SCAN_TASK_GROUP = "Scan awesome list"
@@ -111,13 +115,14 @@ class RepositorySearchView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        visible_repositories = visible_repository_queryset()
         context["awesome_lists"] = (
             AwesomeList.objects.filter(is_active=True)
-            .annotate(repo_count=Count("items"))
+            .annotate(repo_count=visible_awesome_list_item_count())
             .order_by("name")
         )
         context["languages"] = (
-            Repository.objects.exclude(language="")
+            visible_repositories.exclude(language="")
             .values_list("language", flat=True)
             .distinct()
             .order_by("language")
@@ -127,7 +132,7 @@ class RepositorySearchView(ListView):
         params = self.request.GET.copy()
         params.pop("page", None)
         context["querystring"] = params.urlencode()
-        context["total_repositories"] = Repository.objects.count()
+        context["total_repositories"] = visible_repositories.count()
         context["total_lists"] = AwesomeList.objects.filter(is_active=True).count()
         return context
 
@@ -211,13 +216,16 @@ class AwesomeListDetailView(DetailView):
 
     def get_queryset(self):
         return AwesomeList.objects.filter(is_active=True).annotate(
-            indexed_repo_count=Count("items", distinct=True)
+            indexed_repo_count=visible_awesome_list_item_count()
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         repos = awesome_list_repository_queryset(self.object, self.request.GET)
-        all_list_repos = Repository.objects.filter(awesome_items__awesome_list=self.object)
+        all_list_repos = visible_repository_queryset().filter(
+            awesome_items__awesome_list=self.object
+        )
+        self.object.indexed_repo_count = all_list_repos.count()
         params = self.request.GET.copy()
         params.pop("page", None)
         filter_names = (
