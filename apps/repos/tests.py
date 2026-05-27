@@ -2542,7 +2542,17 @@ def test_awesome_list_directory_totals_aggregates_in_one_query():
         url="https://github.com/django/django",
         stars=80000,
     )
+    candidate = Repository.objects.create(
+        full_name="vinta/awesome-python",
+        owner="vinta",
+        name="awesome-python",
+        url="https://github.com/vinta/awesome-python",
+        description="Curated Python resources",
+        stars=250000,
+        is_awesome_list_candidate=True,
+    )
     AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=candidate)
     inactive_list = AwesomeList.objects.create(
         name="Inactive List",
         slug="inactive-list",
@@ -3174,6 +3184,8 @@ def test_awesome_list_list_page_renders_activity_metrics(client):
     response = client.get(reverse("repos:list"), {"min_age_years": "10", "sort": "oldest"})
 
     assert response.status_code == 200
+    assert response.context["awesome_lists"][0].indexed_repo_count == 1
+    assert response.context["total_indexed_links"] == 1
     assert b"Awesome Django" in response.content
     assert b"first commit" in response.content
     assert b"Young List" not in response.content

@@ -1427,12 +1427,24 @@ def repository_json_value_counts(
 def awesome_list_directory_totals() -> dict:
     list_table = connection.ops.quote_name(AwesomeList._meta.db_table)
     item_table = connection.ops.quote_name(AwesomeListItem._meta.db_table)
+    repo_table = connection.ops.quote_name(Repository._meta.db_table)
     list_pk = connection.ops.quote_name(AwesomeList._meta.pk.column)
     list_active = connection.ops.quote_name("is_active")
     list_last_scanned_at = connection.ops.quote_name("last_scanned_at")
     list_readme_repository_count = connection.ops.quote_name("readme_repository_count")
     list_stars = connection.ops.quote_name("stars")
+    list_repo_full_name = connection.ops.quote_name(
+        AwesomeList._meta.get_field("repo_full_name").column
+    )
     item_list_id = connection.ops.quote_name(AwesomeListItem._meta.get_field("awesome_list").column)
+    item_repository_id = connection.ops.quote_name(
+        AwesomeListItem._meta.get_field("repository").column
+    )
+    repo_pk = connection.ops.quote_name(Repository._meta.pk.column)
+    repo_full_name = connection.ops.quote_name(Repository._meta.get_field("full_name").column)
+    repo_is_awesome_list_candidate = connection.ops.quote_name(
+        Repository._meta.get_field("is_awesome_list_candidate").column
+    )
     query = f"""
         SELECT
             COUNT(*) AS total_lists,
@@ -1445,7 +1457,16 @@ def awesome_list_directory_totals() -> dict:
                 FROM {item_table} AS item
                 INNER JOIN {list_table} AS item_list
                     ON item.{item_list_id} = item_list.{list_pk}
+                INNER JOIN {repo_table} AS item_repo
+                    ON item.{item_repository_id} = item_repo.{repo_pk}
                 WHERE item_list.{list_active}
+                    AND NOT item_repo.{repo_is_awesome_list_candidate}
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {list_table} AS tracked_list
+                        WHERE tracked_list.{list_active}
+                            AND tracked_list.{list_repo_full_name} = item_repo.{repo_full_name}
+                    )
             ) AS total_indexed_links
         FROM {list_table} AS awesome_list
         WHERE awesome_list.{list_active}

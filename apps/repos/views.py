@@ -14,7 +14,10 @@ from django_q.tasks import async_task
 
 from apps.repos.forms import AwesomeListRequestForm
 from apps.repos.models import AwesomeList, Repository
-from apps.repos.search_services import awesome_list_search_queryset
+from apps.repos.search_services import (
+    awesome_list_search_queryset,
+    visible_awesome_list_item_count,
+)
 from apps.repos.services import (
     awesome_list_directory_totals,
     awesome_list_repository_queryset,
@@ -213,7 +216,7 @@ class AwesomeListDetailView(DetailView):
 
     def get_queryset(self):
         return AwesomeList.objects.filter(is_active=True).annotate(
-            indexed_repo_count=Count("items", distinct=True)
+            indexed_repo_count=visible_awesome_list_item_count()
         )
 
     def get_context_data(self, **kwargs):

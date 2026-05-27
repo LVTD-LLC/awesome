@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 
 from apps.repos.models import AwesomeList, Repository, RepositorySnapshot
 from apps.repos.services import (
+    active_awesome_list_source_repository_names,
     awesome_list_directory_totals,
     awesome_list_repository_queryset,
     minimum_age_cutoff,
@@ -20,6 +21,15 @@ from apps.repos.services import (
 
 DEFAULT_API_PAGE_SIZE = 30
 MAX_API_PAGE_SIZE = 100
+
+
+def visible_awesome_list_item_count():
+    return Count(
+        "items",
+        filter=Q(items__repository__is_awesome_list_candidate=False)
+        & ~Q(items__repository__full_name__in=active_awesome_list_source_repository_names()),
+        distinct=True,
+    )
 
 
 def normalized_query_params(**params) -> dict[str, str]:
@@ -53,7 +63,7 @@ def paginate_queryset(
 
 def awesome_list_search_queryset(params):
     qs = AwesomeList.objects.filter(is_active=True).annotate(
-        indexed_repo_count=Count("items", distinct=True)
+        indexed_repo_count=visible_awesome_list_item_count()
     )
     q = (params.get("q") or "").strip()
     if q:
@@ -334,12 +344,11 @@ def search_awesome_lists_payload(
 def get_awesome_list_detail_payload(*, slug: str) -> dict:
     awesome_list = get_object_or_404(
         AwesomeList.objects.filter(is_active=True).annotate(
-            indexed_repo_count=Count("items", distinct=True)
+            indexed_repo_count=visible_awesome_list_item_count()
         ),
         slug=slug,
     )
     repos = visible_repository_queryset().filter(awesome_items__awesome_list=awesome_list)
-    awesome_list.indexed_repo_count = repos.count()
     repo_stats = repos.aggregate(
         total_stars=Sum("stars"),
         total_forks=Sum("forks"),
