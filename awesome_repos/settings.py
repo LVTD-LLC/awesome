@@ -304,28 +304,51 @@ ACCOUNT_ADAPTER = "awesome_repos.adapters.CustomAccountAdapter"
 if ENVIRONMENT != "dev":
     ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
 
-# Passkey (WebAuthn) auth support via django-allauth MFA.
+# WebAuthn is kept as a second factor / recovery option, but passwordless
+# passkey login and signup are disabled: GitHub OAuth is the only auth entry
+# point, so those flows have no UI and shouldn't remain reachable.
 MFA_SUPPORTED_TYPES = ["webauthn", "recovery_codes"]
-MFA_PASSKEY_LOGIN_ENABLED = True
-MFA_PASSKEY_SIGNUP_ENABLED = True
+MFA_PASSKEY_LOGIN_ENABLED = False
+MFA_PASSKEY_SIGNUP_ENABLED = False
 # Local dev uses http://localhost, so allow insecure origin only in debug.
 MFA_WEBAUTHN_ALLOW_INSECURE_ORIGIN = DEBUG
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_PROVIDERS = {}
 SOCIALACCOUNT_ADAPTER = "awesome_repos.adapters.CustomSocialAccountAdapter"
+# Send the user straight to GitHub on a GET of the provider login URL, so the
+# navbar / auth-page buttons go directly to GitHub with no interstitial page.
+SOCIALACCOUNT_LOGIN_ON_GET = True
 
-GITHUB_CLIENT_ID = env("GITHUB_CLIENT_ID", default="")
-if GITHUB_CLIENT_ID != "":
-    SOCIALACCOUNT_PROVIDERS["github"] = {
+
+def build_github_provider_config(client_id, secret):
+    """Build the allauth config for the GitHub social provider.
+
+    Kept as a function so the production scope/flags can be asserted in tests
+    without depending on GITHUB_CLIENT_ID being set in the environment.
+    """
+    return {
         "VERIFIED_EMAIL": True,
         "EMAIL_AUTHENTICATION": True,
         "AUTO_SIGNUP": True,
+        # Request the user:email scope so signup can read a verified email even
+        # when the member keeps their GitHub profile email private. Without it,
+        # GitHub omits the email and VERIFIED_EMAIL/EMAIL_AUTHENTICATION above
+        # have nothing to act on, breaking one-click signup for those users.
+        "SCOPE": ["read:user", "user:email"],
         "APP": {
-            "client_id": env("GITHUB_CLIENT_ID"),
-            "secret": env("GITHUB_CLIENT_SECRET"),
+            "client_id": client_id,
+            "secret": secret,
         },
     }
+
+
+GITHUB_CLIENT_ID = env("GITHUB_CLIENT_ID", default="")
+if GITHUB_CLIENT_ID != "":
+    SOCIALACCOUNT_PROVIDERS["github"] = build_github_provider_config(
+        GITHUB_CLIENT_ID,
+        env("GITHUB_CLIENT_SECRET"),
+    )
 
 MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 ANYMAIL = {
