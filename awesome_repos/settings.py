@@ -321,6 +321,11 @@ if GITHUB_CLIENT_ID != "":
         "VERIFIED_EMAIL": True,
         "EMAIL_AUTHENTICATION": True,
         "AUTO_SIGNUP": True,
+        # Request the user:email scope so signup can read a verified email even
+        # when the member keeps their GitHub profile email private. Without it,
+        # GitHub omits the email and VERIFIED_EMAIL/EMAIL_AUTHENTICATION above
+        # have nothing to act on, breaking one-click signup for those users.
+        "SCOPE": ["read:user", "user:email"],
         "APP": {
             "client_id": env("GITHUB_CLIENT_ID"),
             "secret": env("GITHUB_CLIENT_SECRET"),
