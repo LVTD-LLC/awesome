@@ -14,18 +14,13 @@ from django.urls import reverse
 from django.utils.module_loading import import_string
 
 from apps.core.context_processors import available_social_providers
+from awesome_repos.settings import build_github_provider_config
 
 User = get_user_model()
 
-GITHUB_PROVIDER_CONFIG = {
-    "github": {
-        "VERIFIED_EMAIL": True,
-        "EMAIL_AUTHENTICATION": True,
-        "AUTO_SIGNUP": True,
-        "SCOPE": ["read:user", "user:email"],
-        "APP": {"client_id": "test-id", "secret": "test-secret"},
-    }
-}
+# Mirror how settings.py registers the provider when GITHUB_CLIENT_ID is set,
+# using the real production config builder so these fixtures track settings.py.
+GITHUB_PROVIDER_CONFIG = {"github": build_github_provider_config("test-id", "test-secret")}
 
 
 def _social_account_adapter():
@@ -44,19 +39,25 @@ def _populate_user(email):
 
 
 class TestGithubProviderConfig:
-    @override_settings(SOCIALACCOUNT_PROVIDERS=GITHUB_PROVIDER_CONFIG)
+    """Assert against the real settings.py config builder so a regression in
+    the scope or email flags (e.g. dropping user:email) fails the suite."""
+
     def test_github_provider_requests_user_email_scope(self):
         """user:email scope is required to read private GitHub emails at signup."""
-        github = settings.SOCIALACCOUNT_PROVIDERS["github"]
+        github = build_github_provider_config("id", "secret")
 
         assert "user:email" in github["SCOPE"]
 
-    @override_settings(SOCIALACCOUNT_PROVIDERS=GITHUB_PROVIDER_CONFIG)
     def test_github_provider_enables_verified_email_signup(self):
-        github = settings.SOCIALACCOUNT_PROVIDERS["github"]
+        github = build_github_provider_config("id", "secret")
 
         assert github["VERIFIED_EMAIL"] is True
         assert github["EMAIL_AUTHENTICATION"] is True
+
+    def test_github_provider_passes_through_app_credentials(self):
+        github = build_github_provider_config("my-id", "my-secret")
+
+        assert github["APP"] == {"client_id": "my-id", "secret": "my-secret"}
 
 
 @pytest.mark.django_db

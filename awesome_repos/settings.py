@@ -315,9 +315,14 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_PROVIDERS = {}
 SOCIALACCOUNT_ADAPTER = "awesome_repos.adapters.CustomSocialAccountAdapter"
 
-GITHUB_CLIENT_ID = env("GITHUB_CLIENT_ID", default="")
-if GITHUB_CLIENT_ID != "":
-    SOCIALACCOUNT_PROVIDERS["github"] = {
+
+def build_github_provider_config(client_id, secret):
+    """Build the allauth config for the GitHub social provider.
+
+    Kept as a function so the production scope/flags can be asserted in tests
+    without depending on GITHUB_CLIENT_ID being set in the environment.
+    """
+    return {
         "VERIFIED_EMAIL": True,
         "EMAIL_AUTHENTICATION": True,
         "AUTO_SIGNUP": True,
@@ -327,10 +332,18 @@ if GITHUB_CLIENT_ID != "":
         # have nothing to act on, breaking one-click signup for those users.
         "SCOPE": ["read:user", "user:email"],
         "APP": {
-            "client_id": env("GITHUB_CLIENT_ID"),
-            "secret": env("GITHUB_CLIENT_SECRET"),
+            "client_id": client_id,
+            "secret": secret,
         },
     }
+
+
+GITHUB_CLIENT_ID = env("GITHUB_CLIENT_ID", default="")
+if GITHUB_CLIENT_ID != "":
+    SOCIALACCOUNT_PROVIDERS["github"] = build_github_provider_config(
+        env("GITHUB_CLIENT_ID"),
+        env("GITHUB_CLIENT_SECRET"),
+    )
 
 MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 ANYMAIL = {
