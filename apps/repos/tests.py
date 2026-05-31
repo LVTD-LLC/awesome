@@ -3158,8 +3158,20 @@ def test_repository_pages_render_liked_heart_for_authenticated_user(auth_client,
         description="The Web framework",
     )
     RepositoryLike.objects.create(user=user, repository=repo)
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
 
     response = auth_client.get(reverse("repos:search"))
+
+    assert response.status_code == 200
+    assert b"Remove django/django from liked repositories" in response.content
+    assert b'aria-pressed="true"' in response.content
+
+    response = auth_client.get(reverse("repos:list_detail", kwargs={"slug": awesome_list.slug}))
 
     assert response.status_code == 200
     assert b"Remove django/django from liked repositories" in response.content
