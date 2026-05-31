@@ -110,16 +110,6 @@ def toggle_repository_like(request, owner: str, name: str):
         like.delete()
         repository.is_liked = False
 
-    if request.headers.get("HX-Request") == "true":
-        return render(
-            request,
-            "repos/_repository_like_button.html",
-            {
-                "repository": repository,
-                "next_url": request.POST.get("next") or repository.get_absolute_url(),
-            },
-        )
-
     next_url = request.POST.get("next") or repository.get_absolute_url()
     if not url_has_allowed_host_and_scheme(
         next_url,
@@ -127,6 +117,17 @@ def toggle_repository_like(request, owner: str, name: str):
         require_https=request.is_secure(),
     ):
         next_url = repository.get_absolute_url()
+
+    if request.headers.get("HX-Request") == "true":
+        return render(
+            request,
+            "repos/_repository_like_button.html",
+            {
+                "repository": repository,
+                "next_url": next_url,
+            },
+        )
+
     return redirect(next_url)
 
 

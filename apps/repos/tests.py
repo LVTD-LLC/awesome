@@ -3111,6 +3111,26 @@ def test_authenticated_user_can_toggle_repository_like_with_htmx(auth_client, us
 
 
 @pytest.mark.django_db
+def test_repository_like_htmx_response_uses_safe_next_url(auth_client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+    )
+
+    response = auth_client.post(
+        reverse("repos:repo_like_toggle", kwargs={"owner": repo.owner, "name": repo.name}),
+        {"next": "https://example.invalid/not-local"},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert f'value="{repo.get_absolute_url()}"'.encode() in response.content
+    assert b"https://example.invalid/not-local" not in response.content
+
+
+@pytest.mark.django_db
 def test_repository_like_falls_back_to_safe_redirect(auth_client):
     repo = Repository.objects.create(
         full_name="django/django",
