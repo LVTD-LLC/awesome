@@ -5,6 +5,7 @@ from io import StringIO
 from types import SimpleNamespace
 
 import pytest
+from allauth.socialaccount.models import SocialAccount, SocialToken
 from django.contrib import admin as django_admin
 from django.core.cache import cache
 from django.core.management import call_command
@@ -30,6 +31,7 @@ from apps.repos.models import (
     RepositoryEmbedding,
     RepositoryLike,
     RepositorySnapshot,
+    UserStarredRepository,
 )
 from apps.repos.services import (
     GitHubAPIError,
@@ -48,6 +50,7 @@ from apps.repos.services import (
     fetch_repository_readme_data,
     fetch_repository_tree_items,
     github_rate_limit_status,
+    import_starred_repositories_for_profile,
     minimum_age_cutoff,
     parse_github_repo_url,
     refresh_repositories,
@@ -69,6 +72,7 @@ from apps.repos.tags import (
 )
 from apps.repos.tasks import (
     daily_repository_refresh_limit,
+    enqueue_starred_repository_imports_task,
     refresh_repositories_task,
     refresh_repository_task,
 )
@@ -80,10 +84,12 @@ LOC_MEM_CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocM
 @pytest.fixture(autouse=True)
 def disable_repository_tagging(settings, monkeypatch):
     settings.REPOSITORY_TAGGING_ENABLED = False
-    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", lambda *args: 123)
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_github_commit_count", lambda *args, **kwargs: 123
+    )
     monkeypatch.setattr(
         "apps.repos.services.fetch_github_commit_count_and_first_commit_at",
-        lambda *args: (123, datetime(2005, 7, 13, tzinfo=UTC)),
+        lambda *args, **kwargs: (123, datetime(2005, 7, 13, tzinfo=UTC)),
     )
 
 
@@ -274,7 +280,7 @@ def test_sync_awesome_list_marks_empty_scan_as_error(monkeypatch):
 
     monkeypatch.setattr(
         "apps.repos.services.fetch_awesome_readme",
-        lambda full_name: ("# Empty\n", {"full_name": full_name, "description": ""}),
+        lambda full_name, **kwargs: ("# Empty\n", {"full_name": full_name, "description": ""}),
     )
 
     result = sync_awesome_list(awesome_list)
@@ -329,11 +335,11 @@ def test_sync_awesome_list_stores_list_activity_metadata(monkeypatch):
     """
     monkeypatch.setattr(
         "apps.repos.services.fetch_awesome_readme",
-        lambda full_name: (markdown, github_awesome_list_payload(full_name)),
+        lambda full_name, **kwargs: (markdown, github_awesome_list_payload(full_name)),
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_github_commit_count_and_first_commit_at",
-        lambda *args: (350, datetime(2015, 1, 2, tzinfo=UTC)),
+        lambda *args, **kwargs: (350, datetime(2015, 1, 2, tzinfo=UTC)),
     )
 
     def fake_upsert(full_name, *, active_source_full_names=None):
@@ -435,7 +441,7 @@ def test_discover_missing_awesome_list_repositories_skips_existing_repos(monkeyp
     """
     monkeypatch.setattr(
         "apps.repos.services.fetch_awesome_readme",
-        lambda full_name: (
+        lambda full_name, **kwargs: (
             markdown,
             {"full_name": full_name, "description": "Python resources"},
         ),
@@ -507,10 +513,219 @@ def github_repo_payload(full_name="django/django", stars=80000, forks=32000, wat
     }
 
 
+def attach_github_token(profile, token="user-token", uid="12345"):
+    account = SocialAccount.objects.create(
+        user=profile.user,
+        provider="github",
+        uid=uid,
+    )
+    return SocialToken.objects.create(account=account, token=token)
+
+
+@pytest.mark.django_db
+def test_import_starred_repositories_links_existing_and_syncs_new_with_user_token(
+    monkeypatch,
+    profile,
+):
+    attach_github_token(profile, token="user-star-token")
+    existing = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=100,
+    )
+    starred_at = datetime(2026, 5, 1, tzinfo=UTC)
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_user_starred_repositories",
+        lambda token, limit=None: [
+            {"repository": github_repo_payload("django/django"), "starred_at": starred_at},
+            {"repository": github_repo_payload("encode/httpx"), "starred_at": None},
+        ],
+    )
+    captured_syncs = []
+
+    def fake_upsert(full_name, *, active_source_full_names=None, github_access_token=None):
+        captured_syncs.append((full_name, github_access_token))
+        owner, name = full_name.split("/", 1)
+        return Repository.objects.create(
+            full_name=full_name,
+            owner=owner,
+            name=name,
+            url=f"https://github.com/{full_name}",
+            stars=50,
+        )
+
+    monkeypatch.setattr("apps.repos.services.upsert_repository_from_github", fake_upsert)
+
+    result = import_starred_repositories_for_profile(profile, refresh_existing=False)
+
+    profile.refresh_from_db()
+    assert result["discovered"] == 2
+    assert result["linked"] == 2
+    assert result["created_links"] == 2
+    assert result["repositories_created"] == 1
+    assert captured_syncs == [("encode/httpx", "user-star-token")]
+    assert profile.github_starred_repos_import_enabled is True
+    assert profile.github_starred_repos_last_imported_at is not None
+    assert profile.github_starred_repos_last_error == ""
+    assert UserStarredRepository.objects.filter(profile=profile, repository=existing).exists()
+    assert (
+        UserStarredRepository.objects.get(
+            profile=profile,
+            repository__full_name="django/django",
+        ).starred_at
+        == starred_at
+    )
+
+
+@pytest.mark.django_db
+def test_import_starred_repositories_refreshes_existing_repos_with_user_token(monkeypatch, profile):
+    attach_github_token(profile, token="user-refresh-token")
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=100,
+    )
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_user_starred_repositories",
+        lambda token, limit=None: [
+            {"repository": github_repo_payload("django/django"), "starred_at": None},
+        ],
+    )
+    captured_syncs = []
+
+    def fake_upsert(full_name, *, active_source_full_names=None, github_access_token=None):
+        captured_syncs.append((full_name, github_access_token))
+        return repository
+
+    monkeypatch.setattr("apps.repos.services.upsert_repository_from_github", fake_upsert)
+
+    result = import_starred_repositories_for_profile(profile, refresh_existing=True)
+
+    assert result["repositories_refreshed"] == 1
+    assert result["repositories_created"] == 0
+    assert captured_syncs == [("django/django", "user-refresh-token")]
+    starred_link = UserStarredRepository.objects.get(profile=profile, repository=repository)
+    assert starred_link.last_synced_at is not None
+
+
+@pytest.mark.django_db
+def test_import_starred_repositories_records_rate_limit_as_partial_import(monkeypatch, profile):
+    attach_github_token(profile, token="user-rate-token")
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_user_starred_repositories",
+        lambda token, limit=None: [
+            {"repository": github_repo_payload("django/django"), "starred_at": None},
+            {"repository": github_repo_payload("encode/httpx"), "starred_at": None},
+        ],
+    )
+
+    def fail_rate_limit(full_name, *, active_source_full_names=None, github_access_token=None):
+        raise GitHubAPIError("rate limit exceeded", status_code=403, rate_limit_remaining="0")
+
+    monkeypatch.setattr("apps.repos.services.upsert_repository_from_github", fail_rate_limit)
+
+    result = import_starred_repositories_for_profile(profile, refresh_existing=True)
+
+    profile.refresh_from_db()
+    assert result["stopped_for_rate_limit"] is True
+    assert result["failure_count"] == 1
+    assert result["linked"] == 0
+    assert profile.github_starred_repos_last_error.startswith(
+        "Import stopped early because GitHub rate limit was reached"
+    )
+
+
+@pytest.mark.django_db
+def test_enqueue_starred_repository_imports_task_queues_only_opted_in_profiles(
+    monkeypatch,
+    profile,
+    django_user_model,
+):
+    profile.github_starred_repos_import_enabled = True
+    profile.save(update_fields=["github_starred_repos_import_enabled", "updated_at"])
+    attach_github_token(profile, uid="opted-in")
+    opted_out_user = django_user_model.objects.create_user(
+        username="opted-out",
+        email="opted-out@example.com",
+        password="password123",
+    )
+    attach_github_token(opted_out_user.profile, uid="opted-out")
+    no_token_user = django_user_model.objects.create_user(
+        username="no-token",
+        email="no-token@example.com",
+        password="password123",
+    )
+    no_token_user.profile.github_starred_repos_import_enabled = True
+    no_token_user.profile.save(update_fields=["github_starred_repos_import_enabled", "updated_at"])
+    queued = []
+
+    def fake_async_task(func_path, profile_id, **kwargs):
+        queued.append((func_path, profile_id, kwargs))
+        return f"task-{profile_id}"
+
+    monkeypatch.setattr("apps.repos.tasks.async_task", fake_async_task)
+
+    result = enqueue_starred_repository_imports_task(limit_per_user=5)
+
+    assert result["queued"] == 1
+    assert queued == [
+        (
+            "apps.repos.tasks.import_starred_repositories_task",
+            profile.id,
+            {
+                "limit": 5,
+                "refresh_existing": True,
+                "group": "Import GitHub starred repositories",
+            },
+        )
+    ]
+
+
+@pytest.mark.django_db
+def test_starred_repository_search_is_scoped_to_current_user(
+    auth_client,
+    profile,
+    django_user_model,
+):
+    own_repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=100,
+    )
+    other_repo = Repository.objects.create(
+        full_name="encode/httpx",
+        owner="encode",
+        name="httpx",
+        url="https://github.com/encode/httpx",
+        stars=50,
+    )
+    other_user = django_user_model.objects.create_user(
+        username="other",
+        email="other@example.com",
+        password="password123",
+    )
+    UserStarredRepository.objects.create(profile=profile, repository=own_repo)
+    UserStarredRepository.objects.create(profile=other_user.profile, repository=other_repo)
+
+    response = auth_client.get(reverse("repos:starred"))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert "Search your starred repositories." in content
+    assert "django/django" in content
+    assert "encode/httpx" not in content
+
+
 def stub_repository_readme(monkeypatch, content="# Django\n"):
     monkeypatch.setattr(
         "apps.repos.services.fetch_repository_readme_data",
-        lambda full_name: {
+        lambda full_name, **kwargs: {
             "ok": True,
             "readme": content,
             "readme_path": "README.md",
@@ -520,7 +735,7 @@ def stub_repository_readme(monkeypatch, content="# Django\n"):
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_repository_ai_development_signals",
-        lambda full_name, default_branch: [],
+        lambda full_name, default_branch, **kwargs: [],
     )
 
 
@@ -528,7 +743,7 @@ def stub_repository_readme(monkeypatch, content="# Django\n"):
 def test_upsert_repository_from_github_records_snapshot(monkeypatch):
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=80000, forks=32000, watchers=1200),
+        lambda url, **kwargs: github_repo_payload(stars=80000, forks=32000, watchers=1200),
     )
     stub_repository_readme(monkeypatch)
 
@@ -555,7 +770,7 @@ def test_upsert_repository_from_github_records_snapshot_for_each_refresh(monkeyp
         github_repo_payload(stars=15, forks=4, watchers=2),
     ]
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         return payloads.pop(0)
 
     monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
@@ -581,7 +796,7 @@ def test_upsert_repository_from_github_rolls_back_when_snapshot_fails(monkeypatc
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
     stub_repository_readme(monkeypatch, content="# Updated Django\n")
 
@@ -603,7 +818,7 @@ def test_fetch_repository_readme_data_decodes_github_contents_metadata(monkeypat
     readme = "# Django\n\nThe Web framework."
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: {
+        lambda url, **kwargs: {
             "encoding": "base64",
             "content": base64.b64encode(readme.encode("utf-8")).decode("ascii"),
             "path": "README.md",
@@ -659,7 +874,7 @@ def test_detect_ai_development_signals_identifies_common_agent_files():
 def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch):
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: {
+        lambda url, **kwargs: {
             "truncated": True,
             "tree": [{"path": "AGENTS.md", "type": "blob"}],
         },
@@ -798,7 +1013,7 @@ def test_backfill_first_commit_dates_command_updates_existing_rows(monkeypatch):
     monkeypatch.setattr(
         "apps.repos.management.commands.backfill_first_commit_dates."
         "fetch_github_commit_count_and_first_commit_at",
-        lambda full_name, default_branch: fetched[full_name],
+        lambda full_name, default_branch, **kwargs: fetched[full_name],
     )
 
     output = StringIO()
@@ -886,7 +1101,7 @@ def test_attach_awesome_list_commit_count_skips_missing_default_branch(monkeypat
 def test_upsert_repository_from_github_stores_readme(monkeypatch):
     readme = "# Django\nThe Web framework.\n"
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -919,7 +1134,7 @@ def test_upsert_repository_from_github_marks_awesome_list_candidates(monkeypatch
         "- [Wagtail](https://github.com/wagtail/wagtail)\n"
     )
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -952,7 +1167,7 @@ def test_upsert_repository_from_github_marks_awesome_list_candidates(monkeypatch
 def test_upsert_repository_from_github_stores_ai_development_signals(monkeypatch):
     readme = "# Django\nThe Web framework.\n"
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -995,11 +1210,11 @@ def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monke
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_repository_readme_data",
-        lambda full_name: {
+        lambda full_name, **kwargs: {
             "ok": False,
             "readme": "",
             "readme_path": "",
@@ -1037,11 +1252,11 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_fetch_fail
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_repository_readme_data",
-        lambda full_name: {
+        lambda full_name, **kwargs: {
             "ok": False,
             "readme": "",
             "readme_path": "",
@@ -1050,7 +1265,7 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_fetch_fail
         },
     )
 
-    def fail_ai_signals(full_name, default_branch):
+    def fail_ai_signals(full_name, default_branch, **kwargs):
         raise RuntimeError("tree failed")
 
     monkeypatch.setattr(
@@ -1078,11 +1293,11 @@ def test_upsert_repository_from_github_preserves_commit_count_when_fetch_fails(
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
     stub_repository_readme(monkeypatch)
 
-    def fail_commit_activity(full_name, default_branch):
+    def fail_commit_activity(full_name, default_branch, **kwargs):
         raise RuntimeError("commit activity failed")
 
     monkeypatch.setattr(
@@ -1118,18 +1333,18 @@ def test_upsert_repository_from_github_uses_single_commit_count_call_when_first_
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
     stub_repository_readme(monkeypatch)
 
-    def fail_commit_activity(full_name, default_branch):
+    def fail_commit_activity(full_name, default_branch, **kwargs):
         raise AssertionError("first commit date should not be refetched")
 
     monkeypatch.setattr(
         "apps.repos.services.fetch_github_commit_count_and_first_commit_at",
         fail_commit_activity,
     )
-    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", lambda *args: 43)
+    monkeypatch.setattr("apps.repos.services.fetch_github_commit_count", lambda *args, **kwargs: 43)
 
     repo = upsert_repository_from_github(repo.full_name)
 
@@ -1154,10 +1369,10 @@ def test_upsert_repository_from_github_can_refresh_metadata_without_readme(monke
     )
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: github_repo_payload(stars=15, forks=4, watchers=2),
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
     )
 
-    def fail_readme_fetch(full_name):
+    def fail_readme_fetch(full_name, **kwargs):
         raise AssertionError(f"should not fetch README for {full_name}")
 
     monkeypatch.setattr(
@@ -1196,7 +1411,7 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_is_truncat
         ],
     )
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -1490,7 +1705,7 @@ def test_github_rate_limit_status_formats_core_limit(monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token")
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: {
+        lambda url, **kwargs: {
             "resources": {
                 "core": {
                     "limit": 5000,
@@ -1516,7 +1731,7 @@ def test_fetch_repository_readme_decodes_github_contents_payload(monkeypatch):
     readme = "# Django\n\nThe Web framework."
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
-        lambda url: {
+        lambda url, **kwargs: {
             "encoding": "base64",
             "content": base64.b64encode(readme.encode("utf-8")).decode("ascii"),
         },
@@ -1556,7 +1771,7 @@ def test_upsert_repository_from_github_syncs_embedding_from_readme(monkeypatch, 
     settings.REPOSITORY_EMBEDDINGS_ENABLED = True
     captured = {}
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             captured["readme_fetch_in_atomic"] = connection.in_atomic_block
             return {
@@ -1600,7 +1815,7 @@ def test_upsert_repository_from_github_stores_readme_when_embeddings_unconfigure
     settings.REPOSITORY_EMBEDDINGS_ENABLED = True
     readme = "# Django\n"
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -1923,7 +2138,7 @@ def test_upsert_repository_from_github_syncs_generated_tags_from_readme(
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     captured = {}
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",
@@ -1968,7 +2183,7 @@ def test_upsert_repository_from_github_syncs_missing_generated_tags_without_read
     )
     captured = {}
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         assert not url.endswith("/readme")
         return github_repo_payload()
 
@@ -1981,7 +2196,7 @@ def test_upsert_repository_from_github_syncs_missing_generated_tags_without_read
     monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
     monkeypatch.setattr(
         "apps.repos.services.fetch_repository_ai_development_signals",
-        lambda full_name, default_branch: [],
+        lambda full_name, default_branch, **kwargs: [],
     )
     monkeypatch.setattr("apps.repos.services.sync_repository_tags", fake_sync_repository_tags)
 
@@ -2071,7 +2286,7 @@ def test_embed_repositories_command_reports_unchanged_embeddings(monkeypatch, se
     monkeypatch.setattr("apps.repos.embeddings.generate_embedding", fail_generate_embedding)
     monkeypatch.setattr(
         "apps.repos.management.commands.embed_repositories.fetch_repository_readme",
-        lambda full_name: readme_text,
+        lambda full_name, **kwargs: readme_text,
     )
 
     stdout = StringIO()
@@ -2119,7 +2334,7 @@ def test_refresh_repository_task_updates_repository_readme(monkeypatch):
     )
     readme = "# New README\nUpdated project docs.\n"
 
-    def fake_fetch_json(url):
+    def fake_fetch_json(url, **kwargs):
         if url.endswith("/readme"):
             return {
                 "encoding": "base64",

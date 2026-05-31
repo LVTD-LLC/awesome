@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -7,12 +8,13 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, FormView, ListView
 from django_q.tasks import async_task
 
+from apps.core.models import Profile
 from apps.repos.forms import AwesomeListRequestForm
 from apps.repos.models import AwesomeList, Repository, RepositoryLike
 from apps.repos.search_services import (
@@ -156,6 +158,7 @@ class RepositorySearchView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         visible_repositories = visible_repository_queryset()
+        search_url = reverse("repos:search")
         context["awesome_lists"] = (
             AwesomeList.objects.filter(is_active=True)
             .annotate(repo_count=visible_awesome_list_item_count())
@@ -174,6 +177,92 @@ class RepositorySearchView(ListView):
         context["querystring"] = params.urlencode()
         context["total_repositories"] = visible_repositories.count()
         context["total_lists"] = AwesomeList.objects.filter(is_active=True).count()
+        context["search_action_url"] = search_url
+        context["search_reset_url"] = search_url
+        context["search_eyebrow"] = "Awesome-list intelligence for GitHub"
+        context["search_title"] = "Search every repository hiding inside awesome lists."
+        context["search_description"] = (
+            "Discover projects curated by awesome-list maintainers, then narrow them by "
+            "stars, age, freshness, archive status, language, topics, generated tags, and "
+            "source list."
+        )
+        context["total_repositories_label"] = "Repos indexed"
+        context["total_lists_label"] = "Awesome lists tracked"
+        return context
+
+
+class UserStarredRepositorySearchView(LoginRequiredMixin, ListView):
+    template_name = "repos/search.html"
+    context_object_name = "repositories"
+    paginate_by = 30
+    login_url = "account_login"
+
+    def get_profile(self):
+        if not hasattr(self, "profile"):
+            self.profile, _created = Profile.objects.get_or_create(user=self.request.user)
+        return self.profile
+
+    def starred_repository_queryset(self):
+        # Personal starred search intentionally includes every imported star, including
+        # repositories hidden from public catalog search as awesome-list candidates.
+        return Repository.objects.filter(starred_by_profiles__profile=self.get_profile()).distinct()
+
+    def get_queryset(self):
+        return with_repository_like_state(
+            repository_search_queryset(
+                self.request.GET,
+                queryset=self.starred_repository_queryset(),
+            ),
+            self.request.user,
+        ).prefetch_related("awesome_items__awesome_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile = self.get_profile()
+        starred_repositories = self.starred_repository_queryset()
+        search_url = reverse("repos:starred")
+        context["awesome_lists"] = (
+            AwesomeList.objects.filter(
+                is_active=True,
+                items__repository__starred_by_profiles__profile=profile,
+            )
+            .annotate(
+                repo_count=Count(
+                    "items__repository",
+                    filter=Q(items__repository__starred_by_profiles__profile=profile),
+                    distinct=True,
+                )
+            )
+            .order_by("name")
+            .distinct()
+        )
+        context["languages"] = (
+            starred_repositories.exclude(language="")
+            .values_list("language", flat=True)
+            .distinct()
+            .order_by("language")
+        )
+        context["topic_options"] = repository_json_value_counts("topics", profile=profile)
+        context["generated_tag_options"] = repository_json_value_counts(
+            "generated_tags",
+            profile=profile,
+        )
+        params = self.request.GET.copy()
+        params.pop("page", None)
+        context["querystring"] = params.urlencode()
+        context["total_repositories"] = starred_repositories.count()
+        context["total_lists"] = context["awesome_lists"].count()
+        context["search_action_url"] = search_url
+        context["search_reset_url"] = search_url
+        context["search_eyebrow"] = "Your GitHub stars"
+        context["search_title"] = "Search your starred repositories."
+        context["search_description"] = (
+            "Filter the public repositories imported from your GitHub stars by the same "
+            "metadata used across Awesome."
+        )
+        context["total_repositories_label"] = "Starred repos"
+        context["total_lists_label"] = "Matching awesome lists"
+        context["is_personal_starred_search"] = True
         return context
 
 

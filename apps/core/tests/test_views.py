@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from allauth.socialaccount.models import SocialAccount, SocialToken
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
@@ -38,6 +39,67 @@ class TestHomeView:
 
         assert "Copy this key now" not in content
         assert profile.api_key_prefix in content
+
+    def test_import_starred_repositories_enables_profile_and_queues_task(
+        self,
+        auth_client,
+        profile,
+        monkeypatch,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+        )
+        SocialToken.objects.create(account=account, token="user-token")
+        queued = []
+
+        def fake_async_task(func_path, profile_id, **kwargs):
+            queued.append((func_path, profile_id, kwargs))
+
+        monkeypatch.setattr("apps.core.views.async_task", fake_async_task)
+        monkeypatch.setattr("apps.core.views.transaction.on_commit", lambda callback: callback())
+
+        response = auth_client.post(reverse("import_starred_repositories"), follow=True)
+
+        profile.refresh_from_db()
+        assert response.status_code == 200
+        assert profile.github_starred_repos_import_enabled is True
+        assert profile.github_starred_repos_last_error == ""
+        assert queued == [
+            (
+                "apps.repos.tasks.import_starred_repositories_task",
+                profile.id,
+                {
+                    "refresh_existing": True,
+                    "group": "Import GitHub starred repositories",
+                },
+            )
+        ]
+        assert "Queued your GitHub starred repository import." in response.content.decode()
+
+    def test_disable_starred_repositories_import_turns_off_daily_refresh(
+        self,
+        auth_client,
+        profile,
+    ):
+        profile.github_starred_repos_import_enabled = True
+        profile.github_starred_repos_last_error = "Previous sync error"
+        profile.save(
+            update_fields=[
+                "github_starred_repos_import_enabled",
+                "github_starred_repos_last_error",
+                "updated_at",
+            ]
+        )
+
+        response = auth_client.post(reverse("disable_starred_repository_import"), follow=True)
+
+        profile.refresh_from_db()
+        assert response.status_code == 200
+        assert profile.github_starred_repos_import_enabled is False
+        assert profile.github_starred_repos_last_error == ""
+        assert "Disabled daily GitHub starred repository refresh." in response.content.decode()
 
 
 @pytest.mark.django_db

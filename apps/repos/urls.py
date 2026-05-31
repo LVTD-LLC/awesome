@@ -6,6 +6,7 @@ from apps.repos import views
 app_name = "repos"
 urlpatterns = [
     path("", views.RepositorySearchView.as_view(), name="search"),
+    path("starred/", views.UserStarredRepositorySearchView.as_view(), name="starred"),
     path(
         "repos/",
         RedirectView.as_view(pattern_name="repos:search", permanent=True),

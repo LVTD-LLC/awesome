@@ -45,6 +45,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: store first-commit dates for awesome lists and repositories, show them in search/detail pages, and add age filters.
 - Awesome: added a management command to backfill first-commit dates for existing awesome-list and repository rows.
 - Awesome: detect awesome-list repositories during repository sync and hide them from normal repository browse/search surfaces.
+- Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
 
 ### Changed
 - Awesome: renamed product-facing copy and brand assets to the shorter product name.
