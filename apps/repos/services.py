@@ -1364,7 +1364,11 @@ def upsert_repository_from_github(
     return repo
 
 
-def sync_repository_stack_detection(repository: Repository) -> dict:
+def sync_repository_stack_detection(
+    repository: Repository,
+    *,
+    token: str | None = None,
+) -> dict:
     detected_at = timezone.now()
     if not repository.default_branch:
         result = {
@@ -1379,6 +1383,7 @@ def sync_repository_stack_detection(repository: Repository) -> dict:
         result = fetch_repository_stack_detection(
             repository.full_name,
             repository.default_branch,
+            token=token,
         )
     except Exception as exc:  # noqa: BLE001 - management backfills should keep going
         result = {"ok": False, "error": str(exc)}

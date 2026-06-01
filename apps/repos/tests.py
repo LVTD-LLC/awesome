@@ -1602,6 +1602,107 @@ def test_sync_repository_stack_detection_updates_existing_repository(monkeypatch
 
 
 @pytest.mark.django_db
+def test_sync_repository_stack_detection_passes_github_token(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_fetch_repository_stack_detection(full_name, default_branch, **kwargs):
+        captured["full_name"] = full_name
+        captured["default_branch"] = default_branch
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "dependency_files": [],
+            "dependency_ecosystems": [],
+            "package_managers": [],
+            "detected_stacks": [],
+            "stack_signals": [],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_stack_detection",
+        fake_fetch_repository_stack_detection,
+    )
+
+    result = sync_repository_stack_detection(repository, token="ghp_test")
+
+    assert result["ok"] is True
+    assert captured == {
+        "full_name": "django/django",
+        "default_branch": "main",
+        "token": "ghp_test",
+    }
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_prefers_unsynced_repositories():
+    synced = Repository.objects.create(
+        full_name="django/synced",
+        owner="django",
+        name="synced",
+        url="https://github.com/django/synced",
+        default_branch="main",
+        stack_detected_at=timezone.now(),
+    )
+    unsynced = Repository.objects.create(
+        full_name="django/unsynced",
+        owner="django",
+        name="unsynced",
+        url="https://github.com/django/unsynced",
+        default_branch="main",
+    )
+
+    output = StringIO()
+    call_command("detect_repository_stacks", "--all", "--dry-run", "--limit", "2", stdout=output)
+
+    lines = [line for line in output.getvalue().splitlines() if line.startswith("Would inspect")]
+    assert lines == [
+        f"Would inspect {unsynced.full_name}",
+        f"Would inspect {synced.full_name}",
+    ]
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_passes_github_token(monkeypatch):
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_sync_repository_stack_detection(repository, **kwargs):
+        captured["repository"] = repository.full_name
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "detected_stacks": ["django"],
+            "dependency_files": [{"path": "pyproject.toml"}],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.sync_repository_stack_detection",
+        fake_sync_repository_stack_detection,
+    )
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.github_token",
+        lambda: "env-token",
+    )
+
+    call_command("detect_repository_stacks", "--github-token", "cli-token", stdout=StringIO())
+
+    assert captured == {"repository": "django/django", "token": "cli-token"}
+
+
+@pytest.mark.django_db
 def test_upsert_repository_from_github_preserves_commit_count_when_fetch_fails(
     monkeypatch,
 ):
