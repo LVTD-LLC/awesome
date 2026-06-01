@@ -3915,6 +3915,21 @@ def test_awesome_list_history_chart_data_skips_unscanned_empty_lists():
 
 
 @pytest.mark.django_db
+def test_awesome_list_history_chart_data_skips_zero_star_lists_without_commits():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        stars=0,
+        commits_count=None,
+        last_scanned_at=timezone.now(),
+    )
+
+    assert awesome_list_history_chart_data(awesome_list) == []
+
+
+@pytest.mark.django_db
 def test_awesome_list_repository_history_chart_data_aggregates_list_snapshots(monkeypatch):
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",

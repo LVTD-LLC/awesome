@@ -1194,7 +1194,7 @@ def update_awesome_list_metadata(
 def record_awesome_list_snapshot(
     awesome_list: AwesomeList,
     *,
-    captured_at=None,
+    captured_at: datetime | None = None,
     source: str = "github_api",
 ) -> AwesomeListSnapshot:
     captured_at = captured_at or timezone.now()
@@ -1655,11 +1655,7 @@ def awesome_list_history_chart_data(
             for snapshot in reversed(snapshots)
         ]
 
-    has_current_metadata = (
-        awesome_list.last_scanned_at is not None
-        or awesome_list.stars > 0
-        or awesome_list.commits_count is not None
-    )
+    has_current_metadata = awesome_list.stars > 0 or awesome_list.commits_count is not None
     if not has_current_metadata:
         return []
 
