@@ -24,7 +24,11 @@ class Command(BaseCommand):
                 "and the provider API key is set."
             )
 
-        result = tag_repository_batch(limit=options["limit"], force=options["force"])
+        limit = options["limit"]
+        if limit == 0:
+            limit = None
+
+        result = tag_repository_batch(limit=limit, force=options["force"])
         for failure in result["failures"]:
             self.stderr.write(self.style.ERROR(f"{failure['repo']}: {failure['error']}"))
         self.stdout.write(self.style.SUCCESS(str(result)))

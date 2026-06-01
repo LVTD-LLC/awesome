@@ -89,7 +89,13 @@ def normalize_repository_tags(values: list[str]) -> list[str]:
 def _clean_metadata_values(values) -> list[str]:
     if not isinstance(values, list):
         return []
-    return [str(value).strip() for value in values if str(value).strip()]
+
+    cleaned = []
+    for value in values:
+        label = str(value).strip()
+        if label:
+            cleaned.append(label)
+    return cleaned
 
 
 def _format_ai_development_signals(signals) -> list[str]:
@@ -324,12 +330,25 @@ def sync_repository_tags(
         return repository.generated_tags
 
 
+def _empty_tag_repository_batch_result() -> dict:
+    return {
+        "tagged": 0,
+        "skipped": 0,
+        "unchanged": 0,
+        "failure_count": 0,
+        "failures": [],
+    }
+
+
 def tag_repository_batch(
     queryset=None,
     *,
     limit: int | None = None,
     force: bool = False,
 ) -> dict:
+    if limit is not None and limit <= 0:
+        return _empty_tag_repository_batch_result()
+
     if queryset is None:
         queryset = Repository.objects.all()
     queryset = queryset.order_by(
@@ -337,7 +356,7 @@ def tag_repository_batch(
         "full_name",
     )
     if limit is not None:
-        queryset = queryset[: max(limit, 0)]
+        queryset = queryset[:limit]
 
     tagged = 0
     skipped = 0

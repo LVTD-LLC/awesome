@@ -8,6 +8,8 @@ SCHEDULE_FUNC = "apps.repos.tasks.tag_repositories_task"
 
 
 def next_daily_run():
+    # Schedule the first run for the next 04:00 UTC after this migration is
+    # applied, then let django-q keep the daily cadence from there.
     now = timezone.now()
     next_run = now.replace(hour=4, minute=0, second=0, microsecond=0)
     if next_run <= now:
