@@ -71,6 +71,7 @@ from apps.repos.tasks import (
     daily_repository_refresh_limit,
     refresh_repositories_task,
     refresh_repository_task,
+    tag_repositories_task,
 )
 from apps.repos.views import awesome_list_directory_totals, repository_json_value_counts
 
@@ -1734,6 +1735,26 @@ def test_normalize_repository_tags_dedupes_and_limits(settings):
     ) == ["web-framework", "django-admin", "c++"]
 
 
+def test_build_repository_tagging_payload_includes_known_repository_metadata(settings):
+    settings.REPOSITORY_TAGGING_MAX_CHARS = 16000
+    repo = Repository(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        language="Python",
+        topics=["django", "web-framework", "orm"],
+        ai_development_signals=[{"tool": "Codex", "path": "AGENTS.md"}],
+    )
+
+    payload = build_repository_tagging_payload(repo, "")
+
+    assert payload is not None
+    assert "Primary language:\nPython" in payload.text
+    assert "GitHub topics:\ndjango, web-framework, orm" in payload.text
+    assert "AI development signals:\nCodex (AGENTS.md)" in payload.text
+
+
 @pytest.mark.django_db
 def test_save_repository_tags_persists_generated_tags(monkeypatch, settings):
     settings.REPOSITORY_TAGGING_ENABLED = True
@@ -2036,6 +2057,116 @@ def test_tag_repositories_command_reports_unchanged_tags(monkeypatch, settings):
     assert "'tagged': 0" in output
     assert "'skipped': 0" in output
     assert "'unchanged': 1" in output
+
+
+@pytest.mark.django_db
+def test_tag_repositories_task_backfills_missing_generated_tags(monkeypatch, settings):
+    settings.REPOSITORY_TAGGING_ENABLED = True
+    settings.REPOSITORY_TAGGING_PROVIDER = "openai"
+    settings.REPOSITORY_TAGGING_MODEL_LABEL = "fast"
+    settings.REPOSITORY_TAGGING_MAX_CHARS = 16000
+    settings.REPOSITORY_TAGGING_MAX_TAGS = 8
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+        language="Python",
+        topics=["django", "orm"],
+    )
+
+    def fake_generate_repository_tags(text):
+        assert "Primary language:\nPython" in text
+        assert "GitHub topics:\ndjango, orm" in text
+        return ["python", "web-framework", "orm"]
+
+    monkeypatch.setattr(
+        "apps.repos.tags.generate_repository_tags",
+        fake_generate_repository_tags,
+    )
+
+    result = tag_repositories_task(limit=10)
+
+    repo.refresh_from_db()
+    assert result["tagged"] == 1
+    assert result["failure_count"] == 0
+    assert repo.generated_tags == ["python", "web-framework", "orm"]
+    assert repo.generated_tags_model == repository_tagging_model_id()
+
+
+@pytest.mark.django_db
+def test_tag_repositories_task_limit_zero_is_noop(monkeypatch, settings):
+    settings.REPOSITORY_TAGGING_ENABLED = True
+    settings.REPOSITORY_TAGGING_PROVIDER = "openai"
+    settings.REPOSITORY_TAGGING_MODEL_LABEL = "fast"
+    settings.REPOSITORY_TAGGING_MAX_CHARS = 16000
+    settings.REPOSITORY_TAGGING_MAX_TAGS = 8
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+    )
+
+    def fail_generate_repository_tags(text):
+        raise AssertionError("limit=0 should not tag scheduled-task repositories")
+
+    monkeypatch.setattr(
+        "apps.repos.tags.generate_repository_tags",
+        fail_generate_repository_tags,
+    )
+
+    result = tag_repositories_task(limit=0)
+
+    repo.refresh_from_db()
+    assert result == {
+        "tagged": 0,
+        "skipped": 0,
+        "unchanged": 0,
+        "failure_count": 0,
+        "failures": [],
+    }
+    assert repo.generated_tags == []
+
+
+@pytest.mark.django_db
+def test_tag_repositories_command_limit_zero_keeps_no_cap(monkeypatch, settings):
+    settings.REPOSITORY_TAGGING_ENABLED = True
+    settings.REPOSITORY_TAGGING_PROVIDER = "openai"
+    settings.REPOSITORY_TAGGING_MODEL_LABEL = "fast"
+    settings.REPOSITORY_TAGGING_MAX_CHARS = 16000
+    settings.REPOSITORY_TAGGING_MAX_TAGS = 8
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+    )
+    Repository.objects.create(
+        full_name="pallets/flask",
+        owner="pallets",
+        name="flask",
+        url="https://github.com/pallets/flask",
+        description="A Python web framework.",
+    )
+
+    monkeypatch.setattr(
+        "apps.repos.tags.generate_repository_tags",
+        lambda text: ["python", "web-framework"],
+    )
+
+    stdout = StringIO()
+    call_command("tag_repositories", "--limit", "0", stdout=stdout)
+
+    output = stdout.getvalue()
+    assert "'tagged': 2" in output
+    assert Repository.objects.filter(generated_tags=["python", "web-framework"]).count() == 2
 
 
 @pytest.mark.django_db

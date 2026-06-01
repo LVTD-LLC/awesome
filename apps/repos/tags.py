@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import Agent
@@ -85,8 +86,51 @@ def normalize_repository_tags(values: list[str]) -> list[str]:
     return tags
 
 
+def _clean_metadata_values(values) -> list[str]:
+    if not isinstance(values, list):
+        return []
+
+    cleaned = []
+    for value in values:
+        label = str(value).strip()
+        if label:
+            cleaned.append(label)
+    return cleaned
+
+
+def _format_ai_development_signals(signals) -> list[str]:
+    if not isinstance(signals, list):
+        return []
+
+    labels = []
+    for signal in signals:
+        if not isinstance(signal, dict):
+            continue
+        tool = str(signal.get("tool") or "").strip()
+        path = str(signal.get("path") or "").strip()
+        if tool and path:
+            labels.append(f"{tool} ({path})")
+        elif tool:
+            labels.append(tool)
+        elif path:
+            labels.append(path)
+    return labels
+
+
 def build_repository_tagging_text(repository: Repository, readme_text: str) -> str:
     content_parts = []
+    language = (repository.language or "").strip()
+    if language:
+        content_parts.append(f"Primary language:\n{language}")
+
+    topics = _clean_metadata_values(repository.topics)
+    if topics:
+        content_parts.append(f"GitHub topics:\n{', '.join(topics[:25])}")
+
+    ai_development_signals = _format_ai_development_signals(repository.ai_development_signals)
+    if ai_development_signals:
+        content_parts.append("AI development signals:\n" + "\n".join(ai_development_signals[:20]))
+
     description = (repository.description or "").strip()
     if description:
         content_parts.append(f"Description:\n{description}")
@@ -284,3 +328,69 @@ def sync_repository_tags(
         repository.generated_tags_last_error = str(exc)
         repository.save(update_fields=["generated_tags_last_error", "updated_at"])
         return repository.generated_tags
+
+
+def _empty_tag_repository_batch_result() -> dict:
+    return {
+        "tagged": 0,
+        "skipped": 0,
+        "unchanged": 0,
+        "failure_count": 0,
+        "failures": [],
+    }
+
+
+def tag_repository_batch(
+    queryset=None,
+    *,
+    limit: int | None = None,
+    force: bool = False,
+) -> dict:
+    if limit is not None and limit <= 0:
+        return _empty_tag_repository_batch_result()
+
+    if queryset is None:
+        queryset = Repository.objects.all()
+    queryset = queryset.order_by(
+        models.F("generated_tags_synced_at").asc(nulls_first=True),
+        "full_name",
+    )
+    if limit is not None:
+        queryset = queryset[:limit]
+
+    tagged = 0
+    skipped = 0
+    unchanged = 0
+    failures = []
+    for repository in queryset:
+        try:
+            payload = build_repository_tagging_payload(repository, repository.readme)
+            if payload is None:
+                skipped += 1
+                continue
+
+            if not force and repository_tags_are_current(repository, payload):
+                unchanged += 1
+                continue
+
+            tags = save_repository_tags(
+                repository,
+                repository.readme,
+                force=force,
+            )
+        except Exception as exc:  # noqa: BLE001 - report and continue batch backfills
+            failures.append({"repo": repository.full_name, "error": str(exc)})
+            continue
+
+        if not tags:
+            skipped += 1
+            continue
+        tagged += 1
+
+    return {
+        "tagged": tagged,
+        "skipped": skipped,
+        "unchanged": unchanged,
+        "failure_count": len(failures),
+        "failures": failures[:25],
+    }
