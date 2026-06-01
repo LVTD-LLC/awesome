@@ -5095,6 +5095,7 @@ def test_repository_detail_page_compacts_ai_development_signals(client):
         "CLAUDE.md",
     ]
     assert summary["hidden_signal_count"] == 0
+    assert summary["show_detail_signals"] is True
     assert b"AI agent config detected" in response.content
     assert b"Key config paths" in response.content
     assert b"more config paths detected." not in response.content
@@ -5122,6 +5123,39 @@ def test_repository_detail_page_shows_empty_ai_development_signal_state(client):
     assert summary["visible_tools"] == []
     assert summary["visible_signals"] == []
     assert b"No AI development config files detected." in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_hides_ai_development_detail_expander_when_all_paths_visible(
+    client,
+):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        uses_ai_for_development=True,
+        ai_development_signals=[
+            {
+                "path": "AGENTS.md",
+                "kind": "file",
+                "tool": "Agent instructions",
+                "signal": "agent_instructions",
+            }
+        ],
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["total_count"] == 1
+    assert len(summary["visible_signals"]) == 1
+    assert summary["show_detail_signals"] is False
+    assert b"AGENTS.md" in response.content
+    assert b"Review config paths" not in response.content
 
 
 @pytest.mark.django_db
@@ -5153,6 +5187,7 @@ def test_repository_detail_page_counts_hidden_ai_development_key_paths(client):
     assert summary["total_count"] == 8
     assert len(summary["visible_signals"]) == 6
     assert summary["hidden_signal_count"] == 2
+    assert summary["show_detail_signals"] is True
     assert b"2 more config paths detected." in response.content
 
 

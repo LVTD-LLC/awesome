@@ -113,6 +113,7 @@ def _ai_development_signal_summary(signals):
         "hidden_signal_count": max(len(key_signals) - len(visible_signals), 0),
         "detail_signals": detail_signals,
         "detail_hidden_count": max(total_count - len(detail_signals), 0),
+        "show_detail_signals": total_count > len(visible_signals),
     }
 
 
