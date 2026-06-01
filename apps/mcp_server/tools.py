@@ -51,7 +51,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     def search_repositories(
         q: Annotated[
             str,
-            Field(description="Search query for names, descriptions, topics, and tags."),
+            Field(description="Search query for names, descriptions, topics, tags, and stacks."),
         ] = "",
         mode: Annotated[
             str,
@@ -63,6 +63,11 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         generated_tag: Annotated[
             str,
             Field(description="AI-generated repository discovery tag filter."),
+        ] = "",
+        stack: Annotated[str, Field(description="Detected framework or stack slug filter.")] = "",
+        package_manager: Annotated[
+            str,
+            Field(description="Detected package manager slug filter."),
         ] = "",
         min_stars: Annotated[int | None, Field(ge=0)] = None,
         updated_days: Annotated[int | None, Field(ge=1)] = None,
@@ -85,6 +90,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                 language=language,
                 topic=topic,
                 generated_tag=generated_tag,
+                stack=stack,
+                package_manager=package_manager,
                 min_stars=min_stars,
                 updated_days=updated_days,
                 min_age_years=min_age_years,
@@ -202,13 +209,18 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         slug: Annotated[str, Field(description="Awesome-list slug.")],
         q: Annotated[
             str,
-            Field(description="Search query for names, descriptions, topics, and tags."),
+            Field(description="Search query for names, descriptions, topics, tags, and stacks."),
         ] = "",
         language: Annotated[str, Field(description="Exact repository language filter.")] = "",
         topic: Annotated[str, Field(description="GitHub topic filter.")] = "",
         generated_tag: Annotated[
             str,
             Field(description="AI-generated repository discovery tag filter."),
+        ] = "",
+        stack: Annotated[str, Field(description="Detected framework or stack slug filter.")] = "",
+        package_manager: Annotated[
+            str,
+            Field(description="Detected package manager slug filter."),
         ] = "",
         min_stars: Annotated[int | None, Field(ge=0)] = None,
         updated_days: Annotated[int | None, Field(ge=1)] = None,
@@ -234,6 +246,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                     language=language,
                     topic=topic,
                     generated_tag=generated_tag,
+                    stack=stack,
+                    package_manager=package_manager,
                     min_stars=min_stars,
                     updated_days=updated_days,
                     min_age_years=min_age_years,

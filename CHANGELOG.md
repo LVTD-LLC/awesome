@@ -48,6 +48,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: detect awesome-list repositories during repository sync and hide them from normal repository browse/search surfaces.
 - Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
 - Awesome: added a liked repositories page for authenticated users.
+- Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
 
 ### Changed
 - Awesome: GitHub signups now land on Settings so starred-repository imports stay off by default until the user clicks the import CTA.

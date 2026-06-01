@@ -121,6 +121,18 @@ def test_repository_search_api_uses_existing_filters(client, profile):
         first_commit_at=timezone.now() - timedelta(days=365 * 12),
         topics=["django", "web"],
         generated_tags=["web-framework"],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
+        dependency_ecosystems=["python"],
+        stack_signals=[
+            {
+                "slug": "django",
+                "label": "Django",
+                "category": "web framework",
+                "confidence": "high",
+                "evidence": [{"path": "pyproject.toml", "dependency": "django"}],
+            }
+        ],
     )
     Repository.objects.create(
         full_name="expressjs/express",
@@ -142,6 +154,8 @@ def test_repository_search_api_uses_existing_filters(client, profile):
             "min_stars": "100",
             "min_age_years": "10",
             "topic": "django",
+            "stack": "django",
+            "package_manager": "poetry",
             "sort": "stars",
         },
         **_api_key_header(profile),
@@ -152,6 +166,9 @@ def test_repository_search_api_uses_existing_filters(client, profile):
     assert payload["pagination"]["count"] == 1
     assert payload["results"][0]["full_name"] == "django/django"
     assert payload["results"][0]["first_commit_at"] is not None
+    assert payload["results"][0]["detected_stacks"] == ["django"]
+    assert payload["results"][0]["package_managers"] == ["poetry"]
+    assert payload["results"][0]["stack_signals"][0]["label"] == "Django"
     assert payload["results"][0]["awesome_count"] == 1
     assert payload["results"][0]["awesome_lists"][0]["slug"] == "awesome-django"
 
@@ -172,6 +189,10 @@ def test_repository_detail_api_includes_history(client, profile):
         readme="# Django",
         ai_development_signals=[{"tool": "Codex", "path": "AGENTS.md"}],
         uses_ai_for_development=True,
+        dependency_files=[{"path": "pyproject.toml", "dependency_count": 1}],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
+        stack_signals=[{"slug": "django", "label": "Django"}],
     )
     RepositorySnapshot.objects.create(
         repository=repository,
@@ -203,6 +224,8 @@ def test_repository_detail_api_includes_history(client, profile):
     assert payload["performance"]["stars_since_first"] == 100
     assert [point["stars"] for point in payload["history"]] == [89900, 90000]
     assert payload["ai_development_signals"] == [{"tool": "Codex", "path": "AGENTS.md"}]
+    assert payload["dependency_files"] == [{"path": "pyproject.toml", "dependency_count": 1}]
+    assert payload["detected_stacks"] == ["django"]
 
 
 @pytest.mark.django_db
@@ -235,6 +258,8 @@ def test_awesome_list_api_search_detail_and_repository_filters(client, profile):
         stars=90000,
         forks=32000,
         first_commit_at=timezone.now() - timedelta(days=365 * 12),
+        detected_stacks=["django"],
+        package_managers=["poetry"],
     )
     node_repo = Repository.objects.create(
         full_name="expressjs/express",
@@ -279,7 +304,12 @@ def test_awesome_list_api_search_detail_and_repository_filters(client, profile):
 
     repos_response = client.get(
         "/api/awesome-lists/awesome-django/repositories",
-        {"language": "Python", "min_age_years": "10"},
+        {
+            "language": "Python",
+            "min_age_years": "10",
+            "stack": "django",
+            "package_manager": "poetry",
+        },
         **_api_key_header(profile),
     )
 

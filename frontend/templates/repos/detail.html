@@ -15,8 +15,9 @@
       <div>
         <h1 class="text-4xl font-bold">{{ repository.full_name }}</h1>
         <p class="mt-3 text-lg text-gray-600 dark:text-gray-300">{{ repository.description|default:"No description." }}</p>
-        {% if repository.topics or repository.generated_tags %}
+        {% if repository.topics or repository.generated_tags or repository.stack_signals %}
           <div class="mt-4 flex flex-wrap gap-2 text-xs">
+            {% for signal in repository.stack_signals %}<span class="rounded-full bg-purple-50 px-3 py-1 text-purple-700 dark:bg-purple-950 dark:text-purple-200">{{ signal.label }}</span>{% endfor %}
             {% for topic in repository.topics %}<a href="{% url 'repos:search' %}?topic={{ topic|urlencode }}" class="rounded-full bg-blue-50 px-3 py-1 text-blue-700 transition hover:bg-blue-100 hover:text-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900 dark:hover:text-blue-100">#{{ topic }}</a>{% endfor %}
             {% for tag in repository.generated_tags %}<span class="rounded-full bg-green-50 px-3 py-1 text-green-700 dark:bg-green-950 dark:text-green-200">{{ tag }}</span>{% endfor %}
           </div>
@@ -100,6 +101,49 @@
         </div>
       </div>
     {% endif %}
+    {% if repository.stack_signals or repository.dependency_files or repository.stack_detection_last_error %}
+      <div class="mt-8 border-t border-gray-200 pt-8 dark:border-gray-800">
+        <h2 class="text-lg font-bold">Detected stack</h2>
+        <div class="mt-5 grid gap-6 lg:grid-cols-2">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Frameworks and tools</h3>
+            <ul class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+              {% for signal in repository.stack_signals %}
+                <li>
+                  <span class="font-semibold text-gray-950 dark:text-white">{{ signal.label }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">· {{ signal.category }} · {{ signal.confidence }} confidence</span>
+                </li>
+              {% empty %}
+                <li class="text-gray-500">No framework dependencies detected.</li>
+              {% endfor %}
+            </ul>
+            {% if repository.package_managers %}
+              <div class="mt-4 flex flex-wrap gap-2 text-xs">
+                {% for manager in repository.package_managers %}
+                  <span class="rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-800">{{ manager }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Dependency files</h3>
+            <ul class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+              {% for dependency_file in repository.dependency_files|slice:":10" %}
+                <li>
+                  <code class="break-all rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-900">{{ dependency_file.path }}</code>
+                  <span class="text-gray-500 dark:text-gray-400">· {{ dependency_file.ecosystem }} · {{ dependency_file.dependency_count }} dependencies</span>
+                </li>
+              {% empty %}
+                <li class="text-gray-500">No dependency manifests detected.</li>
+              {% endfor %}
+            </ul>
+            {% if repository.stack_detection_last_error %}
+              <p class="mt-3 text-sm text-red-600 dark:text-red-400">{{ repository.stack_detection_last_error }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
     <div class="mt-8 grid gap-6 lg:grid-cols-3">
       <div>
         <h2 class="text-lg font-bold">Metadata</h2>
@@ -109,6 +153,7 @@
           <li>Last pushed: {{ repository.github_pushed_at|date:"Y-m-d"|default:"—" }}</li>
           <li>Archived: {{ repository.is_archived|yesno:"yes,no" }}</li>
           <li>AI dev signals: {{ repository.uses_ai_for_development|yesno:"yes,no" }}</li>
+          <li>Stack detected: {{ repository.stack_detected_at|date:"Y-m-d H:i"|default:"—" }}</li>
           <li>License: {{ repository.license_name|default:"—" }}</li>
         </ul>
       </div>
