@@ -26,6 +26,7 @@ from apps.repos.models import AwesomeList, RepositoryLike, UserStarredRepository
 from apps.repos.services import (
     github_rate_limit_status,
     github_social_token_for_profile,
+    github_social_token_is_usable,
     profile_has_github_token,
 )
 from awesome_repos.utils import get_awesome_repos_logger
@@ -74,7 +75,7 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         user = self.request.user
         profile, _created = Profile.objects.get_or_create(user=user)
         github_social_token = github_social_token_for_profile(profile)
-        github_connected = bool(github_social_token) and profile_has_github_token(profile)
+        github_connected = github_social_token_is_usable(github_social_token)
         github_account = github_social_token.account if github_connected else None
         github_account_data = (github_account.extra_data or {}) if github_account else {}
         github_login = github_account_data.get("login", "")

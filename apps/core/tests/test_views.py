@@ -1,10 +1,12 @@
 import re
+from datetime import timedelta
 
 import pytest
 from allauth.socialaccount.models import SocialAccount, SocialToken
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.core.views import build_absolute_public_url
 from apps.repos.models import AwesomeList
@@ -64,6 +66,31 @@ class TestHomeView:
         assert response.status_code == 200
         assert "Not connected" in content
         assert "@missing-token" not in content
+        assert "Import starred repos" not in content
+
+    def test_settings_does_not_show_expired_github_token_as_connected(
+        self,
+        auth_client,
+        profile,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+            extra_data={"login": "expired-token"},
+        )
+        SocialToken.objects.create(
+            account=account,
+            token="expired-token",
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+
+        response = auth_client.get(reverse("settings"))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Not connected" in content
+        assert "@expired-token" not in content
         assert "Import starred repos" not in content
 
     def test_import_starred_repositories_enables_profile_and_queues_task(
