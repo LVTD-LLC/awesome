@@ -88,6 +88,8 @@ class RepositoryAdmin(admin.ModelAdmin):
         "commit_count",
         "first_commit_at",
         "language",
+        "detected_stacks",
+        "package_managers",
         "generated_tags",
         "is_archived",
         "uses_ai_for_development",
@@ -95,7 +97,15 @@ class RepositoryAdmin(admin.ModelAdmin):
         "github_pushed_at",
         "awesome_count",
     )
-    search_fields = ("full_name", "description", "language", "topics", "generated_tags")
+    search_fields = (
+        "full_name",
+        "description",
+        "language",
+        "topics",
+        "generated_tags",
+        "detected_stacks",
+        "package_managers",
+    )
     list_filter = (
         "uses_ai_for_development",
         "is_awesome_list_candidate",
@@ -109,6 +119,13 @@ class RepositoryAdmin(admin.ModelAdmin):
         "readme_url",
         "readme_synced_at",
         "readme_last_error",
+        "dependency_files",
+        "dependency_ecosystems",
+        "package_managers",
+        "detected_stacks",
+        "stack_signals",
+        "stack_detected_at",
+        "stack_detection_last_error",
         "ai_development_signals",
         "awesome_list_detected_repo_count",
         "awesome_list_detection_reasons",

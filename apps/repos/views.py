@@ -32,6 +32,7 @@ from apps.repos.services import (
     visible_repository_queryset,
     with_repository_like_state,
 )
+from apps.repos.stack_detection import package_manager_label, stack_label
 
 AWESOME_LIST_SCAN_TASK_GROUP = "Scan awesome list"
 MISSING_REPOSITORY_DISCOVERY_TASK_GROUP = "Manual awesome-list missing repo discovery"
@@ -142,6 +143,13 @@ def awesome_list_request_rate_limit_key(request) -> str:
     return f"awesome-list-request:{awesome_list_request_client_ip(request)}"
 
 
+def labeled_repository_value_counts(field_name: str, labeler, **kwargs) -> list[dict]:
+    return [
+        {**row, "label": labeler(row["name"])}
+        for row in repository_json_value_counts(field_name, **kwargs)
+    ]
+
+
 class RepositorySearchView(ListView):
     template_name = "repos/search.html"
     context_object_name = "repositories"
@@ -172,6 +180,14 @@ class RepositorySearchView(ListView):
         )
         context["topic_options"] = repository_json_value_counts("topics")
         context["generated_tag_options"] = repository_json_value_counts("generated_tags")
+        context["stack_options"] = labeled_repository_value_counts(
+            "detected_stacks",
+            stack_label,
+        )
+        context["package_manager_options"] = labeled_repository_value_counts(
+            "package_managers",
+            package_manager_label,
+        )
         params = self.request.GET.copy()
         params.pop("page", None)
         context["querystring"] = params.urlencode()
@@ -183,8 +199,8 @@ class RepositorySearchView(ListView):
         context["search_title"] = "Search every repository hiding inside awesome lists."
         context["search_description"] = (
             "Discover projects curated by awesome-list maintainers, then narrow them by "
-            "stars, age, freshness, archive status, language, topics, generated tags, and "
-            "source list."
+            "stars, age, freshness, archive status, language, topics, generated tags, "
+            "detected stacks, package managers, and source list."
         )
         context["total_repositories_label"] = "Repos indexed"
         context["total_lists_label"] = "Awesome lists tracked"
@@ -245,6 +261,16 @@ class UserStarredRepositorySearchView(LoginRequiredMixin, ListView):
         context["topic_options"] = repository_json_value_counts("topics", profile=profile)
         context["generated_tag_options"] = repository_json_value_counts(
             "generated_tags",
+            profile=profile,
+        )
+        context["stack_options"] = labeled_repository_value_counts(
+            "detected_stacks",
+            stack_label,
+            profile=profile,
+        )
+        context["package_manager_options"] = labeled_repository_value_counts(
+            "package_managers",
+            package_manager_label,
             profile=profile,
         )
         params = self.request.GET.copy()
@@ -408,6 +434,8 @@ class AwesomeListDetailView(DetailView):
             "language",
             "topic",
             "generated_tag",
+            "stack",
+            "package_manager",
             "min_stars",
             "updated_days",
             "min_age_years",
@@ -425,6 +453,16 @@ class AwesomeListDetailView(DetailView):
         context["topic_options"] = repository_json_value_counts("topics", awesome_list=self.object)
         context["generated_tag_options"] = repository_json_value_counts(
             "generated_tags", awesome_list=self.object
+        )
+        context["stack_options"] = labeled_repository_value_counts(
+            "detected_stacks",
+            stack_label,
+            awesome_list=self.object,
+        )
+        context["package_manager_options"] = labeled_repository_value_counts(
+            "package_managers",
+            package_manager_label,
+            awesome_list=self.object,
         )
         context["repo_stats"] = all_list_repos.aggregate(
             total_stars=Sum("stars"),

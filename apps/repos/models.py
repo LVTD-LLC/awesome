@@ -120,6 +120,13 @@ class Repository(BaseModel):
     readme_url = models.URLField(max_length=500, blank=True, default="")
     readme_synced_at = models.DateTimeField(null=True, blank=True)
     readme_last_error = models.TextField(blank=True, default="")
+    dependency_files = models.JSONField(default=list, blank=True)
+    dependency_ecosystems = models.JSONField(default=list, blank=True)
+    package_managers = models.JSONField(default=list, blank=True)
+    detected_stacks = models.JSONField(default=list, blank=True)
+    stack_signals = models.JSONField(default=list, blank=True)
+    stack_detected_at = models.DateTimeField(null=True, blank=True)
+    stack_detection_last_error = models.TextField(blank=True, default="")
     uses_ai_for_development = models.BooleanField(default=False)
     ai_development_signals = models.JSONField(default=list, blank=True)
     is_awesome_list_candidate = models.BooleanField(default=False)
@@ -144,6 +151,9 @@ class Repository(BaseModel):
             models.Index(fields=["is_awesome_list_candidate"], name="repo_is_awesome_list_idx"),
             GinIndex(fields=["topics"], name="repo_topics_gin_idx"),
             GinIndex(fields=["generated_tags"], name="repo_gen_tags_gin_idx"),
+            GinIndex(fields=["dependency_ecosystems"], name="repo_dep_ecosystems_gin_idx"),
+            GinIndex(fields=["package_managers"], name="repo_package_mgrs_gin_idx"),
+            GinIndex(fields=["detected_stacks"], name="repo_detected_stacks_gin_idx"),
         ]
 
     def __str__(self):

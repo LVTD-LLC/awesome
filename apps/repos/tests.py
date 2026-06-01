@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from datetime import UTC, datetime, timedelta
 from io import StringIO
@@ -6,10 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 from allauth.socialaccount.models import SocialAccount, SocialToken
+from defusedxml.common import EntitiesForbidden
 from django.contrib import admin as django_admin
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import IntegrityError, connection
+from django.template import Context, Template
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -63,8 +66,15 @@ from apps.repos.services import (
     repository_search_queryset,
     similar_repositories_for_repository,
     sync_awesome_list,
+    sync_repository_stack_detection,
     update_awesome_list_metadata,
     upsert_repository_from_github,
+)
+from apps.repos.stack_detection import (
+    dependency_file_candidates,
+    detect_repository_stack,
+    parse_pom_xml,
+    parse_python_setup,
 )
 from apps.repos.tags import (
     build_repository_tagging_payload,
@@ -830,7 +840,7 @@ def stub_repository_readme(monkeypatch, content="# Django\n"):
         },
     )
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
+        "apps.repos.services.fetch_repository_tree_items",
         lambda full_name, default_branch, **kwargs: [],
     )
 
@@ -998,6 +1008,153 @@ def test_detect_ai_development_signals_identifies_common_agent_files():
     assert "docs/CONTRIBUTING.md" not in signal_paths
     assert ".coderabbit.yml" not in signal_paths
     assert len(signal_paths) == len(signals)
+
+
+def test_dependency_file_candidates_detect_manifests_and_skip_vendor_dirs():
+    candidates = dependency_file_candidates(
+        [
+            {"path": "pyproject.toml", "type": "blob", "size": 200, "url": "blob:pyproject"},
+            {
+                "path": "frontend/package.json",
+                "type": "blob",
+                "size": 200,
+                "url": "blob:package",
+            },
+            {
+                "path": "frontend/node_modules/react/package.json",
+                "type": "blob",
+                "size": 200,
+                "url": "blob:vendor",
+            },
+            {"path": "Cargo.toml", "type": "blob", "size": 200, "url": "blob:cargo"},
+            {"path": "README.md", "type": "blob", "size": 200, "url": "blob:readme"},
+        ]
+    )
+
+    assert [candidate["path"] for candidate in candidates] == [
+        "Cargo.toml",
+        "pyproject.toml",
+        "frontend/package.json",
+    ]
+
+
+def test_detect_repository_stack_parses_manifests_and_records_evidence():
+    contents = {
+        "pyproject.toml": """
+            [project]
+            dependencies = ["Django>=5", "djangorestframework"]
+
+            [tool.poetry]
+            name = "example"
+        """,
+        "frontend/package.json": json.dumps(
+            {
+                "packageManager": "pnpm@9.0.0",
+                "dependencies": {"next": "15.0.0", "react": "19.0.0"},
+                "devDependencies": {"tailwindcss": "4.0.0"},
+            }
+        ),
+    }
+    tree_items = [
+        {
+            "path": path,
+            "type": "blob",
+            "size": len(content),
+            "url": f"blob:{path}",
+        }
+        for path, content in contents.items()
+    ]
+
+    result = detect_repository_stack(
+        tree_items,
+        fetch_file_text=lambda candidate: contents[candidate["path"]],
+    )
+
+    assert result["ok"] is True
+    assert result["dependency_ecosystems"] == ["javascript", "python"]
+    assert result["package_managers"] == ["pnpm", "poetry"]
+    assert result["detected_stacks"] == [
+        "django",
+        "django-rest-framework",
+        "nextjs",
+        "react",
+        "tailwindcss",
+    ]
+    django_signal = next(signal for signal in result["stack_signals"] if signal["slug"] == "django")
+    assert django_signal["confidence"] == "high"
+    assert django_signal["evidence"] == [
+        {"path": "pyproject.toml", "dependency": "django", "kind": "manifest"}
+    ]
+    assert {dependency_file["path"] for dependency_file in result["dependency_files"]} == {
+        "pyproject.toml",
+        "frontend/package.json",
+    }
+
+
+def test_parse_python_setup_only_reads_dependency_fields():
+    result = parse_python_setup(
+        """
+        from setuptools import setup
+
+        setup(
+            name="example-project",
+            author="Jane Smith",
+            license="BSD-3-Clause",
+            install_requires=["Django>=5", "fastapi[standard]"],
+            extras_require={"dev": ["pytest", "ruff>=0.15"]},
+            classifiers=["Framework :: Django"],
+        )
+        """
+    )
+
+    assert result["dependencies"] == ["django", "fastapi", "pytest", "ruff"]
+
+
+def test_parse_python_setup_cfg_reads_options_dependency_sections():
+    result = parse_python_setup(
+        """
+        [metadata]
+        name = example-project
+        author = Jane Smith
+
+        [options]
+        install_requires =
+            Django>=5
+            fastapi[standard]
+
+        [options.extras_require]
+        dev =
+            pytest
+            ruff>=0.15
+        """
+    )
+
+    assert result["dependencies"] == ["django", "fastapi", "pytest", "ruff"]
+
+
+def test_parse_pom_xml_rejects_entity_expansion():
+    with pytest.raises(EntitiesForbidden):
+        parse_pom_xml(
+            """<?xml version="1.0"?>
+            <!DOCTYPE project [
+              <!ENTITY a "aaaaaaaaaa">
+              <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+            ]>
+            <project>
+              <dependencies>
+                <dependency><artifactId>&b;</artifactId></dependency>
+              </dependencies>
+            </project>
+            """
+        )
+
+
+def test_package_manager_label_template_filter_formats_slugs():
+    rendered = Template("{% load repo_stack_tags %}{{ manager|package_manager_label }}").render(
+        Context({"manager": "go-modules"})
+    )
+
+    assert rendered == "Go modules"
 
 
 def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch):
@@ -1325,6 +1482,80 @@ def test_upsert_repository_from_github_stores_ai_development_signals(monkeypatch
 
 
 @pytest.mark.django_db
+def test_upsert_repository_from_github_stores_stack_detection(monkeypatch):
+    readme = "# Django\nThe Web framework.\n"
+    pyproject = """
+        [project]
+        dependencies = ["django>=5", "fastapi"]
+
+        [tool.poetry]
+        name = "django"
+    """
+    package_json = json.dumps(
+        {
+            "packageManager": "pnpm@9.0.0",
+            "dependencies": {"next": "15.0.0", "react": "19.0.0"},
+        }
+    )
+
+    def blob_payload(content):
+        return {
+            "encoding": "base64",
+            "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+            "size": len(content),
+        }
+
+    def fake_fetch_json(url, **kwargs):
+        if url.endswith("/readme"):
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode(readme.encode("utf-8")).decode("ascii"),
+                "path": "README.md",
+                "download_url": "https://raw.githubusercontent.com/django/django/main/README.md",
+            }
+        if "/git/trees/" in url:
+            return {
+                "tree": [
+                    {
+                        "path": "pyproject.toml",
+                        "type": "blob",
+                        "size": len(pyproject),
+                        "url": "blob:pyproject",
+                    },
+                    {
+                        "path": "frontend/package.json",
+                        "type": "blob",
+                        "size": len(package_json),
+                        "url": "blob:package",
+                    },
+                ]
+            }
+        if url == "blob:pyproject":
+            return blob_payload(pyproject)
+        if url == "blob:package":
+            return blob_payload(package_json)
+        return github_repo_payload(stars=80000, forks=32000, watchers=1200)
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+
+    repo = upsert_repository_from_github("django/django")
+
+    assert repo.dependency_ecosystems == ["javascript", "python"]
+    assert repo.package_managers == ["pnpm", "poetry"]
+    assert repo.detected_stacks == ["django", "fastapi", "nextjs", "react"]
+    assert repo.stack_detected_at == repo.last_synced_at
+    assert repo.stack_detection_last_error == ""
+    assert {dependency_file["path"] for dependency_file in repo.dependency_files} == {
+        "frontend/package.json",
+        "pyproject.toml",
+    }
+    assert (
+        next(signal for signal in repo.stack_signals if signal["slug"] == "django")["label"]
+        == "Django"
+    )
+
+
+@pytest.mark.django_db
 def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monkeypatch):
     previous_readme_synced_at = timezone.now() - timedelta(days=1)
     repo = Repository.objects.create(
@@ -1394,18 +1625,209 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_fetch_fail
         },
     )
 
-    def fail_ai_signals(full_name, default_branch, **kwargs):
+    def fail_tree_fetch(full_name, default_branch, **kwargs):
         raise RuntimeError("tree failed")
 
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
-        fail_ai_signals,
+        "apps.repos.services.fetch_repository_tree_items",
+        fail_tree_fetch,
     )
 
     repo = upsert_repository_from_github(repo.full_name)
 
     assert repo.uses_ai_for_development is True
     assert repo.ai_development_signals[0]["path"] == "AGENTS.md"
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_preserves_stack_detection_when_tree_fetch_fails(
+    monkeypatch,
+):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        dependency_files=[{"path": "pyproject.toml"}],
+        dependency_ecosystems=["python"],
+        package_managers=["poetry"],
+        detected_stacks=["django"],
+        stack_signals=[{"slug": "django", "label": "Django"}],
+        stack_detected_at=timezone.now() - timedelta(days=1),
+    )
+    previous_stack_detected_at = repo.stack_detected_at
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_json",
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
+    )
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_readme_data",
+        lambda full_name, **kwargs: {
+            "ok": False,
+            "readme": "",
+            "readme_path": "",
+            "readme_url": "",
+            "readme_last_error": "404 Not Found",
+        },
+    )
+
+    def fail_tree_fetch(full_name, default_branch, **kwargs):
+        raise RuntimeError("tree failed")
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_tree_items",
+        fail_tree_fetch,
+    )
+
+    repo = upsert_repository_from_github(repo.full_name)
+
+    assert repo.detected_stacks == ["django"]
+    assert repo.package_managers == ["poetry"]
+    assert repo.stack_signals == [{"slug": "django", "label": "Django"}]
+    assert repo.stack_detected_at == previous_stack_detected_at
+    assert repo.stack_detection_last_error == "tree failed"
+
+
+@pytest.mark.django_db
+def test_sync_repository_stack_detection_updates_existing_repository(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    pyproject = '[project]\ndependencies = ["django"]\n'
+
+    def fake_fetch_json(url, **kwargs):
+        if "/git/trees/" in url:
+            return {
+                "tree": [
+                    {
+                        "path": "pyproject.toml",
+                        "type": "blob",
+                        "size": len(pyproject),
+                        "url": "blob:pyproject",
+                    }
+                ]
+            }
+        if url == "blob:pyproject":
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode(pyproject.encode("utf-8")).decode("ascii"),
+                "size": len(pyproject),
+            }
+        raise AssertionError(url)
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+
+    result = sync_repository_stack_detection(repository)
+
+    repository.refresh_from_db()
+    assert result["detected_stacks"] == ["django"]
+    assert repository.detected_stacks == ["django"]
+    assert repository.stack_detected_at is not None
+
+
+@pytest.mark.django_db
+def test_sync_repository_stack_detection_passes_github_token(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_fetch_repository_stack_detection(full_name, default_branch, **kwargs):
+        captured["full_name"] = full_name
+        captured["default_branch"] = default_branch
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "dependency_files": [],
+            "dependency_ecosystems": [],
+            "package_managers": [],
+            "detected_stacks": [],
+            "stack_signals": [],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_stack_detection",
+        fake_fetch_repository_stack_detection,
+    )
+
+    result = sync_repository_stack_detection(repository, token="ghp_test")
+
+    assert result["ok"] is True
+    assert captured == {
+        "full_name": "django/django",
+        "default_branch": "main",
+        "token": "ghp_test",
+    }
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_prefers_unsynced_repositories():
+    synced = Repository.objects.create(
+        full_name="django/synced",
+        owner="django",
+        name="synced",
+        url="https://github.com/django/synced",
+        default_branch="main",
+        stack_detected_at=timezone.now(),
+    )
+    unsynced = Repository.objects.create(
+        full_name="django/unsynced",
+        owner="django",
+        name="unsynced",
+        url="https://github.com/django/unsynced",
+        default_branch="main",
+    )
+
+    output = StringIO()
+    call_command("detect_repository_stacks", "--all", "--dry-run", "--limit", "2", stdout=output)
+
+    lines = [line for line in output.getvalue().splitlines() if line.startswith("Would inspect")]
+    assert lines == [
+        f"Would inspect {unsynced.full_name}",
+        f"Would inspect {synced.full_name}",
+    ]
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_passes_github_token(monkeypatch):
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_sync_repository_stack_detection(repository, **kwargs):
+        captured["repository"] = repository.full_name
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "detected_stacks": ["django"],
+            "dependency_files": [{"path": "pyproject.toml"}],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.sync_repository_stack_detection",
+        fake_sync_repository_stack_detection,
+    )
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.github_token",
+        lambda: "env-token",
+    )
+
+    call_command("detect_repository_stacks", "--github-token", "cli-token", stdout=StringIO())
+
+    assert captured == {"repository": "django/django", "token": "cli-token"}
 
 
 @pytest.mark.django_db
@@ -2344,7 +2766,7 @@ def test_upsert_repository_from_github_syncs_missing_generated_tags_without_read
 
     monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
+        "apps.repos.services.fetch_repository_tree_items",
         lambda full_name, default_branch, **kwargs: [],
     )
     monkeypatch.setattr("apps.repos.services.sync_repository_tags", fake_sync_repository_tags)
@@ -2889,6 +3311,8 @@ def test_repository_search_filters_by_topic_and_generated_tag():
         description="Django tool",
         topics=["django", "python", "web"],
         generated_tags=["web-framework", "orm"],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
         stars=50,
     )
     node_repo = Repository.objects.create(
@@ -2899,12 +3323,17 @@ def test_repository_search_filters_by_topic_and_generated_tag():
         description="JavaScript runtime",
         topics=["javascript", "runtime"],
         generated_tags=["server-runtime"],
+        detected_stacks=["express"],
+        package_managers=["npm"],
         stars=100,
     )
 
     assert list(repository_search_queryset({"topic": "django"})) == [django_repo]
     assert list(repository_search_queryset({"generated_tag": "server runtime"})) == [node_repo]
+    assert list(repository_search_queryset({"stack": "django"})) == [django_repo]
+    assert list(repository_search_queryset({"package_manager": "npm"})) == [node_repo]
     assert list(repository_search_queryset({"q": "orm"})) == [django_repo]
+    assert list(repository_search_queryset({"q": "express"})) == [node_repo]
 
 
 @pytest.mark.django_db
@@ -2969,6 +3398,8 @@ def test_repository_json_value_counts_aggregates_server_side():
         url="https://github.com/django/django",
         topics=["django", "python", "web"],
         generated_tags=["web-framework", "orm"],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
     )
     Repository.objects.create(
         full_name="django/channels",
@@ -2977,6 +3408,8 @@ def test_repository_json_value_counts_aggregates_server_side():
         url="https://github.com/django/channels",
         topics=["django", "python", "async"],
         generated_tags=["web-framework", "websocket"],
+        detected_stacks=["django"],
+        package_managers=["pip"],
     )
 
     assert repository_json_value_counts("topics")[:2] == [
@@ -2985,6 +3418,9 @@ def test_repository_json_value_counts_aggregates_server_side():
     ]
     assert repository_json_value_counts("generated_tags", limit=1) == [
         {"name": "web-framework", "count": 2}
+    ]
+    assert repository_json_value_counts("detected_stacks", limit=1) == [
+        {"name": "django", "count": 2}
     ]
 
 

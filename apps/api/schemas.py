@@ -151,6 +151,10 @@ class RepositorySummaryOut(Schema):
     license_name: str
     topics: list[str]
     generated_tags: list[str]
+    dependency_ecosystems: list[str]
+    package_managers: list[str]
+    detected_stacks: list[str]
+    stack_signals: list[dict[str, Any]]
     stars: int
     forks: int
     commit_count: int | None
@@ -173,6 +177,7 @@ class RepositorySummaryOut(Schema):
     github_pushed_at: datetime | None
     first_commit_at: datetime | None
     last_synced_at: datetime | None
+    stack_detected_at: datetime | None
     awesome_lists: list[AwesomeListReferenceOut]
 
 
@@ -187,6 +192,8 @@ class RepositoryDetailOut(RepositorySummaryOut):
     readme_url: str
     readme_synced_at: datetime | None
     readme_last_error: str
+    dependency_files: list[dict[str, Any]]
+    stack_detection_last_error: str
     ai_development_signals: list[dict[str, Any]]
     performance: RepositoryPerformanceOut
     history: list[RepositoryHistoryPointOut]

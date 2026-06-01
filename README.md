@@ -87,6 +87,32 @@ uv run python manage.py makemigrations
 uv run python manage.py makemigrations --check --dry-run
 ```
 
+### API and MCP
+
+Authenticated API keys can read account and catalog data from the API. Repository
+search accepts filters such as `q`, `language`, `list`, `topic`,
+`generated_tag`, `stack`, `package_manager`, `min_stars`, `updated_days`,
+`min_age_years`, `archived`, `ai_development`, and `sort`.
+
+Repository detail responses include dependency-file stack detection, list
+membership, growth history, README content, and similar repositories.
+
+Awesome also exposes a Streamable HTTP MCP endpoint at `/mcp` so AI agents can
+use the same search surface as the API. Use an account API key as either
+`Authorization: Bearer <api-key>` or `X-API-Key: <api-key>`.
+
+### Catalog operations
+
+Repository stack detection runs during normal repository refreshes by scanning
+GitHub tree metadata for dependency manifests, fetching bounded manifest
+contents, and storing parsed package managers, dependency ecosystems, and
+inferred stack signals. Operators can backfill existing rows with:
+
+```bash
+uv run python manage.py detect_repository_stacks --limit 100
+uv run python manage.py detect_repository_stacks --all --dry-run
+```
+
 ## Contributing
 
 Contributions are welcome when they improve the public tool, the catalog quality, or the
