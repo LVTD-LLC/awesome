@@ -49,8 +49,10 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
 - Awesome: added a liked repositories page for authenticated users.
 - Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
+- Awesome: store repository website links from GitHub metadata or description URLs and show them on repository pages.
 
 ### Changed
+- Awesome: added Settings to the account navbar, simplified Settings around GitHub imports and future repository update preferences, and moved awesome-list requests into the Lists page flow.
 - Awesome: GitHub signups now land on Settings so starred-repository imports stay off by default until the user clicks the import CTA.
 - Awesome: updated default contact email and production domain references to rasul@lvtd.dev and awesome.lvtd.dev.
 - Awesome: renamed product-facing copy and brand assets to the shorter product name.
@@ -69,6 +71,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: repository generated-tag prompts now include known language, GitHub topics, and AI-development signals.
 
 ### Fixed
+- Awesome: trapped keyboard focus inside the list-request and delete-account modals.
 - Awesome: fixed invalid nested links on awesome-list repository cards that created empty clickable containers.
 - Awesome: loosened desktop side sponsor rail spacing so ad cards no longer crowd or overlap their copy.
 - Awesome: repair repository migration graph ordering so production can migrate past the AI-development and activity merge branches.
