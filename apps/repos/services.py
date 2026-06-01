@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
+from allauth.socialaccount.models import SocialToken
 from django.conf import settings
 from django.db import connection, models, transaction
 from django.db.models import Count
@@ -32,6 +33,7 @@ from apps.repos.models import (
     RepositoryEmbedding,
     RepositoryLike,
     RepositorySnapshot,
+    UserStarredRepository,
 )
 from apps.repos.tags import (
     normalize_repository_tag,
@@ -45,6 +47,8 @@ logger = get_awesome_repos_logger(__name__)
 # best-effort hint; callers must still handle actual 403/429 responses.
 _github_rate_limit_state: dict[str, str] = {}
 GITHUB_API_VERSION = "2026-03-10"
+GITHUB_DEFAULT_ACCEPT = "application/vnd.github+json"
+GITHUB_STARRED_ACCEPT = "application/vnd.github.star+json"
 
 GITHUB_REPO_RE = re.compile(
     r"https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)(?:[/#?][^\s)\]>'\"]*)?",
@@ -139,6 +143,10 @@ class GitHubAPIError(RuntimeError):
         self.rate_limit_reset = rate_limit_reset
 
 
+class GitHubTokenUnavailable(RuntimeError):
+    pass
+
+
 def github_token() -> str:
     return (
         os.environ.get("GITHUB_TOKEN")
@@ -148,15 +156,19 @@ def github_token() -> str:
     )
 
 
-def github_headers():
+def github_headers(
+    *,
+    token: str | None = None,
+    accept: str = GITHUB_DEFAULT_ACCEPT,
+):
     headers = {
-        "Accept": "application/vnd.github+json",
+        "Accept": accept,
         "X-GitHub-Api-Version": GITHUB_API_VERSION,
         "User-Agent": "awesome-repos-bot",
     }
-    token = github_token()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    resolved_token = github_token() if token is None else token
+    if resolved_token:
+        headers["Authorization"] = f"Bearer {resolved_token}"
     return headers
 
 
@@ -238,8 +250,13 @@ def _github_error_message(url: str, exc: HTTPError) -> str:
     return " | ".join(parts)
 
 
-def fetch_json(url: str):
-    request = Request(url, headers=github_headers())
+def fetch_json(
+    url: str,
+    *,
+    token: str | None = None,
+    accept: str = GITHUB_DEFAULT_ACCEPT,
+):
+    request = Request(url, headers=github_headers(token=token, accept=accept))
     try:
         with urlopen(request, timeout=30) as response:
             _capture_github_rate_limit_headers(getattr(response, "headers", None))
@@ -257,8 +274,38 @@ def fetch_json(url: str):
         ) from exc
 
 
-def fetch_text(url: str) -> str:
-    request = Request(url, headers=github_headers())
+def fetch_json_page(
+    url: str,
+    *,
+    token: str | None = None,
+    accept: str = GITHUB_DEFAULT_ACCEPT,
+) -> tuple[object, str]:
+    request = Request(url, headers=github_headers(token=token, accept=accept))
+    try:
+        with urlopen(request, timeout=30) as response:
+            _capture_github_rate_limit_headers(getattr(response, "headers", None))
+            data = json.loads(response.read().decode("utf-8"))
+            return data, response.headers.get("Link", "")
+    except HTTPError as exc:
+        _capture_github_rate_limit_headers(exc.headers)
+        raise GitHubAPIError(
+            _github_error_message(url, exc),
+            status_code=exc.code,
+            retry_after=exc.headers.get("Retry-After") if exc.headers else None,
+            rate_limit_remaining=(
+                exc.headers.get("X-RateLimit-Remaining") if exc.headers else None
+            ),
+            rate_limit_reset=exc.headers.get("X-RateLimit-Reset") if exc.headers else None,
+        ) from exc
+
+
+def fetch_text(
+    url: str,
+    *,
+    token: str | None = None,
+    accept: str = GITHUB_DEFAULT_ACCEPT,
+) -> str:
+    request = Request(url, headers=github_headers(token=token, accept=accept))
     try:
         with urlopen(request, timeout=30) as response:
             _capture_github_rate_limit_headers(getattr(response, "headers", None))
@@ -316,12 +363,13 @@ def _fetch_github_commits_page(
     default_branch: str,
     *,
     page: int | None = None,
+    token: str | None = None,
 ) -> tuple[list[dict], str]:
     query_params = {"sha": default_branch, "per_page": 1}
     if page is not None:
         query_params["page"] = page
     url = f"https://api.github.com/repos/{full_name}/commits?{urlencode(query_params)}"
-    request = Request(url, headers=github_headers())
+    request = Request(url, headers=github_headers(token=token))
     try:
         with urlopen(request, timeout=30) as response:
             _capture_github_rate_limit_headers(getattr(response, "headers", None))
@@ -339,11 +387,17 @@ def _fetch_github_commits_page(
 def fetch_github_commit_count_and_first_commit_at(
     full_name: str,
     default_branch: str,
+    *,
+    token: str | None = None,
 ) -> tuple[int, datetime | None]:
     if not default_branch:
         raise ValueError("Cannot fetch commit count without a default branch.")
 
-    commits, link_header = _fetch_github_commits_page(full_name, default_branch)
+    commits, link_header = _fetch_github_commits_page(
+        full_name,
+        default_branch,
+        token=token,
+    )
     last_page = _last_page_from_link_header(link_header)
     if last_page is not None:
         first_commit_page = commits
@@ -352,16 +406,26 @@ def fetch_github_commit_count_and_first_commit_at(
                 full_name,
                 default_branch,
                 page=last_page,
+                token=token,
             )
         return last_page, _commit_datetime(first_commit_page[0]) if first_commit_page else None
     return len(commits), _commit_datetime(commits[0]) if commits else None
 
 
-def fetch_github_commit_count(full_name: str, default_branch: str) -> int:
+def fetch_github_commit_count(
+    full_name: str,
+    default_branch: str,
+    *,
+    token: str | None = None,
+) -> int:
     if not default_branch:
         raise ValueError("Cannot fetch commit count without a default branch.")
 
-    commits, link_header = _fetch_github_commits_page(full_name, default_branch)
+    commits, link_header = _fetch_github_commits_page(
+        full_name,
+        default_branch,
+        token=token,
+    )
     last_page = _last_page_from_link_header(link_header)
     if last_page is not None:
         return last_page
@@ -404,6 +468,38 @@ def github_rate_limit_status() -> dict:
     return status
 
 
+def github_social_token_for_profile(profile) -> SocialToken | None:
+    return (
+        SocialToken.objects.filter(
+            account__user_id=profile.user_id,
+            account__provider="github",
+        )
+        .exclude(token="")
+        .select_related("account")
+        .order_by("-id")
+        .first()
+    )
+
+
+def github_token_for_profile(profile) -> str:
+    social_token = github_social_token_for_profile(profile)
+    if social_token is None:
+        raise GitHubTokenUnavailable("Connect GitHub before importing starred repositories.")
+    if social_token.expires_at and social_token.expires_at <= timezone.now():
+        raise GitHubTokenUnavailable(
+            "Reconnect GitHub before importing starred repositories; the saved authorization "
+            "has expired."
+        )
+    return social_token.token
+
+
+def profile_has_github_token(profile) -> bool:
+    try:
+        return bool(github_token_for_profile(profile))
+    except GitHubTokenUnavailable:
+        return False
+
+
 def parse_github_repo_url(url: str) -> str:
     parsed = urlparse(url.strip())
     if parsed.netloc.lower() != "github.com":
@@ -426,6 +522,169 @@ def extract_github_repos(markdown: str) -> list[str]:
             continue
         repos.add(f"{owner}/{repo}")
     return sorted(repos, key=str.lower)
+
+
+def fetch_user_starred_repositories(
+    token: str,
+    *,
+    limit: int | None = None,
+) -> list[dict]:
+    if not token:
+        raise GitHubTokenUnavailable("A GitHub token is required to fetch starred repositories.")
+    if limit is not None and limit <= 0:
+        return []
+
+    starred = []
+    page = 1
+    per_page = 100
+    while True:
+        query = urlencode({"per_page": per_page, "page": page})
+        url = f"https://api.github.com/user/starred?{query}"
+        data, link_header = fetch_json_page(
+            url,
+            token=token,
+            accept=GITHUB_STARRED_ACCEPT,
+        )
+        if not isinstance(data, list):
+            raise RuntimeError("GitHub returned an unexpected starred repository response.")
+
+        for item in data:
+            repo_data = item.get("repo") if isinstance(item, dict) else None
+            repo_data = repo_data or item
+            if not isinstance(repo_data, dict) or not repo_data.get("full_name"):
+                continue
+            starred.append(
+                {
+                    "repository": repo_data,
+                    "starred_at": dt(item.get("starred_at")) if isinstance(item, dict) else None,
+                }
+            )
+            if limit is not None and len(starred) >= limit:
+                return starred
+
+        if len(data) < per_page or 'rel="next"' not in link_header:
+            return starred
+        page += 1
+
+
+def _starred_repository_full_names(starred_items: list[dict]) -> list[str]:
+    full_names = []
+    for item in starred_items:
+        repository_data = item.get("repository") or {}
+        if repository_data.get("full_name"):
+            full_names.append(repository_data["full_name"])
+    return full_names
+
+
+def _starred_import_last_error(
+    failures: list[dict],
+    *,
+    stopped_for_rate_limit: bool,
+) -> str:
+    if stopped_for_rate_limit:
+        return (
+            "Import stopped early because GitHub rate limit was reached; "
+            f"{len(failures)} starred repo(s) failed before stopping."
+        )
+    if failures:
+        return f"{len(failures)} starred repo(s) failed to sync."
+    return ""
+
+
+def import_starred_repositories_for_profile(
+    profile,
+    *,
+    limit: int | None = None,
+    refresh_existing: bool = True,
+) -> dict:
+    token = github_token_for_profile(profile)
+    starred_items = fetch_user_starred_repositories(token, limit=limit)
+    imported_at = timezone.now()
+    active_source_full_names = active_awesome_list_source_repository_name_set()
+    starred_full_names = _starred_repository_full_names(starred_items)
+    # Bulk-load matching rows once; daily imports may process thousands of stars per user.
+    existing_repositories = {
+        repository.full_name: repository
+        for repository in Repository.objects.filter(full_name__in=starred_full_names)
+    }
+    linked_count = 0
+    link_created_count = 0
+    repositories_created = 0
+    repositories_refreshed = 0
+    failures = []
+    stopped_for_rate_limit = False
+
+    for item in starred_items:
+        data = item["repository"]
+        full_name = data["full_name"]
+        repository = existing_repositories.get(full_name)
+        repository_existed = repository is not None
+        sync_error = ""
+        synced = False
+
+        if refresh_existing or repository is None:
+            try:
+                repository = upsert_repository_from_github(
+                    full_name,
+                    active_source_full_names=active_source_full_names,
+                    github_access_token=token,
+                )
+                existing_repositories[repository.full_name] = repository
+                synced = True
+                repositories_refreshed += 1
+                repositories_created += int(not repository_existed)
+            except Exception as exc:  # noqa: BLE001 - keep importing the rest of the user's stars
+                sync_error = str(exc)
+                failures.append({"repo": full_name, "error": sync_error})
+                if is_github_rate_limit_error(exc):
+                    stopped_for_rate_limit = True
+                    break
+                if repository is None:
+                    continue
+
+        defaults = {
+            "last_seen_at": imported_at,
+            "sync_error": "" if synced else sync_error,
+        }
+        if item.get("starred_at") is not None:
+            defaults["starred_at"] = item["starred_at"]
+        if synced:
+            defaults["last_synced_at"] = imported_at
+
+        _link, created = UserStarredRepository.objects.update_or_create(
+            profile=profile,
+            repository=repository,
+            defaults=defaults,
+        )
+        linked_count += 1
+        link_created_count += int(created)
+
+    profile.github_starred_repos_import_enabled = True
+    profile.github_starred_repos_last_imported_at = imported_at
+    profile.github_starred_repos_last_error = _starred_import_last_error(
+        failures,
+        stopped_for_rate_limit=stopped_for_rate_limit,
+    )
+    profile.save(
+        update_fields=[
+            "github_starred_repos_import_enabled",
+            "github_starred_repos_last_imported_at",
+            "github_starred_repos_last_error",
+            "updated_at",
+        ]
+    )
+
+    return {
+        "profile_id": profile.id,
+        "discovered": len(starred_items),
+        "linked": linked_count,
+        "created_links": link_created_count,
+        "repositories_created": repositories_created,
+        "repositories_refreshed": repositories_refreshed,
+        "failure_count": len(failures),
+        "failures": failures[:25],
+        "stopped_for_rate_limit": stopped_for_rate_limit,
+    }
 
 
 def active_awesome_list_source_repository_names():
@@ -566,9 +825,16 @@ def attach_awesome_list_commit_count(
         )
 
 
-def fetch_repository_readme_data(full_name: str) -> dict:
+def fetch_repository_readme_data(
+    full_name: str,
+    *,
+    token: str | None = None,
+) -> dict:
     try:
-        data = fetch_json(f"https://api.github.com/repos/{full_name}/readme")
+        data = fetch_json(
+            f"https://api.github.com/repos/{full_name}/readme",
+            token=token,
+        )
     except RuntimeError as exc:
         if str(exc).startswith("404 "):
             return {
@@ -601,7 +867,7 @@ def fetch_repository_readme_data(full_name: str) -> dict:
 
     download_url = data.get("download_url") or ""
     if not readme and download_url:
-        readme = fetch_text(download_url)
+        readme = fetch_text(download_url, token=token)
 
     return {
         "ok": bool(readme),
@@ -702,9 +968,17 @@ def detect_ai_development_signals(tree_items: list[dict]) -> list[dict]:
     return sorted(signals, key=lambda signal: signal["path"].lower())
 
 
-def fetch_repository_tree_items(full_name: str, default_branch: str) -> list[dict]:
+def fetch_repository_tree_items(
+    full_name: str,
+    default_branch: str,
+    *,
+    token: str | None = None,
+) -> list[dict]:
     ref = quote(default_branch or "HEAD", safe="")
-    data = fetch_json(f"https://api.github.com/repos/{full_name}/git/trees/{ref}?recursive=1")
+    data = fetch_json(
+        f"https://api.github.com/repos/{full_name}/git/trees/{ref}?recursive=1",
+        token=token,
+    )
     if data.get("truncated"):
         logger.warning(
             "repository_tree_truncated",
@@ -718,8 +992,10 @@ def fetch_repository_tree_items(full_name: str, default_branch: str) -> list[dic
 def fetch_repository_ai_development_signals(
     full_name: str,
     default_branch: str,
+    *,
+    token: str | None = None,
 ) -> list[dict]:
-    tree_items = fetch_repository_tree_items(full_name, default_branch)
+    tree_items = fetch_repository_tree_items(full_name, default_branch, token=token)
     return detect_ai_development_signals(tree_items)
 
 
@@ -917,8 +1193,12 @@ def upsert_repository_from_github(
     *,
     include_readme: bool = True,
     active_source_full_names: Collection[str] | None = None,
+    github_access_token: str | None = None,
 ) -> Repository:
-    data = fetch_json(f"https://api.github.com/repos/{full_name}")
+    data = fetch_json(
+        f"https://api.github.com/repos/{full_name}",
+        token=github_access_token,
+    )
     if active_source_full_names is None:
         active_source_full_names = active_awesome_list_source_repository_name_set()
     default_branch = data.get("default_branch") or ""
@@ -930,7 +1210,10 @@ def upsert_repository_from_github(
     readme_data = None
     if include_readme:
         try:
-            readme_data = fetch_repository_readme_data(data["full_name"])
+            readme_data = fetch_repository_readme_data(
+                data["full_name"],
+                token=github_access_token,
+            )
         except Exception as exc:  # noqa: BLE001 - README fetch should not block metadata sync
             logger.warning(
                 "repository_readme_fetch_failed",
@@ -949,6 +1232,7 @@ def upsert_repository_from_github(
         ai_development_signals = fetch_repository_ai_development_signals(
             data["full_name"],
             default_branch,
+            token=github_access_token,
         )
     except Exception as exc:  # noqa: BLE001 - tree fetch should not block metadata sync
         logger.warning(
@@ -962,11 +1246,16 @@ def upsert_repository_from_github(
     first_commit_at = None
     try:
         if existing_first_commit_at is not None:
-            commit_count = fetch_github_commit_count(data["full_name"], default_branch)
+            commit_count = fetch_github_commit_count(
+                data["full_name"],
+                default_branch,
+                token=github_access_token,
+            )
         else:
             commit_count, first_commit_at = fetch_github_commit_count_and_first_commit_at(
                 data["full_name"],
                 default_branch,
+                token=github_access_token,
             )
     except Exception as exc:  # noqa: BLE001 - commit counts are useful but optional
         logger.warning(
@@ -1412,24 +1701,26 @@ def repository_json_value_counts(
     field_name: str,
     *,
     awesome_list: AwesomeList | None = None,
+    profile=None,
     limit: int = 200,
 ) -> list[dict[str, int | str]]:
     if field_name not in REPOSITORY_JSON_FILTER_FIELDS:
         raise ValueError(f"Unsupported repository JSON filter field: {field_name}")
+    if awesome_list is not None and profile is not None:
+        raise ValueError(
+            "Filter repository JSON values by either awesome_list or profile, not both."
+        )
 
     table_name = connection.ops.quote_name(Repository._meta.db_table)
     repository_pk = connection.ops.quote_name(Repository._meta.pk.column)
     repository_full_name = connection.ops.quote_name(Repository._meta.get_field("full_name").column)
-    repository_is_awesome_list_candidate = connection.ops.quote_name(
-        Repository._meta.get_field("is_awesome_list_candidate").column
-    )
     column_name = connection.ops.quote_name(field_name)
     list_table = connection.ops.quote_name(AwesomeList._meta.db_table)
-    list_active = connection.ops.quote_name(AwesomeList._meta.get_field("is_active").column)
-    list_repo_full_name = connection.ops.quote_name(
-        AwesomeList._meta.get_field("repo_full_name").column
-    )
-    join_clause = ""
+    join_clauses = []
+    where_clauses = [
+        f"jsonb_typeof(repository.{column_name}) = 'array'",
+        "item.value <> ''",
+    ]
     params = []
     if awesome_list is not None:
         item_table = connection.ops.quote_name(AwesomeListItem._meta.db_table)
@@ -1439,27 +1730,59 @@ def repository_json_value_counts(
         item_list_id = connection.ops.quote_name(
             AwesomeListItem._meta.get_field("awesome_list").column
         )
-        join_clause = f"""
+        join_clauses.append(
+            f"""
         INNER JOIN {item_table} AS list_item
             ON list_item.{item_repository_id} = repository.{repository_pk}
             AND list_item.{item_list_id} = %s
         """
+        )
         params.append(awesome_list.pk)
+    if profile is not None:
+        star_table = connection.ops.quote_name(UserStarredRepository._meta.db_table)
+        star_repository_id = connection.ops.quote_name(
+            UserStarredRepository._meta.get_field("repository").column
+        )
+        star_profile_id = connection.ops.quote_name(
+            UserStarredRepository._meta.get_field("profile").column
+        )
+        join_clauses.append(
+            f"""
+        INNER JOIN {star_table} AS starred_repo
+            ON starred_repo.{star_repository_id} = repository.{repository_pk}
+            AND starred_repo.{star_profile_id} = %s
+        """
+        )
+        params.append(profile.pk)
+    if profile is None:
+        repository_is_awesome_list_candidate = connection.ops.quote_name(
+            Repository._meta.get_field("is_awesome_list_candidate").column
+        )
+        list_active = connection.ops.quote_name(AwesomeList._meta.get_field("is_active").column)
+        list_repo_full_name = connection.ops.quote_name(
+            AwesomeList._meta.get_field("repo_full_name").column
+        )
+        where_clauses.extend(
+            [
+                f"NOT repository.{repository_is_awesome_list_candidate}",
+                f"""NOT EXISTS (
+                SELECT 1
+                FROM {list_table} AS tracked_list
+                WHERE tracked_list.{list_active}
+                    AND tracked_list.{list_repo_full_name} = repository.{repository_full_name}
+            )""",
+            ]
+        )
+
+    join_clause = "\n".join(join_clauses)
+    where_clause = "\n            AND ".join(where_clauses)
 
     query = f"""
         SELECT item.value AS name, COUNT(*) AS count
         FROM {table_name} AS repository
         {join_clause}
         CROSS JOIN LATERAL jsonb_array_elements_text(repository.{column_name}) AS item(value)
-        WHERE jsonb_typeof(repository.{column_name}) = 'array'
-            AND item.value <> ''
-            AND NOT repository.{repository_is_awesome_list_candidate}
-            AND NOT EXISTS (
-                SELECT 1
-                FROM {list_table} AS tracked_list
-                WHERE tracked_list.{list_active}
-                    AND tracked_list.{list_repo_full_name} = repository.{repository_full_name}
-            )
+        WHERE {where_clause}
         GROUP BY item.value
         ORDER BY count DESC, item.value ASC
         LIMIT %s
@@ -1736,43 +2059,40 @@ def _apply_repository_filters(qs, params):
     return _apply_repository_state_filters(qs, params)
 
 
-def repository_search_queryset(params):
+def repository_search_queryset(params, queryset=None):
     first_snapshot = RepositorySnapshot.objects.filter(repository=models.OuterRef("pk")).order_by(
         "captured_at", "id"
     )
-    qs = (
-        visible_repository_queryset()
-        .annotate(
-            awesome_count=Count("awesome_items", distinct=True),
-            snapshot_count=Count("snapshots", distinct=True),
-            first_snapshot_stars=models.Subquery(
-                first_snapshot.values("stars")[:1],
-                output_field=models.PositiveIntegerField(),
+    base_queryset = queryset if queryset is not None else visible_repository_queryset()
+    qs = base_queryset.annotate(
+        awesome_count=Count("awesome_items", distinct=True),
+        snapshot_count=Count("snapshots", distinct=True),
+        first_snapshot_stars=models.Subquery(
+            first_snapshot.values("stars")[:1],
+            output_field=models.PositiveIntegerField(),
+        ),
+        first_snapshot_commit_count=models.Subquery(
+            first_snapshot.values("commit_count")[:1],
+            output_field=models.PositiveIntegerField(),
+        ),
+    ).annotate(
+        stars_since_first=models.Case(
+            models.When(
+                first_snapshot_stars__isnull=False,
+                then=models.F("stars") - models.F("first_snapshot_stars"),
             ),
-            first_snapshot_commit_count=models.Subquery(
-                first_snapshot.values("commit_count")[:1],
-                output_field=models.PositiveIntegerField(),
+            default=models.Value(0),
+            output_field=models.IntegerField(),
+        ),
+        commits_since_first=models.Case(
+            models.When(
+                commit_count__isnull=False,
+                first_snapshot_commit_count__isnull=False,
+                then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
             ),
-        )
-        .annotate(
-            stars_since_first=models.Case(
-                models.When(
-                    first_snapshot_stars__isnull=False,
-                    then=models.F("stars") - models.F("first_snapshot_stars"),
-                ),
-                default=models.Value(0),
-                output_field=models.IntegerField(),
-            ),
-            commits_since_first=models.Case(
-                models.When(
-                    commit_count__isnull=False,
-                    first_snapshot_commit_count__isnull=False,
-                    then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
-                ),
-                default=models.Value(None),
-                output_field=models.IntegerField(),
-            ),
-        )
+            default=models.Value(None),
+            output_field=models.IntegerField(),
+        ),
     )
     q = (params.get("q") or "").strip()
     semantic_search = False

@@ -10,6 +10,7 @@ from apps.repos.models import (
     RepositoryEmbedding,
     RepositoryLike,
     RepositorySnapshot,
+    UserStarredRepository,
 )
 
 
@@ -181,6 +182,20 @@ class RepositoryLikeAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__email", "repository__full_name")
     list_filter = ("created_at",)
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(UserStarredRepository)
+class UserStarredRepositoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "profile",
+        "repository",
+        "starred_at",
+        "last_seen_at",
+        "last_synced_at",
+    )
+    search_fields = ("profile__user__email", "profile__user__username", "repository__full_name")
+    list_filter = ("last_seen_at", "last_synced_at")
+    readonly_fields = ("profile", "repository", "created_at", "updated_at")
 
 
 @admin.register(RepositoryEmbedding)

@@ -25,6 +25,9 @@ class Profile(BaseModel):
         default=None,
     )
     api_key_hash = models.CharField(max_length=128, blank=True, default="")
+    github_starred_repos_import_enabled = models.BooleanField(default=False)
+    github_starred_repos_last_imported_at = models.DateTimeField(null=True, blank=True)
+    github_starred_repos_last_error = models.TextField(blank=True, default="")
 
     state = models.CharField(
         max_length=255,

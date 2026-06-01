@@ -25,8 +25,8 @@ from django_q.tasks import async_task
 from apps.core.forms import ProfileUpdateForm
 from apps.core.models import Profile
 from apps.repos.forms import AwesomeListCreateForm
-from apps.repos.models import AwesomeList
-from apps.repos.services import github_rate_limit_status
+from apps.repos.models import AwesomeList, UserStarredRepository
+from apps.repos.services import github_rate_limit_status, profile_has_github_token
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
@@ -55,6 +55,12 @@ class HomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        profile, _created = Profile.objects.get_or_create(user=self.request.user)
+        context["starred_repository_count"] = UserStarredRepository.objects.filter(
+            profile=profile
+        ).count()
+        context["github_starred_import_enabled"] = profile.github_starred_repos_import_enabled
+        context["github_starred_last_imported_at"] = profile.github_starred_repos_last_imported_at
 
         return context
 
@@ -91,6 +97,14 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context["api_key_prefix"] = profile.api_key_prefix
         context["has_api_key"] = profile.has_api_key
         context["new_api_key"] = self.request.session.pop(NEW_API_KEY_SESSION_KEY, "")
+        context["github_auth_enabled"] = "github" in settings.SOCIALACCOUNT_PROVIDERS
+        context["github_connected"] = profile_has_github_token(profile)
+        context["github_starred_count"] = UserStarredRepository.objects.filter(
+            profile=profile
+        ).count()
+        context["github_starred_import_enabled"] = profile.github_starred_repos_import_enabled
+        context["github_starred_last_imported_at"] = profile.github_starred_repos_last_imported_at
+        context["github_starred_last_error"] = profile.github_starred_repos_last_error
 
         return context
 
@@ -102,6 +116,58 @@ def rotate_api_key(request):
     api_key = profile.rotate_api_key()
     request.session[NEW_API_KEY_SESSION_KEY] = api_key
     messages.success(request, "New API key generated. Copy it now; it will only be shown once.")
+    return redirect("settings")
+
+
+@login_required
+@require_POST
+def import_starred_repositories(request):
+    profile, _created = Profile.objects.get_or_create(user=request.user)
+    if not profile_has_github_token(profile):
+        messages.error(
+            request,
+            "Connect GitHub before importing starred repositories.",
+        )
+        return redirect("settings")
+
+    profile.github_starred_repos_import_enabled = True
+    profile.github_starred_repos_last_error = ""
+    profile.save(
+        update_fields=[
+            "github_starred_repos_import_enabled",
+            "github_starred_repos_last_error",
+            "updated_at",
+        ]
+    )
+    transaction.on_commit(
+        lambda: async_task(
+            "apps.repos.tasks.import_starred_repositories_task",
+            profile.id,
+            refresh_existing=True,
+            group="Import GitHub starred repositories",
+        )
+    )
+    messages.success(
+        request,
+        "Queued your GitHub starred repository import.",
+    )
+    return redirect("settings")
+
+
+@login_required
+@require_POST
+def disable_starred_repository_import(request):
+    profile, _created = Profile.objects.get_or_create(user=request.user)
+    profile.github_starred_repos_import_enabled = False
+    profile.github_starred_repos_last_error = ""
+    profile.save(
+        update_fields=[
+            "github_starred_repos_import_enabled",
+            "github_starred_repos_last_error",
+            "updated_at",
+        ]
+    )
+    messages.success(request, "Disabled daily GitHub starred repository refresh.")
     return redirect("settings")
 
 
@@ -258,7 +324,7 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
     def retry_awesome_list_scan(self, request):
         try:
             awesome_list_id = int(request.POST.get("awesome_list_id", ""))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             messages.error(request, "Choose an awesome list to retry.")
             return redirect("admin_panel")
 

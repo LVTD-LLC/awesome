@@ -314,6 +314,10 @@ MFA_PASSKEY_SIGNUP_ENABLED = False
 MFA_WEBAUTHN_ALLOW_INSECURE_ORIGIN = DEBUG
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
+# django-allauth exposes token storage as a global socialaccount setting.
+# GitHub is the only social provider configured today, and starred imports need
+# its saved OAuth token after login. Revisit this before adding another provider.
+SOCIALACCOUNT_STORE_TOKENS = True
 SOCIALACCOUNT_PROVIDERS = {}
 SOCIALACCOUNT_ADAPTER = "awesome_repos.adapters.CustomSocialAccountAdapter"
 # Send the user straight to GitHub on a GET of the provider login URL, so the
@@ -623,6 +627,10 @@ GITHUB_DAILY_DISCOVERY_REPOSITORY_LIMIT = env.int(
 GITHUB_REPOSITORY_REFRESH_MIN_RATE_LIMIT_REMAINING = env.int(
     "GITHUB_REPOSITORY_REFRESH_MIN_RATE_LIMIT_REMAINING",
     default=1000,
+)
+GITHUB_STARRED_REPOSITORY_IMPORT_LIMIT = env.int(
+    "GITHUB_STARRED_REPOSITORY_IMPORT_LIMIT",
+    default=0,
 )
 
 

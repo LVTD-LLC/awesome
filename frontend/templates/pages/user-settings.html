@@ -1,5 +1,5 @@
 {% extends 'base_app.html' %}
-{% load widget_tweaks %}
+{% load widget_tweaks socialaccount %}
 
 {% block meta %}
   <title>Awesome - User Settings</title>
@@ -70,6 +70,61 @@
             {% if has_api_key %}Rotate key{% else %}Generate key{% endif %}
           </button>
         </form>
+      </div>
+    </section>
+    <section class="p-6 mt-6 mb-8 rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50" aria-labelledby="github-starred-settings-heading">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0 flex-1">
+          <h3 id="github-starred-settings-heading" class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">GitHub starred repositories</h3>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+            Import public repositories you have starred on GitHub into your personal searchable repository list.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <span class="rounded-full bg-white px-3 py-1 dark:bg-gray-900">{{ github_starred_count }} repo{{ github_starred_count|pluralize }} imported</span>
+            {% if github_starred_import_enabled %}
+              <span class="rounded-full bg-green-50 px-3 py-1 text-green-700 dark:bg-green-950 dark:text-green-200">Daily refresh enabled</span>
+            {% endif %}
+            {% if github_starred_last_imported_at %}
+              <span class="rounded-full bg-white px-3 py-1 dark:bg-gray-900">Last import {{ github_starred_last_imported_at|date:"M d, Y H:i" }}</span>
+            {% endif %}
+          </div>
+          {% if github_starred_last_error %}
+            <p class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+              {{ github_starred_last_error }}
+            </p>
+          {% endif %}
+        </div>
+        <div class="flex flex-col gap-2 sm:items-end">
+          {% if github_connected %}
+            <form method="post" action="{% url 'import_starred_repositories' %}">
+              {% csrf_token %}
+              <button type="submit" class="inline-flex justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+                {% if github_starred_count %}Refresh starred repos{% else %}Import starred repos{% endif %}
+              </button>
+            </form>
+            {% if github_starred_import_enabled %}
+              <form method="post" action="{% url 'disable_starred_repository_import' %}">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
+                  Disable daily refresh
+                </button>
+              </form>
+            {% endif %}
+            {% if github_starred_count %}
+              <a href="{% url 'repos:starred' %}" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
+                Search starred repos
+              </a>
+            {% endif %}
+          {% elif github_auth_enabled %}
+            <a href="{% provider_login_url 'github' process='connect' %}" class="inline-flex justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+              Connect GitHub
+            </a>
+          {% else %}
+            <button type="button" disabled aria-disabled="true" class="inline-flex cursor-not-allowed justify-center rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+              GitHub auth unavailable
+            </button>
+          {% endif %}
+        </div>
       </div>
     </section>
     <div class="p-4 border-t border-b border-gray-200 dark:border-gray-700 sm:p-6 lg:p-8 xl:border-t-0">

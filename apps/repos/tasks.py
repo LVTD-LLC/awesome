@@ -1,15 +1,20 @@
 from math import ceil
 
+from allauth.socialaccount.models import SocialToken
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils import timezone
 from django_q.tasks import async_task
 
+from apps.core.models import Profile
 from apps.repos.models import AwesomeList, Repository
 from apps.repos.services import (
+    GitHubTokenUnavailable,
     add_repository_to_awesome_list,
     github_rate_limit_remaining,
     github_rate_limit_status,
+    import_starred_repositories_for_profile,
     is_github_rate_limit_error,
 )
 from apps.repos.tags import repository_tagging_configured, tag_repository_batch
@@ -236,6 +241,128 @@ def add_missing_repository_to_awesome_list_task(awesome_list_id: int, repo_full_
             exc_info=True,
         )
         raise
+
+
+def _starred_repository_import_limit(limit: int | None) -> int | None:
+    if limit is not None:
+        return max(0, limit) or None
+    configured_limit = max(0, settings.GITHUB_STARRED_REPOSITORY_IMPORT_LIMIT)
+    return configured_limit or None
+
+
+def import_starred_repositories_task(
+    profile_id: int,
+    limit: int | None = None,
+    *,
+    refresh_existing: bool = True,
+):
+    profile = Profile.objects.select_related("user").get(id=profile_id)
+    resolved_limit = _starred_repository_import_limit(limit)
+    logger.info(
+        "github_starred_repository_import_task_started",
+        profile_id=profile_id,
+        user_id=profile.user_id,
+        limit=resolved_limit,
+        refresh_existing=refresh_existing,
+    )
+    try:
+        result = import_starred_repositories_for_profile(
+            profile,
+            limit=resolved_limit,
+            refresh_existing=refresh_existing,
+        )
+        logger.info(
+            "github_starred_repository_import_task_finished",
+            profile_id=profile_id,
+            result={
+                **result,
+                "failures": result["failures"][:25],
+            },
+        )
+        return result
+    except GitHubTokenUnavailable as exc:
+        profile.github_starred_repos_last_error = str(exc)
+        profile.save(update_fields=["github_starred_repos_last_error", "updated_at"])
+        logger.warning(
+            "github_starred_repository_import_token_unavailable",
+            profile_id=profile_id,
+            user_id=profile.user_id,
+            error=str(exc),
+        )
+        return {
+            "profile_id": profile_id,
+            "token_unavailable": True,
+            "error": str(exc),
+        }
+    except Exception as exc:
+        profile.github_starred_repos_last_error = str(exc)
+        profile.save(update_fields=["github_starred_repos_last_error", "updated_at"])
+        if is_github_rate_limit_error(exc):
+            logger.warning(
+                "github_starred_repository_import_stopped_for_rate_limit",
+                profile_id=profile_id,
+                user_id=profile.user_id,
+                error=str(exc),
+            )
+            return {
+                "profile_id": profile_id,
+                "stopped_for_rate_limit": True,
+                "error": str(exc),
+            }
+        logger.error(
+            "github_starred_repository_import_task_failed",
+            profile_id=profile_id,
+            user_id=profile.user_id,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
+
+
+def enqueue_starred_repository_imports_task(
+    limit_per_user: int | None = None,
+    *,
+    refresh_existing: bool = True,
+):
+    now = timezone.now()
+    token_user_ids = (
+        SocialToken.objects.filter(account__provider="github")
+        .exclude(token="")
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+        .values("account__user_id")
+    )
+    profile_ids = (
+        Profile.objects.filter(
+            github_starred_repos_import_enabled=True,
+            user_id__in=token_user_ids,
+        )
+        .order_by("id")
+        .values_list("id", flat=True)
+    )
+    task_ids = []
+    for profile_id in profile_ids:
+        task_ids.append(
+            async_task(
+                "apps.repos.tasks.import_starred_repositories_task",
+                profile_id,
+                limit=limit_per_user,
+                refresh_existing=refresh_existing,
+                group="Import GitHub starred repositories",
+            )
+        )
+
+    logger.info(
+        "github_starred_repository_imports_queued",
+        queued=len(task_ids),
+        limit_per_user=limit_per_user,
+        refresh_existing=refresh_existing,
+    )
+    return {
+        "queued": len(task_ids),
+        "task_ids": task_ids,
+        "limit_per_user": limit_per_user,
+        "refresh_existing": refresh_existing,
+    }
 
 
 def refresh_repository_task(

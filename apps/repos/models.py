@@ -197,6 +197,34 @@ class RepositorySnapshot(BaseModel):
         return f"{self.repository.full_name} at {self.captured_at:%Y-%m-%d %H:%M}"
 
 
+class UserStarredRepository(BaseModel):
+    profile = models.ForeignKey(
+        "core.Profile",
+        on_delete=models.CASCADE,
+        related_name="starred_repository_links",
+    )
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.CASCADE,
+        related_name="starred_by_profiles",
+    )
+    starred_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    sync_error = models.TextField(blank=True, default="")
+
+    class Meta:
+        unique_together = ("profile", "repository")
+        ordering = [models.F("starred_at").desc(nulls_last=True), "repository__full_name"]
+        indexes = [
+            models.Index(fields=["profile", "-last_seen_at"]),
+            models.Index(fields=["repository", "-last_synced_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.profile_id}: {self.repository.full_name}"
+
+
 class AwesomeListItem(BaseModel):
     awesome_list = models.ForeignKey(AwesomeList, on_delete=models.CASCADE, related_name="items")
     repository = models.ForeignKey(

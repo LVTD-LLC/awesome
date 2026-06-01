@@ -122,6 +122,13 @@
                     Lists
                   </a>
                 </li>
+                {% if user.is_authenticated %}
+                <li>
+                  <a href="{% url 'repos:starred' %}" class="rounded-full px-6 py-3 text-base font-semibold leading-[1.7] tracking-[-0.09px] text-gray-900 transition-colors hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800">
+                    Starred
+                  </a>
+                </li>
+                {% endif %}
                 {% if user.is_superuser %}
                 <li>
                   <a href="{% url 'admin_panel' %}" class="rounded-full px-6 py-3 text-base font-semibold leading-[1.7] tracking-[-0.09px] text-green-600 transition-colors hover:bg-green-50">
@@ -213,6 +220,11 @@
                     </a>
                   </li>
                   {% if user.is_authenticated %}
+                  <li class="py-5 text-center border-b border-gray-200 dark:border-gray-800">
+                    <a href="{% url 'repos:starred' %}" class="text-sm font-semibold text-gray-900 hover:text-green-600 dark:text-gray-100 dark:hover:text-green-400">
+                      Starred
+                    </a>
+                  </li>
                   {% if user.is_superuser %}
                   <li class="py-5 text-center border-b border-gray-200 dark:border-gray-800">
                     <a href="{% url 'admin_panel' %}" class="text-sm font-semibold text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">
