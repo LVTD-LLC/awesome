@@ -69,6 +69,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: repository generated-tag prompts now include known language, GitHub topics, and AI-development signals.
 
 ### Fixed
+- Awesome: trapped keyboard focus inside the list-request and delete-account modals.
 - Awesome: fixed invalid nested links on awesome-list repository cards that created empty clickable containers.
 - Awesome: loosened desktop side sponsor rail spacing so ad cards no longer crowd or overlap their copy.
 - Awesome: repair repository migration graph ordering so production can migrate past the AI-development and activity merge branches.

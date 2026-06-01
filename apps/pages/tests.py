@@ -195,6 +195,7 @@ def test_settings_shows_email_confirmation_without_passkey_controls(client):
     assert reverse("mfa_add_webauthn") not in content
     assert "API key" not in content
     assert "Repository updates" in content
+    assert "handleDeleteAccountTab($event)" in content
 
 
 def test_settings_handles_users_without_allauth_email_address(client):
@@ -237,6 +238,7 @@ def test_settings_hides_email_confirmation_when_email_confirmed(client):
     assert "GitHub connection" in content
     assert "Add passkey" not in content
     assert reverse("mfa_add_webauthn") not in content
+    assert "openDeleteAccount()" in content
 
 
 def test_settings_hides_passkey_management_when_passkey_exists(client):

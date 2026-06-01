@@ -3736,6 +3736,9 @@ def test_awesome_list_list_page_renders_activity_metrics(client):
     assert b"django" in response.content
     assert b"Request a list" in response.content
     assert b"requestListOpen" in response.content
+    assert b"openRequestList()" in response.content
+    assert b"handleRequestListTab($event)" in response.content
+    assert b'name="next"' in response.content
     assert b"Submit request" in response.content
 
 
