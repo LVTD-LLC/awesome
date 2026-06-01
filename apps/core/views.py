@@ -149,7 +149,7 @@ def import_starred_repositories(request):
     )
     messages.success(
         request,
-        "Queued your GitHub starred repository import.",
+        "Enabled daily GitHub starred repository refresh and queued your first import.",
     )
     return redirect("settings")
 

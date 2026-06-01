@@ -22,6 +22,29 @@ class TestHomeView:
         response = auth_client.get(url)
         assert "pages/home.html" in [t.name for t in response.templates]
 
+    def test_github_starred_import_defaults_off(self, profile):
+        assert profile.github_starred_repos_import_enabled is False
+
+    def test_settings_shows_clear_import_cta_when_github_connected_and_import_off(
+        self,
+        auth_client,
+        profile,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+        )
+        SocialToken.objects.create(account=account, token="user-token")
+
+        response = auth_client.get(reverse("settings"))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Import starred repos" in content
+        assert "Not importing yet" in content
+        assert "Daily refresh enabled" not in content
+
     def test_rotate_api_key_stores_hash_and_shows_key_once(self, auth_client, profile):
         response = auth_client.post(reverse("rotate_api_key"), follow=True)
         content = response.content.decode()
@@ -76,7 +99,10 @@ class TestHomeView:
                 },
             )
         ]
-        assert "Queued your GitHub starred repository import." in response.content.decode()
+        assert (
+            "Enabled daily GitHub starred repository refresh and queued your first import."
+            in response.content.decode()
+        )
 
     def test_disable_starred_repositories_import_turns_off_daily_refresh(
         self,

@@ -284,6 +284,7 @@ SITE_ID = 1
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 LOGIN_REDIRECT_URL = "home"
+ACCOUNT_SIGNUP_REDIRECT_URL = "settings"
 ACCOUNT_LOGOUT_REDIRECT_URL = "repos:search"
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
