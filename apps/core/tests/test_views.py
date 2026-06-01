@@ -46,6 +46,26 @@ class TestHomeView:
         assert "Starts when you import" in content
         assert "Daily refresh enabled" not in content
 
+    def test_settings_does_not_show_github_account_without_token(
+        self,
+        auth_client,
+        profile,
+    ):
+        SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+            extra_data={"login": "missing-token"},
+        )
+
+        response = auth_client.get(reverse("settings"))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Not connected" in content
+        assert "@missing-token" not in content
+        assert "Import starred repos" not in content
+
     def test_import_starred_repositories_enables_profile_and_queues_task(
         self,
         auth_client,

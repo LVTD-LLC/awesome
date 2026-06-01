@@ -5,7 +5,6 @@ from allauth.account.internal.flows.email_verification import (
     send_verification_email_to_address,
 )
 from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialAccount
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
@@ -24,7 +23,11 @@ from django_q.tasks import async_task
 from apps.core.models import Profile
 from apps.repos.forms import AwesomeListCreateForm
 from apps.repos.models import AwesomeList, RepositoryLike, UserStarredRepository
-from apps.repos.services import github_rate_limit_status, profile_has_github_token
+from apps.repos.services import (
+    github_rate_limit_status,
+    github_social_token_for_profile,
+    profile_has_github_token,
+)
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
@@ -70,7 +73,9 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         profile, _created = Profile.objects.get_or_create(user=user)
-        github_account = SocialAccount.objects.filter(user=user, provider="github").first()
+        github_social_token = github_social_token_for_profile(profile)
+        github_connected = bool(github_social_token) and profile_has_github_token(profile)
+        github_account = github_social_token.account if github_connected else None
         github_account_data = (github_account.extra_data or {}) if github_account else {}
         github_login = github_account_data.get("login", "")
 
@@ -78,7 +83,7 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         context["email_verified"] = bool(email_address and email_address.verified)
         context["resend_confirmation_url"] = reverse("resend_confirmation")
         context["github_auth_enabled"] = "github" in settings.SOCIALACCOUNT_PROVIDERS
-        context["github_connected"] = profile_has_github_token(profile)
+        context["github_connected"] = github_connected
         context["github_login"] = github_login
         context["github_profile_url"] = github_account_data.get("html_url", "")
         context["github_starred_count"] = UserStarredRepository.objects.filter(

@@ -138,6 +138,7 @@
 
       <form method="post" action="{% url 'repos:request_list' %}" class="mt-6 space-y-5">
         {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'repos:list' %}" />
 
         <div>
           <label for="id_modal_source_url" class="block text-sm font-semibold text-gray-800 dark:text-gray-200">GitHub awesome-list URL</label>

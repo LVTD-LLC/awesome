@@ -3767,6 +3767,22 @@ def test_awesome_list_request_page_accepts_public_requests(client):
 
 @pytest.mark.django_db
 @override_settings(CACHES=LOC_MEM_CACHES)
+def test_awesome_list_request_modal_redirects_back_to_lists(client):
+    response = client.post(
+        reverse("repos:request_list"),
+        data={
+            "source_url": "https://github.com/wsvincent/awesome-django",
+            "requester_email": "reader@example.com",
+            "next": reverse("repos:list"),
+        },
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("repos:list")
+
+
+@pytest.mark.django_db
+@override_settings(CACHES=LOC_MEM_CACHES)
 def test_awesome_list_request_page_handles_duplicate_submit_race(client, monkeypatch):
     def raise_integrity_error(self, commit=True):
         raise IntegrityError("duplicate key value violates unique constraint")
