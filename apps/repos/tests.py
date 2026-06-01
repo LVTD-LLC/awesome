@@ -5094,12 +5094,66 @@ def test_repository_detail_page_compacts_ai_development_signals(client):
         ".windsurfrules",
         "CLAUDE.md",
     ]
-    assert summary["hidden_signal_count"] == 2
+    assert summary["hidden_signal_count"] == 0
     assert b"AI agent config detected" in response.content
     assert b"Key config paths" in response.content
-    assert b"2 more config paths detected." in response.content
+    assert b"more config paths detected." not in response.content
     assert b"Review config paths" in response.content
     assert b"AI dev signals:" not in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_shows_empty_ai_development_signal_state(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["has_signals"] is False
+    assert summary["total_count"] == 0
+    assert summary["visible_tools"] == []
+    assert summary["visible_signals"] == []
+    assert b"No AI development config files detected." in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_counts_hidden_ai_development_key_paths(client):
+    signals = [
+        {
+            "path": f".github/instructions/agent-{index}.instructions.md",
+            "kind": "file",
+            "tool": "GitHub Copilot",
+            "signal": "copilot_path_instructions",
+        }
+        for index in range(8)
+    ]
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        uses_ai_for_development=True,
+        ai_development_signals=signals,
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["total_count"] == 8
+    assert len(summary["visible_signals"]) == 6
+    assert summary["hidden_signal_count"] == 2
+    assert b"2 more config paths detected." in response.content
 
 
 @pytest.mark.django_db

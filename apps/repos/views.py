@@ -110,7 +110,7 @@ def _ai_development_signal_summary(signals):
         "visible_tools": tools[:AI_DEVELOPMENT_VISIBLE_TOOL_LIMIT],
         "extra_tool_count": max(len(tools) - AI_DEVELOPMENT_VISIBLE_TOOL_LIMIT, 0),
         "visible_signals": visible_signals,
-        "hidden_signal_count": max(total_count - len(visible_signals), 0),
+        "hidden_signal_count": max(len(key_signals) - len(visible_signals), 0),
         "detail_signals": detail_signals,
         "detail_hidden_count": max(total_count - len(detail_signals), 0),
     }
