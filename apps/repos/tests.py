@@ -3455,6 +3455,11 @@ def test_awesome_list_repository_queryset_skips_snapshot_metrics():
 @pytest.mark.django_db
 def test_repository_search_filters_growth_unmaintained_and_sort_direction():
     now = timezone.now()
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Growth",
+        slug="awesome-growth",
+        source_url="https://github.com/example/awesome-growth",
+    )
     fast = Repository.objects.create(
         full_name="owner/fast",
         owner="owner",
@@ -3482,6 +3487,8 @@ def test_repository_search_filters_growth_unmaintained_and_sort_direction():
         commit_count=200,
         github_pushed_at=now - timedelta(days=800),
     )
+    for repository in (fast, slow, unknown_baseline):
+        AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repository)
     RepositorySnapshot.objects.create(
         repository=fast,
         captured_at=now - timedelta(days=30),
@@ -3518,6 +3525,12 @@ def test_repository_search_filters_growth_unmaintained_and_sort_direction():
     assert list(
         repository_search_queryset({"sort": "stars", "sort_direction": "asc"})
     ) == [slow, fast, unknown_baseline]
+
+    list_repos = list(
+        awesome_list_repository_queryset(awesome_list, {"min_velocity_percent": "40"})
+    )
+    assert list_repos == [fast]
+    assert list_repos[0].commits_growth_percent == 50
 
 
 @pytest.mark.django_db

@@ -2295,6 +2295,16 @@ def _order_repositories(qs, params):
     return qs.order_by(*ordering)
 
 
+def _requires_repository_snapshot_metrics(params) -> bool:
+    sort = (params.get("sort") or "").strip()
+    if sort in {"velocity", "liability"}:
+        return True
+    return any(
+        _positive_int_param(params, name) is not None
+        for name in ("min_velocity_percent", "min_liability_percent")
+    )
+
+
 def _annotate_repository_snapshot_metrics(qs):
     first_snapshot = RepositorySnapshot.objects.filter(repository=models.OuterRef("pk")).order_by(
         "captured_at",
@@ -2380,7 +2390,7 @@ def repository_search_queryset(
             models.Value(0),
         ),
     )
-    if include_snapshot_metrics:
+    if include_snapshot_metrics or _requires_repository_snapshot_metrics(params):
         qs = _annotate_repository_snapshot_metrics(qs)
     q = (params.get("q") or "").strip()
     semantic_search = False
@@ -2401,7 +2411,7 @@ def awesome_list_repository_queryset(awesome_list: AwesomeList, params):
         params,
         queryset=visible_repository_queryset().filter(awesome_items__awesome_list=awesome_list),
         allow_list_filter=False,
-        include_snapshot_metrics=True,
+        include_snapshot_metrics=False,
     )
 
 
