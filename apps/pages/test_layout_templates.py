@@ -12,4 +12,4 @@ def test_side_ad_sponsor_checkout_form_includes_csrf_token(template_name):
         r'<form method="post" action="/sponsor/checkout/"[^>]*>\s*'
         r'<input type="hidden" name="csrfmiddlewaretoken" value="csrf-test-token">',
         content,
-    )
+    ), "Sponsor checkout form should render the forwarded CSRF token."

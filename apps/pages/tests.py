@@ -38,7 +38,7 @@ def assert_standard_ad_layout(content):
         r'<form method="post" action="/sponsor/checkout/"[^>]*>\s*'
         r'<input type="hidden" name="csrfmiddlewaretoken" value="[^"]+">',
         content,
-    )
+    ), "Sponsor checkout form should render a hidden CSRF input."
 
 
 def test_side_ad_slot_default_sponsor_email():
