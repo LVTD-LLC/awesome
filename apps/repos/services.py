@@ -2231,16 +2231,12 @@ def _apply_repository_state_filters(qs, params):
     min_stars = _positive_int_param(params, "min_stars")
     if min_stars is not None:
         qs = qs.filter(stars__gte=min_stars)
-    archived = params.get("archived")
-    if archived == "yes":
-        qs = qs.filter(is_archived=True)
-    elif archived == "no":
-        qs = qs.filter(is_archived=False)
-    ai_development = params.get("ai_development")
-    if ai_development == "yes":
-        qs = qs.filter(uses_ai_for_development=True)
-    elif ai_development == "no":
-        qs = qs.filter(uses_ai_for_development=False)
+    archived = {"yes": True, "no": False}.get(params.get("archived"))
+    if archived is not None:
+        qs = qs.filter(is_archived=archived)
+    ai_development = {"yes": True, "no": False}.get(params.get("ai_development"))
+    if ai_development is not None:
+        qs = qs.filter(uses_ai_for_development=ai_development)
     unmaintained_days = _positive_int_param(params, "unmaintained_days")
     updated_days = _positive_int_param(params, "updated_days")
     valid_unmaintained_days = (
@@ -2289,7 +2285,7 @@ def _sort_expression(field_name: str, direction: str):
     return field.desc(nulls_last=True)
 
 
-def _order_repositories(qs, params):
+def _order_repositories(qs, params, *, extra_sort_map=None):
     sort = params.get("sort") or "stars"
     sort_map = {
         "stars": ("stars", "desc"),
@@ -2305,6 +2301,8 @@ def _order_repositories(qs, params):
         "least_awesome": ("awesome_count", "asc"),
         "name": ("full_name", "asc"),
     }
+    if extra_sort_map:
+        sort_map.update(extra_sort_map)
     field_name, default_direction = sort_map.get(sort, sort_map["stars"])
     direction = _sort_direction(params, default_direction)
     ordering = [_sort_expression(field_name, direction)]
@@ -2395,6 +2393,7 @@ def repository_search_queryset(
     *,
     allow_list_filter: bool = True,
     include_snapshot_metrics: bool = True,
+    extra_sort_map=None,
 ):
     mention_count = (
         AwesomeListItem.objects.filter(repository=models.OuterRef("pk"))
@@ -2425,7 +2424,7 @@ def repository_search_queryset(
 
     if semantic_search:
         return qs.order_by("vector_distance", "-stars", "full_name")
-    return _order_repositories(qs, params)
+    return _order_repositories(qs, params, extra_sort_map=extra_sort_map)
 
 
 def awesome_list_repository_queryset(awesome_list: AwesomeList, params):

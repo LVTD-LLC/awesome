@@ -161,6 +161,7 @@ REPOSITORY_SORT_LABELS = {
     "velocity": "Commit velocity",
     "star_growth": "Star growth",
     "liability": "Star growth",
+    "starred": "Recently starred",
     "awesome": "Most awesome-list mentions",
     "least_awesome": "Fewest awesome-list mentions",
     "name": "Name",
@@ -506,13 +507,24 @@ class UserStarredRepositorySearchView(LoginRequiredMixin, ListView):
     def starred_repository_queryset(self):
         # Personal starred search intentionally includes every imported star, including
         # repositories hidden from public catalog search as awesome-list candidates.
-        return Repository.objects.filter(starred_by_profiles__profile=self.get_profile()).distinct()
+        profile = self.get_profile()
+        return (
+            Repository.objects.filter(starred_by_profiles__profile=profile)
+            .annotate(
+                user_starred_at=Max(
+                    "starred_by_profiles__starred_at",
+                    filter=Q(starred_by_profiles__profile=profile),
+                )
+            )
+            .distinct()
+        )
 
     def get_queryset(self):
         return with_repository_like_state(
             repository_search_queryset(
                 self.request.GET,
                 queryset=self.starred_repository_queryset(),
+                extra_sort_map={"starred": ("user_starred_at", "desc")},
             ),
             self.request.user,
         ).prefetch_related("awesome_items__awesome_list")
