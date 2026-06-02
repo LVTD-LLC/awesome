@@ -2146,6 +2146,14 @@ def _positive_int_param(params, name: str) -> int | None:
     return parsed
 
 
+def _first_positive_int_param(params, *names: str) -> int | None:
+    for name in names:
+        value = _positive_int_param(params, name)
+        if value is not None:
+            return value
+    return None
+
+
 def minimum_age_cutoff(params, name: str = "min_age_years"):
     years = _positive_int_param(params, name)
     if not years or years > MAX_AGE_YEARS_FILTER:
@@ -2210,7 +2218,7 @@ def _apply_repository_taxonomy_filters(qs, params, *, allow_list_filter: bool):
     generated_tag = normalize_repository_tag(params.get("generated_tag") or "")
     if generated_tag:
         qs = qs.filter(generated_tags__contains=[generated_tag])
-    stack = normalize_repository_tag(params.get("stack") or "")
+    stack = normalize_repository_tag(params.get("framework") or params.get("stack") or "")
     if stack:
         qs = qs.filter(detected_stacks__contains=[stack])
     package_manager = normalize_repository_tag(params.get("package_manager") or "")
@@ -2233,13 +2241,32 @@ def _apply_repository_state_filters(qs, params):
         qs = qs.filter(uses_ai_for_development=True)
     elif ai_development == "no":
         qs = qs.filter(uses_ai_for_development=False)
+    unmaintained_days = _positive_int_param(params, "unmaintained_days")
     updated_days = _positive_int_param(params, "updated_days")
-    if updated_days and updated_days <= MAX_UPDATED_DAYS_FILTER:
+    valid_unmaintained_days = (
+        unmaintained_days
+        if unmaintained_days and unmaintained_days <= MAX_UPDATED_DAYS_FILTER
+        else None
+    )
+    if updated_days and updated_days <= MAX_UPDATED_DAYS_FILTER and not valid_unmaintained_days:
         cutoff = timezone.now() - timezone.timedelta(days=updated_days)
         qs = qs.filter(github_pushed_at__gte=cutoff)
+    if valid_unmaintained_days:
+        cutoff = timezone.now() - timezone.timedelta(days=valid_unmaintained_days)
+        qs = qs.filter(github_pushed_at__lte=cutoff)
     age_cutoff = minimum_age_cutoff(params)
     if age_cutoff:
         qs = qs.filter(first_commit_at__lte=age_cutoff)
+    min_velocity_percent = _positive_int_param(params, "min_velocity_percent")
+    if min_velocity_percent is not None:
+        qs = qs.filter(commits_growth_percent__gte=min_velocity_percent)
+    min_star_growth_percent = _first_positive_int_param(
+        params,
+        "min_star_growth_percent",
+        "min_liability_percent",
+    )
+    if min_star_growth_percent is not None:
+        qs = qs.filter(stars_growth_percent__gte=min_star_growth_percent)
     return qs
 
 
@@ -2248,20 +2275,118 @@ def _apply_repository_filters(qs, params, *, allow_list_filter: bool):
     return _apply_repository_state_filters(qs, params)
 
 
+def _sort_direction(params, default_direction: str) -> str:
+    direction = (params.get("sort_direction") or "").strip().lower()
+    if direction in {"asc", "desc"}:
+        return direction
+    return default_direction
+
+
+def _sort_expression(field_name: str, direction: str):
+    field = models.F(field_name)
+    if direction == "asc":
+        return field.asc(nulls_last=True)
+    return field.desc(nulls_last=True)
+
+
 def _order_repositories(qs, params):
     sort = params.get("sort") or "stars"
     sort_map = {
-        "stars": "-stars",
-        "forks": "-forks",
-        "recent": models.F("github_pushed_at").desc(nulls_last=True),
-        "created": models.F("github_created_at").desc(nulls_last=True),
-        "oldest": models.F("first_commit_at").asc(nulls_last=True),
-        "commits": models.F("commit_count").desc(nulls_last=True),
-        "awesome": models.F("awesome_count").desc(nulls_last=True),
-        "least_awesome": models.F("awesome_count").asc(nulls_last=True),
-        "name": "full_name",
+        "stars": ("stars", "desc"),
+        "forks": ("forks", "desc"),
+        "recent": ("github_pushed_at", "desc"),
+        "created": ("github_created_at", "desc"),
+        "oldest": ("first_commit_at", "asc"),
+        "commits": ("commit_count", "desc"),
+        "velocity": ("commits_growth_percent", "desc"),
+        "star_growth": ("stars_growth_percent", "desc"),
+        "liability": ("stars_growth_percent", "desc"),
+        "awesome": ("awesome_count", "desc"),
+        "least_awesome": ("awesome_count", "asc"),
+        "name": ("full_name", "asc"),
     }
-    return qs.order_by(sort_map.get(sort, "-stars"), "full_name")
+    field_name, default_direction = sort_map.get(sort, sort_map["stars"])
+    direction = _sort_direction(params, default_direction)
+    ordering = [_sort_expression(field_name, direction)]
+    if field_name != "full_name":
+        ordering.append("full_name")
+    return qs.order_by(*ordering)
+
+
+def _requires_repository_snapshot_metrics(params) -> bool:
+    sort = (params.get("sort") or "").strip()
+    if sort in {"velocity", "star_growth", "liability"}:
+        return True
+    return any(
+        _positive_int_param(params, name) is not None
+        for name in (
+            "min_velocity_percent",
+            "min_star_growth_percent",
+            "min_liability_percent",
+        )
+    )
+
+
+def _annotate_repository_snapshot_metrics(qs):
+    first_snapshot = RepositorySnapshot.objects.filter(repository=models.OuterRef("pk")).order_by(
+        "captured_at",
+        "id",
+    )
+    return qs.annotate(
+        snapshot_count=Count("snapshots", distinct=True),
+        first_snapshot_stars=models.Subquery(
+            first_snapshot.values("stars")[:1],
+            output_field=models.PositiveIntegerField(),
+        ),
+        first_snapshot_commit_count=models.Subquery(
+            first_snapshot.values("commit_count")[:1],
+            output_field=models.PositiveIntegerField(),
+        ),
+    ).annotate(
+        stars_since_first=models.Case(
+            models.When(
+                first_snapshot_stars__isnull=False,
+                then=models.F("stars") - models.F("first_snapshot_stars"),
+            ),
+            default=models.Value(0),
+            output_field=models.IntegerField(),
+        ),
+        commits_since_first=models.Case(
+            models.When(
+                commit_count__isnull=False,
+                first_snapshot_commit_count__isnull=False,
+                then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
+            ),
+            default=models.Value(None),
+            output_field=models.IntegerField(),
+        ),
+    ).annotate(
+        stars_growth_percent=models.Case(
+            models.When(
+                first_snapshot_stars__gt=0,
+                then=models.ExpressionWrapper(
+                    (models.F("stars_since_first") * models.Value(100.0))
+                    / models.F("first_snapshot_stars"),
+                    output_field=models.FloatField(),
+                ),
+            ),
+            default=models.Value(None),
+            output_field=models.FloatField(),
+        ),
+        commits_growth_percent=models.Case(
+            models.When(
+                commit_count__isnull=False,
+                first_snapshot_commit_count__gt=0,
+                then=models.ExpressionWrapper(
+                    (models.F("commits_since_first") * models.Value(100.0))
+                    / models.F("first_snapshot_commit_count"),
+                    output_field=models.FloatField(),
+                ),
+            ),
+            default=models.Value(None),
+            output_field=models.FloatField(),
+        ),
+    )
 
 
 def repository_search_queryset(
@@ -2287,39 +2412,8 @@ def repository_search_queryset(
             models.Value(0),
         ),
     )
-    if include_snapshot_metrics:
-        first_snapshot = RepositorySnapshot.objects.filter(
-            repository=models.OuterRef("pk")
-        ).order_by("captured_at", "id")
-        qs = qs.annotate(
-            snapshot_count=Count("snapshots", distinct=True),
-            first_snapshot_stars=models.Subquery(
-                first_snapshot.values("stars")[:1],
-                output_field=models.PositiveIntegerField(),
-            ),
-            first_snapshot_commit_count=models.Subquery(
-                first_snapshot.values("commit_count")[:1],
-                output_field=models.PositiveIntegerField(),
-            ),
-        ).annotate(
-            stars_since_first=models.Case(
-                models.When(
-                    first_snapshot_stars__isnull=False,
-                    then=models.F("stars") - models.F("first_snapshot_stars"),
-                ),
-                default=models.Value(0),
-                output_field=models.IntegerField(),
-            ),
-            commits_since_first=models.Case(
-                models.When(
-                    commit_count__isnull=False,
-                    first_snapshot_commit_count__isnull=False,
-                    then=models.F("commit_count") - models.F("first_snapshot_commit_count"),
-                ),
-                default=models.Value(None),
-                output_field=models.IntegerField(),
-            ),
-        )
+    if include_snapshot_metrics or _requires_repository_snapshot_metrics(params):
+        qs = _annotate_repository_snapshot_metrics(qs)
     q = (params.get("q") or "").strip()
     semantic_search = False
     if q and (params.get("mode") or "").strip() == "semantic":
