@@ -29,12 +29,14 @@ from apps.repos.models import (
     REPOSITORY_EMBEDDING_DIMENSIONS,
     AwesomeList,
     AwesomeListItem,
+    AwesomeListSnapshot,
     Repository,
     RepositoryEmbedding,
     RepositoryLike,
     RepositorySnapshot,
     UserStarredRepository,
 )
+from apps.repos.stack_detection import MAX_STACK_FILE_BYTES, detect_repository_stack
 from apps.repos.tags import (
     normalize_repository_tag,
     repository_tagging_configured,
@@ -54,6 +56,16 @@ GITHUB_REPO_RE = re.compile(
     r"https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)(?:[/#?][^\s)\]>'\"]*)?",
     re.IGNORECASE,
 )
+DESCRIPTION_URL_RE = re.compile(
+    r"(?:https?://|www\.)[^\s<>\[\]{}\"']+",
+    re.IGNORECASE,
+)
+SCHEMELESS_URL_RE = re.compile(
+    r"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:[/:?#].*)?$",
+    re.IGNORECASE,
+)
+DESCRIPTION_URL_TRAILING_PUNCTUATION = ".,;:!?)"
+REPOSITORY_HOMEPAGE_URL_MAX_LENGTH = Repository._meta.get_field("homepage_url").max_length
 SKIP_REPO_NAMES = {"stargazers", "network", "issues", "pulls", "pull", "wiki", "releases"}
 README_CANDIDATES = ("README.md", "readme.md", "README.markdown", "README.rst")
 AWESOME_LIST_MIN_REPOSITORY_LINKS = 3
@@ -121,7 +133,13 @@ AI_DEVELOPMENT_PATH_PREFIX_SIGNALS = (
     (".windsurf/rules/", "Windsurf", "windsurf_workspace_rules"),
 )
 AWESOME_LIST_DERIVED_META_KEYS = {"commits_count", "first_commit_at"}
-REPOSITORY_JSON_FILTER_FIELDS = {"topics", "generated_tags"}
+REPOSITORY_JSON_FILTER_FIELDS = {
+    "dependency_ecosystems",
+    "detected_stacks",
+    "generated_tags",
+    "package_managers",
+    "topics",
+}
 MAX_UPDATED_DAYS_FILTER = 36500
 MAX_AGE_YEARS_FILTER = 100
 
@@ -481,6 +499,14 @@ def github_social_token_for_profile(profile) -> SocialToken | None:
     )
 
 
+def github_social_token_is_usable(social_token: SocialToken | None) -> bool:
+    return bool(
+        social_token
+        and social_token.token
+        and (not social_token.expires_at or social_token.expires_at > timezone.now())
+    )
+
+
 def github_token_for_profile(profile) -> str:
     social_token = github_social_token_for_profile(profile)
     if social_token is None:
@@ -522,6 +548,57 @@ def extract_github_repos(markdown: str) -> list[str]:
             continue
         repos.add(f"{owner}/{repo}")
     return sorted(repos, key=str.lower)
+
+
+def normalize_homepage_url(url: str | None) -> str:
+    value = str(url or "").strip().strip("<>")
+    if not value:
+        return ""
+    if value.lower().startswith(("http://", "https://")):
+        candidate = value
+    elif SCHEMELESS_URL_RE.match(value):
+        candidate = f"https://{value}"
+    else:
+        return ""
+
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    if len(candidate) > REPOSITORY_HOMEPAGE_URL_MAX_LENGTH:
+        return ""
+    return candidate
+
+
+def extract_homepage_url_from_description(description: str) -> str:
+    for match in DESCRIPTION_URL_RE.finditer(description or ""):
+        url = match.group(0).rstrip(DESCRIPTION_URL_TRAILING_PUNCTUATION)
+        normalized_url = normalize_homepage_url(url)
+        if normalized_url:
+            return normalized_url
+    return ""
+
+
+def is_same_repository_url_or_subpath(url: str, repository_url: str) -> bool:
+    parsed_url = urlparse(url)
+    parsed_repository_url = urlparse(repository_url)
+    if parsed_url.netloc.lower() != parsed_repository_url.netloc.lower():
+        return False
+
+    url_path = parsed_url.path.rstrip("/")
+    repository_path = parsed_repository_url.path.rstrip("/")
+    return url_path == repository_path or url_path.startswith(f"{repository_path}/")
+
+
+def repository_homepage_url(data: dict) -> str:
+    homepage_url = normalize_homepage_url(data.get("homepage"))
+    if homepage_url:
+        return homepage_url
+
+    description_url = extract_homepage_url_from_description(data.get("description") or "")
+    github_url = normalize_homepage_url(data.get("html_url"))
+    if description_url and not is_same_repository_url_or_subpath(description_url, github_url):
+        return description_url
+    return ""
 
 
 def fetch_user_starred_repositories(
@@ -989,6 +1066,29 @@ def fetch_repository_tree_items(
     return data.get("tree") or []
 
 
+def fetch_repository_blob_text(
+    blob_url: str,
+    *,
+    max_bytes: int = MAX_STACK_FILE_BYTES,
+    token: str | None = None,
+) -> str:
+    if not blob_url:
+        raise ValueError("Cannot fetch repository dependency file without a blob URL.")
+
+    data = fetch_json(blob_url, token=token)
+    size = data.get("size") or 0
+    if size > max_bytes:
+        raise ValueError(f"Repository dependency file is larger than {max_bytes} bytes.")
+
+    content = data.get("content") or ""
+    if data.get("encoding") == "base64" and content:
+        try:
+            return base64.b64decode(content).decode("utf-8", errors="replace")
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("Could not decode repository dependency file content.") from exc
+    return content
+
+
 def fetch_repository_ai_development_signals(
     full_name: str,
     default_branch: str,
@@ -997,6 +1097,24 @@ def fetch_repository_ai_development_signals(
 ) -> list[dict]:
     tree_items = fetch_repository_tree_items(full_name, default_branch, token=token)
     return detect_ai_development_signals(tree_items)
+
+
+def fetch_repository_stack_detection(
+    full_name: str,
+    default_branch: str,
+    *,
+    tree_items: list[dict] | None = None,
+    token: str | None = None,
+) -> dict:
+    if tree_items is None:
+        tree_items = fetch_repository_tree_items(full_name, default_branch, token=token)
+    return detect_repository_stack(
+        tree_items,
+        fetch_file_text=lambda candidate: fetch_repository_blob_text(
+            candidate.get("url") or "",
+            token=token,
+        ),
+    )
 
 
 def dt(value: str | datetime | None):
@@ -1067,6 +1185,40 @@ def update_awesome_list_metadata(
         key: value for key, value in meta.items() if key not in AWESOME_LIST_DERIVED_META_KEYS
     }
     awesome_list.save(update_fields=update_fields)
+    if meta.get("commits_count") is None or meta.get("first_commit_at") is None:
+        awesome_list.refresh_from_db(fields=["commits_count", "first_commit_at"])
+    if not last_error:
+        record_awesome_list_snapshot(awesome_list, captured_at=scanned_at)
+
+
+def record_awesome_list_snapshot(
+    awesome_list: AwesomeList,
+    *,
+    captured_at: datetime | None = None,
+    source: str = "github_api",
+) -> AwesomeListSnapshot:
+    captured_at = captured_at or timezone.now()
+    return AwesomeListSnapshot.objects.create(
+        awesome_list=awesome_list,
+        captured_at=captured_at,
+        source=source,
+        repo_full_name=awesome_list.repo_full_name,
+        description=awesome_list.description,
+        topics=awesome_list.topics,
+        stars=awesome_list.stars,
+        forks=awesome_list.forks,
+        open_issues=awesome_list.open_issues,
+        watchers=awesome_list.watchers,
+        commits_count=awesome_list.commits_count,
+        readme_repository_count=awesome_list.readme_repository_count,
+        default_branch=awesome_list.default_branch,
+        is_archived=awesome_list.is_archived,
+        is_disabled=awesome_list.is_disabled,
+        github_created_at=awesome_list.github_created_at,
+        github_updated_at=awesome_list.github_updated_at,
+        github_pushed_at=awesome_list.github_pushed_at,
+        first_commit_at=awesome_list.first_commit_at,
+    )
 
 
 def record_repository_snapshot(
@@ -1108,6 +1260,7 @@ def _upsert_repository_metadata(
     synced_at,
     readme_data: dict | None = None,
     ai_development_signals: list[dict] | None = None,
+    stack_detection: dict | None = None,
     commit_count: int | None = None,
     first_commit_at: datetime | None = None,
     active_source_full_names: Collection[str] = (),
@@ -1146,13 +1299,29 @@ def _upsert_repository_metadata(
             "uses_ai_for_development": bool(ai_development_signals),
             "ai_development_signals": ai_development_signals,
         }
+    stack_detection_defaults = {}
+    if stack_detection is not None:
+        if stack_detection.get("ok"):
+            stack_detection_defaults = {
+                "dependency_files": stack_detection.get("dependency_files") or [],
+                "dependency_ecosystems": stack_detection.get("dependency_ecosystems") or [],
+                "package_managers": stack_detection.get("package_managers") or [],
+                "detected_stacks": stack_detection.get("detected_stacks") or [],
+                "stack_signals": stack_detection.get("stack_signals") or [],
+                "stack_detected_at": synced_at,
+                "stack_detection_last_error": "",
+            }
+        elif stack_detection.get("error"):
+            stack_detection_defaults = {
+                "stack_detection_last_error": str(stack_detection["error"])[:1000],
+            }
     defaults = {
         "host": "github",
         "owner": data.get("owner", {}).get("login", full_name.split("/", 1)[0]),
         "name": data.get("name", full_name.split("/", 1)[1]),
         "url": data.get("html_url", f"https://github.com/{full_name}"),
         "description": data.get("description") or "",
-        "homepage_url": data.get("homepage") or "",
+        "homepage_url": repository_homepage_url(data),
         "language": data.get("language") or "",
         "license_name": license_data.get("spdx_id") or license_data.get("name") or "",
         "topics": data.get("topics") or [],
@@ -1173,6 +1342,7 @@ def _upsert_repository_metadata(
         "last_synced_at": synced_at,
         **readme_defaults,
         **ai_development_defaults,
+        **stack_detection_defaults,
         "raw": data,
     }
     if commit_count is not None:
@@ -1228,21 +1398,34 @@ def upsert_repository_from_github(
                 "readme_url": "",
                 "readme_last_error": str(exc),
             }
+    tree_items = None
+    tree_error = ""
     try:
-        ai_development_signals = fetch_repository_ai_development_signals(
+        tree_items = fetch_repository_tree_items(
             data["full_name"],
             default_branch,
             token=github_access_token,
         )
     except Exception as exc:  # noqa: BLE001 - tree fetch should not block metadata sync
+        tree_error = str(exc)
         logger.warning(
-            "repository_ai_development_signal_fetch_failed",
+            "repository_tree_fetch_failed",
             repo_full_name=data["full_name"],
             default_branch=default_branch,
             error=str(exc),
             exc_info=True,
         )
+    if tree_items is not None:
+        ai_development_signals = detect_ai_development_signals(tree_items)
+        stack_detection = fetch_repository_stack_detection(
+            data["full_name"],
+            default_branch,
+            tree_items=tree_items,
+            token=github_access_token,
+        )
+    else:
         ai_development_signals = None
+        stack_detection = {"ok": False, "error": tree_error} if tree_error else None
     first_commit_at = None
     try:
         if existing_first_commit_at is not None:
@@ -1272,6 +1455,7 @@ def upsert_repository_from_github(
         synced_at=timezone.now(),
         readme_data=readme_data,
         ai_development_signals=ai_development_signals,
+        stack_detection=stack_detection,
         commit_count=commit_count,
         first_commit_at=first_commit_at,
         active_source_full_names=active_source_full_names,
@@ -1282,6 +1466,56 @@ def upsert_repository_from_github(
         sync_repository_embedding(repo, repo.readme)
 
     return repo
+
+
+def sync_repository_stack_detection(
+    repository: Repository,
+    *,
+    token: str | None = None,
+) -> dict:
+    detected_at = timezone.now()
+    if not repository.default_branch:
+        result = {
+            "ok": False,
+            "error": "Cannot detect repository stack without a default branch.",
+        }
+        repository.stack_detection_last_error = result["error"]
+        repository.save(update_fields=["stack_detection_last_error", "updated_at"])
+        return result
+
+    try:
+        result = fetch_repository_stack_detection(
+            repository.full_name,
+            repository.default_branch,
+            token=token,
+        )
+    except Exception as exc:  # noqa: BLE001 - management backfills should keep going
+        result = {"ok": False, "error": str(exc)}
+
+    if result.get("ok"):
+        repository.dependency_files = result.get("dependency_files") or []
+        repository.dependency_ecosystems = result.get("dependency_ecosystems") or []
+        repository.package_managers = result.get("package_managers") or []
+        repository.detected_stacks = result.get("detected_stacks") or []
+        repository.stack_signals = result.get("stack_signals") or []
+        repository.stack_detected_at = detected_at
+        repository.stack_detection_last_error = ""
+        repository.save(
+            update_fields=[
+                "dependency_files",
+                "dependency_ecosystems",
+                "package_managers",
+                "detected_stacks",
+                "stack_signals",
+                "stack_detected_at",
+                "stack_detection_last_error",
+                "updated_at",
+            ]
+        )
+    else:
+        repository.stack_detection_last_error = str(result.get("error") or "")[:1000]
+        repository.save(update_fields=["stack_detection_last_error", "updated_at"])
+    return result
 
 
 def _format_delta(value: int | None, *, none_label: str = "baseline") -> str:
@@ -1393,6 +1627,45 @@ def repository_history_chart_data(
             "commit_count": snapshot.commit_count,
         }
         for snapshot in reversed(snapshots)
+    ]
+
+
+def awesome_list_history_chart_data(
+    awesome_list: AwesomeList,
+    *,
+    limit: int = 365,
+) -> list[dict[str, int | str | None]]:
+    if limit <= 0:
+        return []
+
+    snapshots = list(
+        awesome_list.snapshots.order_by("-captured_at", "-id").only(
+            "captured_at",
+            "stars",
+            "commits_count",
+        )[:limit]
+    )
+    if snapshots:
+        return [
+            {
+                "captured_at": snapshot.captured_at.isoformat(),
+                "stars": snapshot.stars,
+                "commit_count": snapshot.commits_count,
+            }
+            for snapshot in reversed(snapshots)
+        ]
+
+    has_current_metadata = awesome_list.stars > 0 or awesome_list.commits_count is not None
+    if not has_current_metadata:
+        return []
+
+    captured_at = awesome_list.last_scanned_at or awesome_list.updated_at or timezone.now()
+    return [
+        {
+            "captured_at": captured_at.isoformat(),
+            "stars": awesome_list.stars,
+            "commit_count": awesome_list.commits_count,
+        }
     ]
 
 
@@ -1893,6 +2166,8 @@ def _apply_list_repository_keyword_filter(qs, params):
             | models.Q(license_name__icontains=q)
             | models.Q(topics__icontains=q)
             | models.Q(generated_tags__icontains=q)
+            | models.Q(package_managers__icontains=q)
+            | models.Q(detected_stacks__icontains=q)
         )
     return qs
 
@@ -1909,6 +2184,14 @@ def _apply_list_repository_taxonomy_filters(qs, params):
     generated_tag = normalize_repository_tag(params.get("generated_tag") or "")
     if generated_tag:
         qs = qs.filter(generated_tags__contains=[generated_tag])
+
+    stack = normalize_repository_tag(params.get("stack") or "")
+    if stack:
+        qs = qs.filter(detected_stacks__contains=[stack])
+
+    package_manager = normalize_repository_tag(params.get("package_manager") or "")
+    if package_manager:
+        qs = qs.filter(package_managers__contains=[package_manager])
     return qs
 
 
@@ -2011,6 +2294,8 @@ def _apply_repository_keyword_search(qs, q: str):
         | models.Q(language__icontains=q)
         | models.Q(topics__icontains=q)
         | models.Q(generated_tags__icontains=q)
+        | models.Q(package_managers__icontains=q)
+        | models.Q(detected_stacks__icontains=q)
     )
 
 
@@ -2027,6 +2312,12 @@ def _apply_repository_taxonomy_filters(qs, params):
     generated_tag = normalize_repository_tag(params.get("generated_tag") or "")
     if generated_tag:
         qs = qs.filter(generated_tags__contains=[generated_tag])
+    stack = normalize_repository_tag(params.get("stack") or "")
+    if stack:
+        qs = qs.filter(detected_stacks__contains=[stack])
+    package_manager = normalize_repository_tag(params.get("package_manager") or "")
+    if package_manager:
+        qs = qs.filter(package_managers__contains=[package_manager])
     return qs
 
 

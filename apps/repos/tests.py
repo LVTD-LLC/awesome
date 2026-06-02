@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from datetime import UTC, datetime, timedelta
 from io import StringIO
@@ -6,10 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 from allauth.socialaccount.models import SocialAccount, SocialToken
+from defusedxml.common import EntitiesForbidden
 from django.contrib import admin as django_admin
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import IntegrityError, connection
+from django.template import Context, Template
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -27,6 +30,7 @@ from apps.repos.models import (
     AwesomeList,
     AwesomeListItem,
     AwesomeListRequest,
+    AwesomeListSnapshot,
     Repository,
     RepositoryEmbedding,
     RepositoryLike,
@@ -38,11 +42,13 @@ from apps.repos.services import (
     active_awesome_list_source_repository_name_set,
     add_repository_to_awesome_list,
     attach_awesome_list_commit_count,
+    awesome_list_history_chart_data,
     awesome_list_repository_history_chart_data,
     detect_ai_development_signals,
     detect_awesome_list_candidate,
     discover_missing_awesome_list_repositories,
     extract_github_repos,
+    extract_homepage_url_from_description,
     fetch_github_commit_count,
     fetch_github_commit_count_and_first_commit_at,
     fetch_json,
@@ -51,16 +57,26 @@ from apps.repos.services import (
     fetch_repository_tree_items,
     github_rate_limit_status,
     import_starred_repositories_for_profile,
+    is_same_repository_url_or_subpath,
     minimum_age_cutoff,
+    normalize_homepage_url,
     parse_github_repo_url,
     refresh_repositories,
     repository_history_chart_data,
+    repository_homepage_url,
     repository_performance_summary,
     repository_search_queryset,
     similar_repositories_for_repository,
     sync_awesome_list,
+    sync_repository_stack_detection,
     update_awesome_list_metadata,
     upsert_repository_from_github,
+)
+from apps.repos.stack_detection import (
+    dependency_file_candidates,
+    detect_repository_stack,
+    parse_pom_xml,
+    parse_python_setup,
 )
 from apps.repos.tags import (
     build_repository_tagging_payload,
@@ -116,6 +132,97 @@ def test_extract_github_repos_dedupes_and_skips_non_repo_paths():
     - duplicate https://github.com/django/django
     """
     assert extract_github_repos(markdown) == ["django/django", "paperless-ngx/paperless-ngx"]
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://example.com/docs", "https://example.com/docs"),
+        ("www.example.com/docs", "https://www.example.com/docs"),
+        ("example.com", "https://example.com"),
+        ("javascript:alert(1)", ""),
+        ("not a url", ""),
+        (f"https://example.com/{'a' * 220}", ""),
+    ],
+)
+def test_normalize_homepage_url_allows_safe_http_links(url, expected):
+    assert normalize_homepage_url(url) == expected
+
+
+def test_extract_homepage_url_from_description_uses_first_safe_link():
+    description = "Framework docs live at https://docs.example.com/."
+
+    assert extract_homepage_url_from_description(description) == "https://docs.example.com/"
+
+
+def test_repository_homepage_url_prefers_github_homepage_over_description_link():
+    payload = github_repo_payload()
+    payload["homepage"] = "https://www.djangoproject.com/"
+    payload["description"] = "Docs at https://docs.djangoproject.com/."
+
+    assert repository_homepage_url(payload) == "https://www.djangoproject.com/"
+
+
+def test_repository_homepage_url_falls_back_to_description_link():
+    payload = github_repo_payload()
+    payload["homepage"] = ""
+    payload["description"] = "Docs at https://docs.djangoproject.com/."
+
+    assert repository_homepage_url(payload) == "https://docs.djangoproject.com/"
+
+
+def test_repository_homepage_url_ignores_description_link_to_same_github_repo():
+    payload = github_repo_payload()
+    payload["homepage"] = ""
+    payload["description"] = "Mirror of https://github.com/django/django."
+
+    assert repository_homepage_url(payload) == ""
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/django/django",
+        "https://github.com/django/django?tab=readme-ov-file",
+        "https://github.com/django/django#readme",
+        "https://github.com/django/django/releases",
+        "https://github.com/django/django/issues",
+        "https://github.com/django/django/blob/main/README.md",
+        "https://github.com/django/django/wiki",
+    ],
+)
+def test_is_same_repository_url_or_subpath_matches_repo_pages(url):
+    assert is_same_repository_url_or_subpath(url, "https://github.com/django/django")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/django/django-cms",
+        "https://github.com/django",
+        "https://docs.djangoproject.com/",
+    ],
+)
+def test_is_same_repository_url_or_subpath_ignores_other_sites_and_repos(url):
+    assert not is_same_repository_url_or_subpath(url, "https://github.com/django/django")
+
+
+@pytest.mark.parametrize(
+    "repo_page_url",
+    [
+        "https://github.com/django/django/releases",
+        "https://github.com/django/django/issues",
+        "https://github.com/django/django/blob/main/README.md",
+    ],
+)
+def test_repository_homepage_url_ignores_description_link_to_github_repo_subpath(
+    repo_page_url,
+):
+    payload = github_repo_payload()
+    payload["homepage"] = ""
+    payload["description"] = f"Release notes live at {repo_page_url}."
+
+    assert repository_homepage_url(payload) == ""
 
 
 @pytest.mark.django_db
@@ -290,6 +397,7 @@ def test_sync_awesome_list_marks_empty_scan_as_error(monkeypatch):
     assert result["discovered"] == 0
     assert result["synced"] == 0
     assert awesome_list.last_error == "No GitHub repository links found in README."
+    assert awesome_list.snapshots.count() == 0
 
 
 def github_awesome_list_payload(
@@ -375,6 +483,16 @@ def test_sync_awesome_list_stores_list_activity_metadata(monkeypatch):
     assert "commits_count" not in awesome_list.raw
     assert "first_commit_at" not in awesome_list.raw
     assert awesome_list.items.count() == 1
+    snapshot = awesome_list.snapshots.get()
+    assert snapshot.repo_full_name == "wsvincent/awesome-django"
+    assert snapshot.stars == 1200
+    assert snapshot.forks == 100
+    assert snapshot.watchers == 25
+    assert snapshot.open_issues == 7
+    assert snapshot.commits_count == 350
+    assert snapshot.readme_repository_count == 2
+    assert snapshot.default_branch == "main"
+    assert snapshot.first_commit_at == datetime(2015, 1, 2, tzinfo=UTC)
 
 
 @pytest.mark.django_db
@@ -409,6 +527,9 @@ def test_update_awesome_list_metadata_preserves_missing_commit_count():
     assert awesome_list.commits_count == 350
     assert awesome_list.first_commit_at == datetime(2015, 1, 2, tzinfo=UTC)
     assert awesome_list.readme_repository_count == 42
+    snapshot = awesome_list.snapshots.get()
+    assert snapshot.commits_count == 350
+    assert snapshot.first_commit_at == datetime(2015, 1, 2, tzinfo=UTC)
 
 
 @pytest.mark.django_db
@@ -735,7 +856,7 @@ def stub_repository_readme(monkeypatch, content="# Django\n"):
         },
     )
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
+        "apps.repos.services.fetch_repository_tree_items",
         lambda full_name, default_branch, **kwargs: [],
     )
 
@@ -762,6 +883,39 @@ def test_upsert_repository_from_github_records_snapshot(monkeypatch):
     assert snapshot.commit_count == repo.commit_count
     assert snapshot.first_commit_at == repo.first_commit_at
     assert snapshot.captured_at == repo.last_synced_at
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_stores_homepage_from_github_api(monkeypatch):
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_json",
+        lambda url, **kwargs: github_repo_payload(),
+    )
+    stub_repository_readme(monkeypatch)
+
+    repo = upsert_repository_from_github("django/django")
+
+    snapshot = RepositorySnapshot.objects.get(repository=repo)
+    assert repo.homepage_url == "https://www.djangoproject.com/"
+    assert snapshot.homepage_url == repo.homepage_url
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_stores_homepage_from_description_link(monkeypatch):
+    def fake_fetch_json(url, **kwargs):
+        payload = github_repo_payload()
+        payload["homepage"] = ""
+        payload["description"] = "Docs at https://docs.djangoproject.com/."
+        return payload
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+    stub_repository_readme(monkeypatch)
+
+    repo = upsert_repository_from_github("django/django")
+
+    snapshot = RepositorySnapshot.objects.get(repository=repo)
+    assert repo.homepage_url == "https://docs.djangoproject.com/"
+    assert snapshot.homepage_url == repo.homepage_url
 
 
 @pytest.mark.django_db
@@ -870,6 +1024,153 @@ def test_detect_ai_development_signals_identifies_common_agent_files():
     assert "docs/CONTRIBUTING.md" not in signal_paths
     assert ".coderabbit.yml" not in signal_paths
     assert len(signal_paths) == len(signals)
+
+
+def test_dependency_file_candidates_detect_manifests_and_skip_vendor_dirs():
+    candidates = dependency_file_candidates(
+        [
+            {"path": "pyproject.toml", "type": "blob", "size": 200, "url": "blob:pyproject"},
+            {
+                "path": "frontend/package.json",
+                "type": "blob",
+                "size": 200,
+                "url": "blob:package",
+            },
+            {
+                "path": "frontend/node_modules/react/package.json",
+                "type": "blob",
+                "size": 200,
+                "url": "blob:vendor",
+            },
+            {"path": "Cargo.toml", "type": "blob", "size": 200, "url": "blob:cargo"},
+            {"path": "README.md", "type": "blob", "size": 200, "url": "blob:readme"},
+        ]
+    )
+
+    assert [candidate["path"] for candidate in candidates] == [
+        "Cargo.toml",
+        "pyproject.toml",
+        "frontend/package.json",
+    ]
+
+
+def test_detect_repository_stack_parses_manifests_and_records_evidence():
+    contents = {
+        "pyproject.toml": """
+            [project]
+            dependencies = ["Django>=5", "djangorestframework"]
+
+            [tool.poetry]
+            name = "example"
+        """,
+        "frontend/package.json": json.dumps(
+            {
+                "packageManager": "pnpm@9.0.0",
+                "dependencies": {"next": "15.0.0", "react": "19.0.0"},
+                "devDependencies": {"tailwindcss": "4.0.0"},
+            }
+        ),
+    }
+    tree_items = [
+        {
+            "path": path,
+            "type": "blob",
+            "size": len(content),
+            "url": f"blob:{path}",
+        }
+        for path, content in contents.items()
+    ]
+
+    result = detect_repository_stack(
+        tree_items,
+        fetch_file_text=lambda candidate: contents[candidate["path"]],
+    )
+
+    assert result["ok"] is True
+    assert result["dependency_ecosystems"] == ["javascript", "python"]
+    assert result["package_managers"] == ["pnpm", "poetry"]
+    assert result["detected_stacks"] == [
+        "django",
+        "django-rest-framework",
+        "nextjs",
+        "react",
+        "tailwindcss",
+    ]
+    django_signal = next(signal for signal in result["stack_signals"] if signal["slug"] == "django")
+    assert django_signal["confidence"] == "high"
+    assert django_signal["evidence"] == [
+        {"path": "pyproject.toml", "dependency": "django", "kind": "manifest"}
+    ]
+    assert {dependency_file["path"] for dependency_file in result["dependency_files"]} == {
+        "pyproject.toml",
+        "frontend/package.json",
+    }
+
+
+def test_parse_python_setup_only_reads_dependency_fields():
+    result = parse_python_setup(
+        """
+        from setuptools import setup
+
+        setup(
+            name="example-project",
+            author="Jane Smith",
+            license="BSD-3-Clause",
+            install_requires=["Django>=5", "fastapi[standard]"],
+            extras_require={"dev": ["pytest", "ruff>=0.15"]},
+            classifiers=["Framework :: Django"],
+        )
+        """
+    )
+
+    assert result["dependencies"] == ["django", "fastapi", "pytest", "ruff"]
+
+
+def test_parse_python_setup_cfg_reads_options_dependency_sections():
+    result = parse_python_setup(
+        """
+        [metadata]
+        name = example-project
+        author = Jane Smith
+
+        [options]
+        install_requires =
+            Django>=5
+            fastapi[standard]
+
+        [options.extras_require]
+        dev =
+            pytest
+            ruff>=0.15
+        """
+    )
+
+    assert result["dependencies"] == ["django", "fastapi", "pytest", "ruff"]
+
+
+def test_parse_pom_xml_rejects_entity_expansion():
+    with pytest.raises(EntitiesForbidden):
+        parse_pom_xml(
+            """<?xml version="1.0"?>
+            <!DOCTYPE project [
+              <!ENTITY a "aaaaaaaaaa">
+              <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+            ]>
+            <project>
+              <dependencies>
+                <dependency><artifactId>&b;</artifactId></dependency>
+              </dependencies>
+            </project>
+            """
+        )
+
+
+def test_package_manager_label_template_filter_formats_slugs():
+    rendered = Template("{% load repo_stack_tags %}{{ manager|package_manager_label }}").render(
+        Context({"manager": "go-modules"})
+    )
+
+    assert rendered == "Go modules"
 
 
 def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch):
@@ -1197,6 +1498,80 @@ def test_upsert_repository_from_github_stores_ai_development_signals(monkeypatch
 
 
 @pytest.mark.django_db
+def test_upsert_repository_from_github_stores_stack_detection(monkeypatch):
+    readme = "# Django\nThe Web framework.\n"
+    pyproject = """
+        [project]
+        dependencies = ["django>=5", "fastapi"]
+
+        [tool.poetry]
+        name = "django"
+    """
+    package_json = json.dumps(
+        {
+            "packageManager": "pnpm@9.0.0",
+            "dependencies": {"next": "15.0.0", "react": "19.0.0"},
+        }
+    )
+
+    def blob_payload(content):
+        return {
+            "encoding": "base64",
+            "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+            "size": len(content),
+        }
+
+    def fake_fetch_json(url, **kwargs):
+        if url.endswith("/readme"):
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode(readme.encode("utf-8")).decode("ascii"),
+                "path": "README.md",
+                "download_url": "https://raw.githubusercontent.com/django/django/main/README.md",
+            }
+        if "/git/trees/" in url:
+            return {
+                "tree": [
+                    {
+                        "path": "pyproject.toml",
+                        "type": "blob",
+                        "size": len(pyproject),
+                        "url": "blob:pyproject",
+                    },
+                    {
+                        "path": "frontend/package.json",
+                        "type": "blob",
+                        "size": len(package_json),
+                        "url": "blob:package",
+                    },
+                ]
+            }
+        if url == "blob:pyproject":
+            return blob_payload(pyproject)
+        if url == "blob:package":
+            return blob_payload(package_json)
+        return github_repo_payload(stars=80000, forks=32000, watchers=1200)
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+
+    repo = upsert_repository_from_github("django/django")
+
+    assert repo.dependency_ecosystems == ["javascript", "python"]
+    assert repo.package_managers == ["pnpm", "poetry"]
+    assert repo.detected_stacks == ["django", "fastapi", "nextjs", "react"]
+    assert repo.stack_detected_at == repo.last_synced_at
+    assert repo.stack_detection_last_error == ""
+    assert {dependency_file["path"] for dependency_file in repo.dependency_files} == {
+        "frontend/package.json",
+        "pyproject.toml",
+    }
+    assert (
+        next(signal for signal in repo.stack_signals if signal["slug"] == "django")["label"]
+        == "Django"
+    )
+
+
+@pytest.mark.django_db
 def test_upsert_repository_from_github_preserves_readme_when_refresh_fails(monkeypatch):
     previous_readme_synced_at = timezone.now() - timedelta(days=1)
     repo = Repository.objects.create(
@@ -1266,18 +1641,209 @@ def test_upsert_repository_from_github_preserves_ai_signals_when_tree_fetch_fail
         },
     )
 
-    def fail_ai_signals(full_name, default_branch, **kwargs):
+    def fail_tree_fetch(full_name, default_branch, **kwargs):
         raise RuntimeError("tree failed")
 
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
-        fail_ai_signals,
+        "apps.repos.services.fetch_repository_tree_items",
+        fail_tree_fetch,
     )
 
     repo = upsert_repository_from_github(repo.full_name)
 
     assert repo.uses_ai_for_development is True
     assert repo.ai_development_signals[0]["path"] == "AGENTS.md"
+
+
+@pytest.mark.django_db
+def test_upsert_repository_from_github_preserves_stack_detection_when_tree_fetch_fails(
+    monkeypatch,
+):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        dependency_files=[{"path": "pyproject.toml"}],
+        dependency_ecosystems=["python"],
+        package_managers=["poetry"],
+        detected_stacks=["django"],
+        stack_signals=[{"slug": "django", "label": "Django"}],
+        stack_detected_at=timezone.now() - timedelta(days=1),
+    )
+    previous_stack_detected_at = repo.stack_detected_at
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_json",
+        lambda url, **kwargs: github_repo_payload(stars=15, forks=4, watchers=2),
+    )
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_readme_data",
+        lambda full_name, **kwargs: {
+            "ok": False,
+            "readme": "",
+            "readme_path": "",
+            "readme_url": "",
+            "readme_last_error": "404 Not Found",
+        },
+    )
+
+    def fail_tree_fetch(full_name, default_branch, **kwargs):
+        raise RuntimeError("tree failed")
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_tree_items",
+        fail_tree_fetch,
+    )
+
+    repo = upsert_repository_from_github(repo.full_name)
+
+    assert repo.detected_stacks == ["django"]
+    assert repo.package_managers == ["poetry"]
+    assert repo.stack_signals == [{"slug": "django", "label": "Django"}]
+    assert repo.stack_detected_at == previous_stack_detected_at
+    assert repo.stack_detection_last_error == "tree failed"
+
+
+@pytest.mark.django_db
+def test_sync_repository_stack_detection_updates_existing_repository(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    pyproject = '[project]\ndependencies = ["django"]\n'
+
+    def fake_fetch_json(url, **kwargs):
+        if "/git/trees/" in url:
+            return {
+                "tree": [
+                    {
+                        "path": "pyproject.toml",
+                        "type": "blob",
+                        "size": len(pyproject),
+                        "url": "blob:pyproject",
+                    }
+                ]
+            }
+        if url == "blob:pyproject":
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode(pyproject.encode("utf-8")).decode("ascii"),
+                "size": len(pyproject),
+            }
+        raise AssertionError(url)
+
+    monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
+
+    result = sync_repository_stack_detection(repository)
+
+    repository.refresh_from_db()
+    assert result["detected_stacks"] == ["django"]
+    assert repository.detected_stacks == ["django"]
+    assert repository.stack_detected_at is not None
+
+
+@pytest.mark.django_db
+def test_sync_repository_stack_detection_passes_github_token(monkeypatch):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_fetch_repository_stack_detection(full_name, default_branch, **kwargs):
+        captured["full_name"] = full_name
+        captured["default_branch"] = default_branch
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "dependency_files": [],
+            "dependency_ecosystems": [],
+            "package_managers": [],
+            "detected_stacks": [],
+            "stack_signals": [],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.services.fetch_repository_stack_detection",
+        fake_fetch_repository_stack_detection,
+    )
+
+    result = sync_repository_stack_detection(repository, token="ghp_test")
+
+    assert result["ok"] is True
+    assert captured == {
+        "full_name": "django/django",
+        "default_branch": "main",
+        "token": "ghp_test",
+    }
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_prefers_unsynced_repositories():
+    synced = Repository.objects.create(
+        full_name="django/synced",
+        owner="django",
+        name="synced",
+        url="https://github.com/django/synced",
+        default_branch="main",
+        stack_detected_at=timezone.now(),
+    )
+    unsynced = Repository.objects.create(
+        full_name="django/unsynced",
+        owner="django",
+        name="unsynced",
+        url="https://github.com/django/unsynced",
+        default_branch="main",
+    )
+
+    output = StringIO()
+    call_command("detect_repository_stacks", "--all", "--dry-run", "--limit", "2", stdout=output)
+
+    lines = [line for line in output.getvalue().splitlines() if line.startswith("Would inspect")]
+    assert lines == [
+        f"Would inspect {unsynced.full_name}",
+        f"Would inspect {synced.full_name}",
+    ]
+
+
+@pytest.mark.django_db
+def test_detect_repository_stacks_command_passes_github_token(monkeypatch):
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        default_branch="main",
+    )
+    captured = {}
+
+    def fake_sync_repository_stack_detection(repository, **kwargs):
+        captured["repository"] = repository.full_name
+        captured["token"] = kwargs.get("token")
+        return {
+            "ok": True,
+            "detected_stacks": ["django"],
+            "dependency_files": [{"path": "pyproject.toml"}],
+        }
+
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.sync_repository_stack_detection",
+        fake_sync_repository_stack_detection,
+    )
+    monkeypatch.setattr(
+        "apps.repos.management.commands.detect_repository_stacks.github_token",
+        lambda: "env-token",
+    )
+
+    call_command("detect_repository_stacks", "--github-token", "cli-token", stdout=StringIO())
+
+    assert captured == {"repository": "django/django", "token": "cli-token"}
 
 
 @pytest.mark.django_db
@@ -2216,7 +2782,7 @@ def test_upsert_repository_from_github_syncs_missing_generated_tags_without_read
 
     monkeypatch.setattr("apps.repos.services.fetch_json", fake_fetch_json)
     monkeypatch.setattr(
-        "apps.repos.services.fetch_repository_ai_development_signals",
+        "apps.repos.services.fetch_repository_tree_items",
         lambda full_name, default_branch, **kwargs: [],
     )
     monkeypatch.setattr("apps.repos.services.sync_repository_tags", fake_sync_repository_tags)
@@ -2761,6 +3327,8 @@ def test_repository_search_filters_by_topic_and_generated_tag():
         description="Django tool",
         topics=["django", "python", "web"],
         generated_tags=["web-framework", "orm"],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
         stars=50,
     )
     node_repo = Repository.objects.create(
@@ -2771,12 +3339,17 @@ def test_repository_search_filters_by_topic_and_generated_tag():
         description="JavaScript runtime",
         topics=["javascript", "runtime"],
         generated_tags=["server-runtime"],
+        detected_stacks=["express"],
+        package_managers=["npm"],
         stars=100,
     )
 
     assert list(repository_search_queryset({"topic": "django"})) == [django_repo]
     assert list(repository_search_queryset({"generated_tag": "server runtime"})) == [node_repo]
+    assert list(repository_search_queryset({"stack": "django"})) == [django_repo]
+    assert list(repository_search_queryset({"package_manager": "npm"})) == [node_repo]
     assert list(repository_search_queryset({"q": "orm"})) == [django_repo]
+    assert list(repository_search_queryset({"q": "express"})) == [node_repo]
 
 
 @pytest.mark.django_db
@@ -2841,6 +3414,8 @@ def test_repository_json_value_counts_aggregates_server_side():
         url="https://github.com/django/django",
         topics=["django", "python", "web"],
         generated_tags=["web-framework", "orm"],
+        detected_stacks=["django"],
+        package_managers=["poetry"],
     )
     Repository.objects.create(
         full_name="django/channels",
@@ -2849,6 +3424,8 @@ def test_repository_json_value_counts_aggregates_server_side():
         url="https://github.com/django/channels",
         topics=["django", "python", "async"],
         generated_tags=["web-framework", "websocket"],
+        detected_stacks=["django"],
+        package_managers=["pip"],
     )
 
     assert repository_json_value_counts("topics")[:2] == [
@@ -2857,6 +3434,9 @@ def test_repository_json_value_counts_aggregates_server_side():
     ]
     assert repository_json_value_counts("generated_tags", limit=1) == [
         {"name": "web-framework", "count": 2}
+    ]
+    assert repository_json_value_counts("detected_stacks", limit=1) == [
+        {"name": "django", "count": 2}
     ]
 
 
@@ -3250,6 +3830,106 @@ def test_repository_history_chart_data_limits_latest_snapshots_chronologically()
 
 
 @pytest.mark.django_db
+def test_awesome_list_history_chart_data_uses_list_snapshots_chronologically():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+    now = timezone.now()
+    for index in range(5):
+        AwesomeListSnapshot.objects.create(
+            awesome_list=awesome_list,
+            captured_at=now - timedelta(days=5 - index),
+            stars=100 + index,
+            commits_count=200 + index,
+        )
+
+    chart_data = awesome_list_history_chart_data(awesome_list, limit=3)
+
+    assert [point["stars"] for point in chart_data] == [102, 103, 104]
+    assert [point["commit_count"] for point in chart_data] == [202, 203, 204]
+
+
+@pytest.mark.django_db
+def test_awesome_list_snapshot_string_uses_cached_list_identifier_without_fk_query():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+    snapshot = AwesomeListSnapshot.objects.create(
+        awesome_list=awesome_list,
+        repo_full_name="wsvincent/awesome-django",
+        stars=100,
+    )
+    deferred_snapshot = AwesomeListSnapshot.objects.only(
+        "repo_full_name",
+        "captured_at",
+        "awesome_list_id",
+    ).get(id=snapshot.id)
+
+    with CaptureQueriesContext(connection) as queries:
+        label = str(deferred_snapshot)
+
+    assert len(queries) == 0
+    assert label.startswith("wsvincent/awesome-django at ")
+
+
+@pytest.mark.django_db
+def test_awesome_list_history_chart_data_falls_back_to_current_list_metadata():
+    scanned_at = timezone.now()
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        stars=1200,
+        commits_count=350,
+        last_scanned_at=scanned_at,
+    )
+
+    chart_data = awesome_list_history_chart_data(awesome_list)
+
+    assert chart_data == [
+        {
+            "captured_at": scanned_at.isoformat(),
+            "stars": 1200,
+            "commit_count": 350,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_awesome_list_history_chart_data_skips_unscanned_empty_lists():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+
+    assert awesome_list_history_chart_data(awesome_list) == []
+
+
+@pytest.mark.django_db
+def test_awesome_list_history_chart_data_skips_zero_star_lists_without_commits():
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        stars=0,
+        commits_count=None,
+        last_scanned_at=timezone.now(),
+    )
+
+    assert awesome_list_history_chart_data(awesome_list) == []
+
+
+@pytest.mark.django_db
 def test_awesome_list_repository_history_chart_data_aggregates_list_snapshots(monkeypatch):
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",
@@ -3422,7 +4102,8 @@ def test_search_page_renders(client):
     assert b"Get sponsored" in content
     assert content.count(b"utm_source=awesome_repos") == 9
     assert content.count(b"utm_medium=side_ad") == 9
-    assert b"mailto:rasul@lvtd.dev?subject=Sponsor%20Awesome" in content
+    assert b"data-sponsor-modal-open" in content
+    assert b'action="/sponsor/checkout/"' in content
     assert response.context["total_lists"] == 1
     assert list(response.context["awesome_lists"].values_list("id", flat=True)) == [active_list.id]
     assert response.context["awesome_lists"][0].repo_count == 1
@@ -3515,6 +4196,7 @@ def test_liked_repositories_page_lists_current_users_likes(auth_client, user, dj
         name="django",
         url="https://github.com/django/django",
         description="The Web framework",
+        homepage_url="https://www.djangoproject.com/",
         language="Python",
         stars=80000,
         is_awesome_list_candidate=True,
@@ -3537,10 +4219,51 @@ def test_liked_repositories_page_lists_current_users_likes(auth_client, user, dj
     assert response.status_code == 200
     assert b"Liked repositories" in content
     assert b"django/django" in content
+    assert b'href="https://www.djangoproject.com/"' in content
+    assert b"Website" in content
     assert b"pallets/flask" not in content
     assert b"Remove django/django from liked repositories" in content
     assert response.context["liked_repository_count"] == 1
     assert response.context["page_obj"].paginator.count == 1
+
+
+@pytest.mark.django_db
+def test_repository_pages_render_homepage_links(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        homepage_url="https://www.djangoproject.com/",
+        description="The Web framework",
+        stars=80000,
+    )
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+
+    response = client.get(reverse("repos:search"))
+
+    assert response.status_code == 200
+    assert b'href="https://www.djangoproject.com/"' in response.content
+    assert b"Website" in response.content
+
+    response = client.get(reverse("repos:list_detail", kwargs={"slug": awesome_list.slug}))
+
+    assert response.status_code == 200
+    assert b'href="https://www.djangoproject.com/"' in response.content
+    assert b"Website" in response.content
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    assert b'href="https://www.djangoproject.com/"' in response.content
+    assert b"Open website" in response.content
 
 
 @pytest.mark.django_db
@@ -3736,6 +4459,11 @@ def test_awesome_list_list_page_renders_activity_metrics(client):
     assert b"350" in response.content
     assert b"django" in response.content
     assert b"Request a list" in response.content
+    assert b"requestListOpen" in response.content
+    assert b"openRequestList()" in response.content
+    assert b"handleRequestListTab($event)" in response.content
+    assert b'name="next"' in response.content
+    assert b"Submit request" in response.content
 
 
 @pytest.mark.django_db
@@ -3762,6 +4490,22 @@ def test_awesome_list_request_page_accepts_public_requests(client):
     assert list_request.repo_full_name == "wsvincent/awesome-django"
     assert list_request.requester_email == "reader@example.com"
     assert "has been submitted" in response.content.decode()
+
+
+@pytest.mark.django_db
+@override_settings(CACHES=LOC_MEM_CACHES)
+def test_awesome_list_request_modal_redirects_back_to_lists(client):
+    response = client.post(
+        reverse("repos:request_list"),
+        data={
+            "source_url": "https://github.com/wsvincent/awesome-django",
+            "requester_email": "reader@example.com",
+            "next": reverse("repos:list"),
+        },
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("repos:list")
 
 
 @pytest.mark.django_db
@@ -3850,10 +4594,16 @@ def test_awesome_list_detail_page_renders_activity_metrics(client):
     assert b"1,200" in response.content
     assert b"350" in response.content
     assert b"80,000" in response.content
-    assert b"Tracked repository growth" not in response.content
-    assert b"/static/vendors/js/d3.min.js" not in response.content
-    assert b"/static/js/modules/repository-history-charts.js" not in response.content
-    assert b"list-repository-history-data" not in response.content
+    assert b"Tracked list growth" in response.content
+    assert b"Likes history" in response.content
+    assert b"Commits history" in response.content
+    assert b"/static/vendors/js/d3.min.js" in response.content
+    assert b"/static/js/modules/repository-history-charts.js" in response.content
+    assert b"awesome-list-history-data" in response.content
+    assert b'data-metric="stars"' in response.content
+    assert b'data-metric="commit_count"' in response.content
+    assert b'"stars": 1200' in response.content
+    assert b'"commit_count": 350' in response.content
     assert b'data-ad-rail="left"' not in response.content
     assert b'data-ad-rail="right"' not in response.content
     assert 'href="/repos/django/django/" class="block rounded-2xl' not in content
@@ -3862,11 +4612,14 @@ def test_awesome_list_detail_page_renders_activity_metrics(client):
 
 
 @pytest.mark.django_db
-def test_awesome_list_detail_page_does_not_render_aggregate_history_chart(client):
+def test_awesome_list_detail_page_renders_list_history_not_repository_aggregate(client):
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",
         slug="awesome-django",
         source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        stars=1200,
+        commits_count=350,
     )
     repo = Repository.objects.create(
         full_name="django/django",
@@ -3882,14 +4635,50 @@ def test_awesome_list_detail_page_does_not_render_aggregate_history_chart(client
         stars=79000,
         commit_count=89000,
     )
+    AwesomeListSnapshot.objects.create(
+        awesome_list=awesome_list,
+        captured_at=timezone.now() - timedelta(days=1),
+        stars=1100,
+        commits_count=300,
+    )
+    AwesomeListSnapshot.objects.create(
+        awesome_list=awesome_list,
+        captured_at=timezone.now(),
+        stars=1200,
+        commits_count=350,
+    )
 
     response = client.get(reverse("repos:list_detail", kwargs={"slug": awesome_list.slug}))
 
     assert response.status_code == 200
-    assert b"Tracked repository growth" not in response.content
+    assert b"Tracked list growth" in response.content
+    assert b"Likes history" in response.content
+    assert b"Commits history" in response.content
+    assert b"/static/vendors/js/d3.min.js" in response.content
+    assert b"/static/js/modules/repository-history-charts.js" in response.content
+    assert b"awesome-list-history-data" in response.content
+    assert b'"stars": 1200' in response.content
+    assert b'"commit_count": 350' in response.content
+    assert b'"stars": 79000' not in response.content
+    assert b'"commit_count": 89000' not in response.content
+
+
+@pytest.mark.django_db
+def test_awesome_list_detail_page_skips_history_charts_without_list_metadata(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+    )
+
+    response = client.get(reverse("repos:list_detail", kwargs={"slug": awesome_list.slug}))
+
+    assert response.status_code == 200
+    assert b"Tracked list growth" not in response.content
     assert b"/static/vendors/js/d3.min.js" not in response.content
     assert b"/static/js/modules/repository-history-charts.js" not in response.content
-    assert b"list-repository-history-data" not in response.content
+    assert b"awesome-list-history-data" not in response.content
 
 
 @pytest.mark.django_db
@@ -4388,6 +5177,180 @@ def test_repository_detail_page_skips_chart_data_without_history(client, monkeyp
     assert b"/static/js/modules/repository-history-charts.js" not in response.content
     assert b"repository-history-data" not in response.content
     assert b"Stars history" not in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_compacts_ai_development_signals(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        uses_ai_for_development=True,
+        ai_development_signals=[
+            {
+                "path": ".agents",
+                "kind": "directory",
+                "tool": "Agent workspace",
+                "signal": "agent_directory",
+            },
+            {
+                "path": ".agents/skills/company-creator/SKILL.md",
+                "kind": "file",
+                "tool": "Agent workspace",
+                "signal": "agent_directory",
+            },
+            {
+                "path": ".agents/skills/doc-maintenance/references/audit-checklist.md",
+                "kind": "file",
+                "tool": "Agent workspace",
+                "signal": "agent_directory",
+            },
+            {
+                "path": ".github/copilot-instructions.md",
+                "kind": "file",
+                "tool": "GitHub Copilot",
+                "signal": "copilot_repo_instructions",
+            },
+            {
+                "path": "CLAUDE.md",
+                "kind": "file",
+                "tool": "Claude Code",
+                "signal": "claude_memory",
+            },
+            {
+                "path": ".cursor/rules/python.mdc",
+                "kind": "file",
+                "tool": "Cursor",
+                "signal": "cursor_project_rules",
+            },
+            {
+                "path": ".windsurfrules",
+                "kind": "file",
+                "tool": "Windsurf",
+                "signal": "windsurf_legacy_rules",
+            },
+        ],
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["total_count"] == 7
+    assert summary["file_count"] == 6
+    assert summary["directory_count"] == 1
+    assert [tool["name"] for tool in summary["visible_tools"]] == [
+        "Agent workspace",
+        "Claude Code",
+        "Cursor",
+        "GitHub Copilot",
+        "Windsurf",
+    ]
+    assert [signal["path"] for signal in summary["visible_signals"]] == [
+        ".agents",
+        ".cursor/rules/python.mdc",
+        ".github/copilot-instructions.md",
+        ".windsurfrules",
+        "CLAUDE.md",
+    ]
+    assert summary["hidden_signal_count"] == 0
+    assert summary["show_detail_signals"] is True
+    assert b"AI agent config detected" in response.content
+    assert b"Key config paths" in response.content
+    assert b"more config paths detected." not in response.content
+    assert b"Review config paths" in response.content
+    assert b"AI dev signals:" not in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_shows_empty_ai_development_signal_state(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["has_signals"] is False
+    assert summary["total_count"] == 0
+    assert summary["visible_tools"] == []
+    assert summary["visible_signals"] == []
+    assert b"No AI development config files detected." in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_hides_ai_development_detail_expander_when_all_paths_visible(
+    client,
+):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        uses_ai_for_development=True,
+        ai_development_signals=[
+            {
+                "path": "AGENTS.md",
+                "kind": "file",
+                "tool": "Agent instructions",
+                "signal": "agent_instructions",
+            }
+        ],
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["total_count"] == 1
+    assert len(summary["visible_signals"]) == 1
+    assert summary["show_detail_signals"] is False
+    assert b"AGENTS.md" in response.content
+    assert b"Review config paths" not in response.content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_counts_hidden_ai_development_key_paths(client):
+    signals = [
+        {
+            "path": f".github/instructions/agent-{index}.instructions.md",
+            "kind": "file",
+            "tool": "GitHub Copilot",
+            "signal": "copilot_path_instructions",
+        }
+        for index in range(8)
+    ]
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        uses_ai_for_development=True,
+        ai_development_signals=signals,
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    summary = response.context["ai_development_signal_summary"]
+    assert summary["total_count"] == 8
+    assert len(summary["visible_signals"]) == 6
+    assert summary["hidden_signal_count"] == 2
+    assert summary["show_detail_signals"] is True
+    assert b"2 more config paths detected." in response.content
 
 
 @pytest.mark.django_db

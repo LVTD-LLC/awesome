@@ -16,6 +16,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ## [Unreleased]
 ### Added
+- Awesome: added one-time Stripe checkout onboarding for $1,000 sponsor ads, including a TrustMRR-style modal, post-payment notification email, and paid ad-details submission flow.
 - Awesome: added optional Chatwoot live-chat widget support configured with `CHATWOOT_BASE_URL` and `CHATWOOT_WEBSITE_TOKEN`.
 - Awesome: added local logo assets and wired the navbar, favicon, touch icon, README, and base social metadata to the new branding.
 - Awesome: ingest GitHub awesome-list READMEs, index the linked repositories, and expose searchable repository/list detail pages with stars, freshness, archive-state, and cross-list counts.
@@ -33,6 +34,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: generate repository discovery tags from descriptions and READMEs, and add filters for generated tags and GitHub topics.
 - Awesome: added a daily generated-tag backfill task so existing repository rows get tagged outside GitHub metadata refreshes.
 - Awesome: added an awesome-list directory and detail pages with stored list activity metrics including stars, commits, README repository counts, forks, issues, and scan freshness.
+- Awesome: record awesome-list GitHub metadata snapshots and show list-level likes/stars and commit charts on awesome-list detail pages.
 - Awesome: added D3 charts to repository detail pages for historical stars and commit counts.
 - Awesome: added search, filters, and sorting to awesome-list detail repository tables.
 - Awesome: added superuser-only catalog maintenance controls on awesome-list and repository detail pages, plus a missing-repository discovery action for awesome lists.
@@ -48,8 +50,14 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: detect awesome-list repositories during repository sync and hide them from normal repository browse/search surfaces.
 - Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
 - Awesome: added a liked repositories page for authenticated users.
+- Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
+- Awesome: store repository website links from GitHub metadata or description URLs and show them on repository pages.
+- Awesome: added experimental superuser-only repository newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
 
 ### Changed
+- Awesome: added Settings to the account navbar, simplified Settings around GitHub imports and future repository update preferences, and moved awesome-list requests into the Lists page flow.
+- Awesome: compacted repository-detail AI development signals into summary badges and bounded config-path lists.
+- Awesome: GitHub signups now land on Settings so starred-repository imports stay off by default until the user clicks the import CTA.
 - Awesome: updated default contact email and production domain references to rasul@lvtd.dev and awesome.lvtd.dev.
 - Awesome: renamed product-facing copy and brand assets to the shorter product name.
 - Awesome: awesome-list detail pages now show list-level GitHub stars and commits instead of aggregate repository growth charts.
@@ -69,6 +77,8 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 ### Fixed
 - Awesome: keep personal Starred and Liked nav links hidden from anonymous visitors.
 - Awesome: keep explicitly liked repositories visible in the personal liked page even when hidden from public catalog search.
+- Awesome: trapped keyboard focus inside the list-request and delete-account modals.
+- Awesome: return users to Settings after connecting GitHub and style the allauth connected-accounts fallback page.
 - Awesome: fixed invalid nested links on awesome-list repository cards that created empty clickable containers.
 - Awesome: loosened desktop side sponsor rail spacing so ad cards no longer crowd or overlap their copy.
 - Awesome: repair repository migration graph ordering so production can migrate past the AI-development and activity merge branches.

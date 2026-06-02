@@ -1,10 +1,12 @@
 import re
+from datetime import timedelta
 
 import pytest
 from allauth.socialaccount.models import SocialAccount, SocialToken
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.core.views import build_absolute_public_url
 from apps.repos.models import AwesomeList
@@ -22,23 +24,74 @@ class TestHomeView:
         response = auth_client.get(url)
         assert "pages/home.html" in [t.name for t in response.templates]
 
-    def test_rotate_api_key_stores_hash_and_shows_key_once(self, auth_client, profile):
-        response = auth_client.post(reverse("rotate_api_key"), follow=True)
-        content = response.content.decode()
-        profile.refresh_from_db()
+    def test_github_starred_import_defaults_off(self, profile):
+        assert profile.github_starred_repos_import_enabled is False
 
-        assert response.status_code == 200
-        assert profile.api_key_prefix
-        assert profile.api_key_hash
-        assert profile.api_key_hash not in content
-        assert "Copy this key now" in content
-        assert profile.api_key_prefix in content
+    def test_settings_shows_clear_import_cta_when_github_connected_and_import_off(
+        self,
+        auth_client,
+        profile,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+        )
+        SocialToken.objects.create(account=account, token="user-token")
 
         response = auth_client.get(reverse("settings"))
         content = response.content.decode()
 
-        assert "Copy this key now" not in content
-        assert profile.api_key_prefix in content
+        assert response.status_code == 200
+        assert "Import starred repos" in content
+        assert "Manual import" in content
+        assert "Starts when you import" in content
+        assert "Daily refresh enabled" not in content
+
+    def test_settings_does_not_show_github_account_without_token(
+        self,
+        auth_client,
+        profile,
+    ):
+        SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+            extra_data={"login": "missing-token"},
+        )
+
+        response = auth_client.get(reverse("settings"))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Not connected" in content
+        assert "@missing-token" not in content
+        assert "Import starred repos" not in content
+
+    def test_settings_does_not_show_expired_github_token_as_connected(
+        self,
+        auth_client,
+        profile,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+            extra_data={"login": "expired-token"},
+        )
+        SocialToken.objects.create(
+            account=account,
+            token="expired-token",
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+
+        response = auth_client.get(reverse("settings"))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Not connected" in content
+        assert "@expired-token" not in content
+        assert "Import starred repos" not in content
 
     def test_import_starred_repositories_enables_profile_and_queues_task(
         self,
@@ -76,7 +129,51 @@ class TestHomeView:
                 },
             )
         ]
-        assert "Queued your GitHub starred repository import." in response.content.decode()
+        assert (
+            "Enabled daily GitHub starred repository refresh and queued your first import."
+            in response.content.decode()
+        )
+
+    def test_import_starred_repositories_shows_refresh_message_when_already_enabled(
+        self,
+        auth_client,
+        profile,
+        monkeypatch,
+    ):
+        account = SocialAccount.objects.create(
+            user=profile.user,
+            provider="github",
+            uid="github-user",
+        )
+        SocialToken.objects.create(account=account, token="user-token")
+        profile.github_starred_repos_import_enabled = True
+        profile.save(update_fields=["github_starred_repos_import_enabled", "updated_at"])
+        queued = []
+
+        def fake_async_task(func_path, profile_id, **kwargs):
+            queued.append((func_path, profile_id, kwargs))
+
+        monkeypatch.setattr("apps.core.views.async_task", fake_async_task)
+        monkeypatch.setattr("apps.core.views.transaction.on_commit", lambda callback: callback())
+
+        response = auth_client.post(reverse("import_starred_repositories"), follow=True)
+
+        profile.refresh_from_db()
+        assert response.status_code == 200
+        assert profile.github_starred_repos_import_enabled is True
+        assert queued == [
+            (
+                "apps.repos.tasks.import_starred_repositories_task",
+                profile.id,
+                {
+                    "refresh_existing": True,
+                    "group": "Import GitHub starred repositories",
+                },
+            )
+        ]
+        content = response.content.decode()
+        assert "Queued your GitHub starred repository refresh." in content
+        assert "queued your first import" not in content
 
     def test_disable_starred_repositories_import_turns_off_daily_refresh(
         self,
@@ -284,10 +381,12 @@ def test_admin_panel_nav_links_to_repository_and_list_pages(
     assert response.status_code == 200
     repos_link = rf'<a href="{re.escape(reverse("repos:search"))}"[^>]*>\s*Repos\s*</a>'
     lists_link = rf'<a href="{re.escape(reverse("repos:list"))}"[^>]*>\s*Lists\s*</a>'
+    settings_link = rf'<a href="{re.escape(reverse("settings"))}"[^>]*>\s*Settings\s*</a>'
     assert re.search(repos_link, content)
     assert re.search(lists_link, content)
+    assert re.search(settings_link, content)
     assert not re.search(r"<a\b[^>]*>\s*Dashboard\s*</a>", content)
-    assert not re.search(r"<a\b[^>]*>\s*Settings\s*</a>", content)
+    assert not re.search(r"<a\b[^>]*>\s*Request list\s*</a>", content)
 
 
 @override_settings(SITE_URL="http://example.com")

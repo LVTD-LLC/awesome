@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from urllib.parse import urlsplit, urlunsplit
 
@@ -5,32 +6,46 @@ from allauth.account.internal.flows.email_verification import (
     send_verification_email_to_address,
 )
 from allauth.account.models import EmailAddress
-from allauth.mfa.models import Authenticator
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.contrib.messages.views import SuccessMessageMixin
+from django.core.cache import cache
+from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Count
-from django.shortcuts import redirect
-from django.urls import reverse, reverse_lazy
+from django.db.models import Count, Q
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.views.generic import TemplateView, UpdateView
+from django.views.generic import TemplateView
 from django_q.tasks import async_task
 
-from apps.core.forms import ProfileUpdateForm
-from apps.core.models import Profile
+from apps.core.forms import SponsorAdDetailsForm
+from apps.core.models import Profile, SponsorAdPurchase
+from apps.core.payments import (
+    StripeConfigurationError,
+    StripeRequestError,
+    create_ads_checkout_session,
+    retrieve_checkout_session,
+    stripe_configured,
+    verify_webhook_signature,
+)
 from apps.repos.forms import AwesomeListCreateForm
-from apps.repos.models import AwesomeList, UserStarredRepository
-from apps.repos.services import github_rate_limit_status, profile_has_github_token
+from apps.repos.models import AwesomeList, RepositoryLike, UserStarredRepository
+from apps.repos.services import (
+    github_rate_limit_status,
+    github_social_token_for_profile,
+    github_social_token_is_usable,
+    profile_has_github_token,
+)
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
-NEW_API_KEY_SESSION_KEY = "new_api_key"
 
 
 def build_absolute_public_url(path: str) -> str:
@@ -49,6 +64,166 @@ def build_absolute_public_url(path: str) -> str:
     return f"{base_url}/{path.lstrip('/')}"
 
 
+def _checkout_email_lines(purchase):
+    return [
+        "Someone just bought one month of ads on Awesome.",
+        "",
+        f"Buyer email: {purchase.buyer_email or 'Unknown'}",
+        f"Buyer name: {purchase.buyer_name or 'Unknown'}",
+        f"Amount: {purchase.amount_total / 100:.2f} {purchase.currency.upper()}",
+        f"Stripe checkout session: {purchase.stripe_checkout_session_id}",
+        f"Stripe payment intent: {purchase.stripe_payment_intent_id or 'Unknown'}",
+        f"Stripe customer: {purchase.stripe_customer_id or 'Unknown'}",
+        (
+            "Ad details form: "
+            f"{build_absolute_public_url(reverse('sponsor_success'))}"
+            f"?session_id={purchase.stripe_checkout_session_id}"
+        ),
+    ]
+
+
+def notify_sponsor_payment(purchase):
+    notification_time = timezone.now()
+    updated = SponsorAdPurchase.objects.filter(
+        Q(notification_sent_at__isnull=True),
+        id=purchase.id,
+    ).update(notification_sent_at=notification_time, updated_at=notification_time)
+    if not updated:
+        return
+
+    try:
+        send_mail(
+            subject="Awesome ad purchase paid",
+            message="\n".join(_checkout_email_lines(purchase)),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.AWESOME_ADS_NOTIFY_EMAIL],
+            fail_silently=False,
+        )
+    except Exception:
+        SponsorAdPurchase.objects.filter(id=purchase.id).update(notification_sent_at=None)
+        raise
+
+    purchase.notification_sent_at = notification_time
+
+
+def upsert_purchase_from_checkout_session(session):
+    purchase, _created = SponsorAdPurchase.objects.get_or_create(
+        stripe_checkout_session_id=session["id"]
+    )
+    purchase.mark_paid_from_checkout_session(session)
+    purchase.save()
+    return purchase
+
+
+@require_POST
+def sponsor_checkout(request):
+    if not stripe_configured():
+        messages.error(request, "Sponsor checkout is not configured yet.")
+        return redirect("repos:search")
+
+    success_url = (
+        build_absolute_public_url(reverse("sponsor_success")) + "?session_id={CHECKOUT_SESSION_ID}"
+    )
+    cancel_url = build_absolute_public_url(reverse("repos:search"))
+    try:
+        session = create_ads_checkout_session(
+            success_url=success_url,
+            cancel_url=cancel_url,
+            client_reference_id=str(request.user.id) if request.user.is_authenticated else "",
+        )
+    except (StripeConfigurationError, StripeRequestError) as exc:
+        logger.error("Sponsor checkout creation failed", error=str(exc), exc_info=True)
+        messages.error(request, "Could not start checkout. Please email rasul@lvtd.dev.")
+        return redirect("repos:search")
+
+    SponsorAdPurchase.objects.get_or_create(stripe_checkout_session_id=session["id"])
+    return redirect(session["url"])
+
+
+def sponsor_success(request):
+    session_id = request.GET.get("session_id") or request.POST.get("session_id")
+    if not session_id:
+        return HttpResponseBadRequest("Missing checkout session.")
+
+    purchase = get_object_or_404(SponsorAdPurchase, stripe_checkout_session_id=session_id)
+    if request.method == "GET" and stripe_configured():
+        try:
+            purchase = upsert_purchase_from_checkout_session(retrieve_checkout_session(session_id))
+            if purchase.status in {SponsorAdPurchase.Status.PAID, SponsorAdPurchase.Status.ACTIVE}:
+                try:
+                    notify_sponsor_payment(purchase)
+                except Exception as exc:
+                    logger.error(
+                        "Sponsor payment notification failed on success page",
+                        session_id=session_id,
+                        error=str(exc),
+                        exc_info=True,
+                    )
+        except (StripeConfigurationError, StripeRequestError) as exc:
+            logger.warning(
+                "Sponsor checkout session refresh failed",
+                session_id=session_id,
+                error=str(exc),
+            )
+
+    if purchase.status == SponsorAdPurchase.Status.CHECKOUT_STARTED:
+        return HttpResponseForbidden("Payment is not complete yet.")
+
+    if request.method == "POST":
+        form = SponsorAdDetailsForm(request.POST, request.FILES, instance=purchase)
+        if form.is_valid():
+            purchase = form.save(commit=False)
+            purchase.mark_details_submitted()
+            purchase.save()
+            cache.delete("awesome:active_sponsor_ad")
+            messages.success(request, "Thanks — your ad details are saved.")
+            return redirect("repos:search")
+    else:
+        form = SponsorAdDetailsForm(instance=purchase)
+
+    return render(
+        request,
+        "pages/sponsor-success.html",
+        {
+            "form": form,
+            "purchase": purchase,
+            "session_id": session_id,
+            "amount_dollars": purchase.amount_total / 100,
+        },
+    )
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    try:
+        signature_is_valid = verify_webhook_signature(
+            request.body,
+            request.headers.get("Stripe-Signature", ""),
+            settings.STRIPE_WEBHOOK_SECRET,
+        )
+    except StripeConfigurationError:
+        logger.error("Stripe webhook secret is not configured")
+        return HttpResponseBadRequest("Stripe webhook is not configured.")
+
+    if not signature_is_valid:
+        return HttpResponseForbidden("Invalid Stripe signature.")
+
+    try:
+        event = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest("Invalid JSON.")
+
+    if event.get("type") == "checkout.session.completed":
+        session = event.get("data", {}).get("object", {})
+        if session.get("metadata", {}).get("app") == "awesome":
+            purchase = upsert_purchase_from_checkout_session(session)
+            if purchase.status in {SponsorAdPurchase.Status.PAID, SponsorAdPurchase.Status.ACTIVE}:
+                notify_sponsor_payment(purchase)
+
+    return HttpResponse("ok")
+
+
 class HomeView(LoginRequiredMixin, TemplateView):
     login_url = "account_login"
     template_name = "pages/home.html"
@@ -65,58 +240,36 @@ class HomeView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+class UserSettingsView(LoginRequiredMixin, TemplateView):
     login_url = "account_login"
-    model = Profile
-    form_class = ProfileUpdateForm
-    success_message = "User Profile Updated"
-    success_url = reverse_lazy("settings")
     template_name = "pages/user-settings.html"
-
-    def get_object(self):
-        profile, _created = Profile.objects.get_or_create(user=self.request.user)
-        return profile
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        profile = self.object
+        profile, _created = Profile.objects.get_or_create(user=user)
+        github_social_token = github_social_token_for_profile(profile)
+        github_connected = github_social_token_is_usable(github_social_token)
+        github_account = github_social_token.account if github_connected else None
+        github_account_data = (github_account.extra_data or {}) if github_account else {}
+        github_login = github_account_data.get("login", "")
 
         email_address = EmailAddress.objects.filter(user=user, email__iexact=user.email).first()
         context["email_verified"] = bool(email_address and email_address.verified)
         context["resend_confirmation_url"] = reverse("resend_confirmation")
-        context["passkey_count"] = Authenticator.objects.filter(
-            user=user,
-            type=Authenticator.Type.WEBAUTHN,
-        ).count()
-        context["has_recovery_codes"] = Authenticator.objects.filter(
-            user=user,
-            type=Authenticator.Type.RECOVERY_CODES,
-        ).exists()
-
-        context["api_key_prefix"] = profile.api_key_prefix
-        context["has_api_key"] = profile.has_api_key
-        context["new_api_key"] = self.request.session.pop(NEW_API_KEY_SESSION_KEY, "")
         context["github_auth_enabled"] = "github" in settings.SOCIALACCOUNT_PROVIDERS
-        context["github_connected"] = profile_has_github_token(profile)
+        context["github_connected"] = github_connected
+        context["github_login"] = github_login
+        context["github_profile_url"] = github_account_data.get("html_url", "")
         context["github_starred_count"] = UserStarredRepository.objects.filter(
             profile=profile
         ).count()
         context["github_starred_import_enabled"] = profile.github_starred_repos_import_enabled
         context["github_starred_last_imported_at"] = profile.github_starred_repos_last_imported_at
         context["github_starred_last_error"] = profile.github_starred_repos_last_error
+        context["liked_repository_count"] = RepositoryLike.objects.filter(user=user).count()
 
         return context
-
-
-@login_required
-@require_POST
-def rotate_api_key(request):
-    profile, _created = Profile.objects.get_or_create(user=request.user)
-    api_key = profile.rotate_api_key()
-    request.session[NEW_API_KEY_SESSION_KEY] = api_key
-    messages.success(request, "New API key generated. Copy it now; it will only be shown once.")
-    return redirect("settings")
 
 
 @login_required
@@ -130,6 +283,7 @@ def import_starred_repositories(request):
         )
         return redirect("settings")
 
+    was_import_enabled = profile.github_starred_repos_import_enabled
     profile.github_starred_repos_import_enabled = True
     profile.github_starred_repos_last_error = ""
     profile.save(
@@ -147,9 +301,14 @@ def import_starred_repositories(request):
             group="Import GitHub starred repositories",
         )
     )
+    success_message = (
+        "Queued your GitHub starred repository refresh."
+        if was_import_enabled
+        else "Enabled daily GitHub starred repository refresh and queued your first import."
+    )
     messages.success(
         request,
-        "Queued your GitHub starred repository import.",
+        success_message,
     )
     return redirect("settings")
 

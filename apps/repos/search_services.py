@@ -156,6 +156,10 @@ def serialize_repository_summary(repository: Repository) -> dict:
         "license_name": repository.license_name,
         "topics": repository.topics,
         "generated_tags": repository.generated_tags,
+        "dependency_ecosystems": repository.dependency_ecosystems,
+        "package_managers": repository.package_managers,
+        "detected_stacks": repository.detected_stacks,
+        "stack_signals": repository.stack_signals,
         "stars": repository.stars,
         "forks": repository.forks,
         "commit_count": repository.commit_count,
@@ -178,6 +182,7 @@ def serialize_repository_summary(repository: Repository) -> dict:
         "github_pushed_at": repository.github_pushed_at,
         "first_commit_at": repository.first_commit_at,
         "last_synced_at": repository.last_synced_at,
+        "stack_detected_at": repository.stack_detected_at,
         "awesome_lists": [
             serialize_awesome_list_reference(item.awesome_list)
             for item in repository.awesome_items.all()
@@ -231,6 +236,8 @@ def serialize_repository_detail(
             "readme_url": repository.readme_url,
             "readme_synced_at": repository.readme_synced_at,
             "readme_last_error": repository.readme_last_error,
+            "dependency_files": repository.dependency_files,
+            "stack_detection_last_error": repository.stack_detection_last_error,
             "ai_development_signals": repository.ai_development_signals,
             "performance": serialize_repository_performance(performance),
             "history": history,
@@ -264,6 +271,8 @@ def search_repositories_payload(
     language: str = "",
     topic: str = "",
     generated_tag: str = "",
+    stack: str = "",
+    package_manager: str = "",
     min_stars: int | None = None,
     updated_days: int | None = None,
     min_age_years: int | None = None,
@@ -280,6 +289,8 @@ def search_repositories_payload(
         language=language,
         topic=topic,
         generated_tag=generated_tag,
+        stack=stack,
+        package_manager=package_manager,
         min_stars=min_stars,
         updated_days=updated_days,
         min_age_years=min_age_years,
@@ -378,6 +389,8 @@ def search_awesome_list_repositories_payload(
     language: str = "",
     topic: str = "",
     generated_tag: str = "",
+    stack: str = "",
+    package_manager: str = "",
     min_stars: int | None = None,
     updated_days: int | None = None,
     min_age_years: int | None = None,
@@ -393,6 +406,8 @@ def search_awesome_list_repositories_payload(
         language=language,
         topic=topic,
         generated_tag=generated_tag,
+        stack=stack,
+        package_manager=package_manager,
         min_stars=min_stars,
         updated_days=updated_days,
         min_age_years=min_age_years,
@@ -426,5 +441,14 @@ def get_awesome_list_repository_options_payload(*, slug: str) -> dict:
         ),
         "generated_tags": serialize_value_counts(
             repository_json_value_counts("generated_tags", awesome_list=awesome_list)
+        ),
+        "detected_stacks": serialize_value_counts(
+            repository_json_value_counts("detected_stacks", awesome_list=awesome_list)
+        ),
+        "package_managers": serialize_value_counts(
+            repository_json_value_counts("package_managers", awesome_list=awesome_list)
+        ),
+        "dependency_ecosystems": serialize_value_counts(
+            repository_json_value_counts("dependency_ecosystems", awesome_list=awesome_list)
         ),
     }

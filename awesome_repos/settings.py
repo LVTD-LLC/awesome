@@ -153,6 +153,7 @@ TEMPLATES = [
                 "apps.core.context_processors.posthog_api_key",
                 "apps.core.context_processors.chatwoot_settings",
                 "apps.core.context_processors.available_social_providers",
+                "apps.core.context_processors.active_sponsor_ad",
                 "apps.pages.context_processors.referrer_banner",
             ],
         },
@@ -284,6 +285,9 @@ SITE_ID = 1
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 LOGIN_REDIRECT_URL = "home"
+# GitHub OAuth is the only signup entry point. New accounts land on Settings so
+# starred-repository imports remain an explicit opt-in onboarding action.
+ACCOUNT_SIGNUP_REDIRECT_URL = "settings"
 ACCOUNT_LOGOUT_REDIRECT_URL = "repos:search"
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
@@ -591,6 +595,13 @@ POSTHOG_API_KEY = env("POSTHOG_API_KEY", default="")
 CHATWOOT_BASE_URL = env("CHATWOOT_BASE_URL", default="https://app.chatwoot.com").rstrip("/")
 CHATWOOT_WEBSITE_TOKEN = env("CHATWOOT_WEBSITE_TOKEN", default="")
 
+STRIPE_API_VERSION = env("STRIPE_API_VERSION", default="2024-06-20")
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+STRIPE_CONTEXT = env("STRIPE_CONTEXT", default="")
+STRIPE_AWESOME_ADS_PRICE_ID = env("STRIPE_AWESOME_ADS_PRICE_ID", default="")
+AWESOME_ADS_NOTIFY_EMAIL = env("AWESOME_ADS_NOTIFY_EMAIL", default="rasul@lvtd.dev")
+
 
 SHELL_PLUS_IMPORTS = [
     "from django_q.tasks import async_task",
@@ -599,6 +610,42 @@ SHELL_PLUS_IMPORTS = [
 
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
 OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+NEWSLETTER_AI_PROVIDER = env("NEWSLETTER_AI_PROVIDER", default="openrouter")
+NEWSLETTER_AI_MODEL_LABEL = env("NEWSLETTER_AI_MODEL_LABEL", default="newsletter")
+NEWSLETTER_OPENROUTER_MODEL = env(
+    "NEWSLETTER_OPENROUTER_MODEL",
+    default="google/gemini-2.5-flash-lite",
+)
+NEWSLETTER_COMMIT_POLL_LIMIT = env.int("NEWSLETTER_COMMIT_POLL_LIMIT", default=25)
+NEWSLETTER_COMMIT_SUMMARY_LIMIT = env.int("NEWSLETTER_COMMIT_SUMMARY_LIMIT", default=100)
+NEWSLETTER_COMMIT_POLL_OVERLAP_HOURS = env.int(
+    "NEWSLETTER_COMMIT_POLL_OVERLAP_HOURS",
+    default=6,
+)
+NEWSLETTER_COMMIT_FILE_PATCH_MAX_CHARS = env.int(
+    "NEWSLETTER_COMMIT_FILE_PATCH_MAX_CHARS",
+    default=6000,
+)
+NEWSLETTER_COMMIT_TOTAL_PATCH_MAX_CHARS = env.int(
+    "NEWSLETTER_COMMIT_TOTAL_PATCH_MAX_CHARS",
+    default=24000,
+)
+NEWSLETTER_COMMIT_SUMMARY_MAX_CHARS = env.int(
+    "NEWSLETTER_COMMIT_SUMMARY_MAX_CHARS",
+    default=28000,
+)
+NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS = env.int(
+    "NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS",
+    default=200,
+)
+NEWSLETTER_ISSUE_GENERATION_MAX_CHARS = env.int(
+    "NEWSLETTER_ISSUE_GENERATION_MAX_CHARS",
+    default=50000,
+)
+NEWSLETTER_GITHUB_MIN_RATE_LIMIT_REMAINING = env.int(
+    "NEWSLETTER_GITHUB_MIN_RATE_LIMIT_REMAINING",
+    default=500,
+)
 REPOSITORY_EMBEDDINGS_ENABLED = env.bool("REPOSITORY_EMBEDDINGS_ENABLED", default=True)
 REPOSITORY_EMBEDDING_MODEL = env(
     "REPOSITORY_EMBEDDING_MODEL",
@@ -649,5 +696,8 @@ SUPPORTED_AI_MODELS = {
         "fast": env("GEMINI_MODEL_FAST", default="gemini-2.5-flash-lite"),
         "balanced": env("GEMINI_MODEL_BALANCED", default="gemini-2.5-flash"),
         "smart": env("GEMINI_MODEL_SMART", default="gemini-2.5-pro"),
+    },
+    "openrouter": {
+        "newsletter": NEWSLETTER_OPENROUTER_MODEL,
     },
 }
