@@ -93,8 +93,9 @@ Authenticated API keys can read account and catalog data from the API. Repositor
 search accepts filters such as `q`, `language`, `list`, `topic`,
 `generated_tag`, `framework`, `stack`, `package_manager`, `min_stars`,
 `updated_days`, `unmaintained_days`, `min_velocity_percent`,
-`min_liability_percent`, `min_age_years`, `archived`, `ai_development`,
-`sort`, and `sort_direction`.
+`min_star_growth_percent`, `min_age_years`, `archived`, `ai_development`,
+`sort`, and `sort_direction`. The legacy `min_liability_percent` filter and
+`liability` sort key are accepted as aliases for tracked star growth.
 
 Repository detail responses include dependency-file stack detection, list
 membership, growth history, README content, and similar repositories.

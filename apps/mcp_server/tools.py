@@ -78,7 +78,20 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         unmaintained_days: Annotated[int | None, Field(ge=1)] = None,
         min_age_years: Annotated[int | None, Field(ge=1)] = None,
         min_velocity_percent: Annotated[int | None, Field(ge=0)] = None,
-        min_liability_percent: Annotated[int | None, Field(ge=0)] = None,
+        min_star_growth_percent: Annotated[
+            int | None,
+            Field(description="Minimum tracked GitHub star growth percentage.", ge=0),
+        ] = None,
+        min_liability_percent: Annotated[
+            int | None,
+            Field(
+                description=(
+                    "Legacy alias for min_star_growth_percent; filters by tracked "
+                    "GitHub star growth percentage."
+                ),
+                ge=0,
+            ),
+        ] = None,
         archived: Annotated[str, Field(description="'yes', 'no', or blank.")] = "",
         ai_development: Annotated[str, Field(description="'yes', 'no', or blank.")] = "",
         sort: Annotated[
@@ -86,7 +99,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             Field(
                 description=(
                     "Sort by stars, recent, created, oldest, commits, velocity, "
-                    "liability, awesome, or name."
+                    "star_growth, awesome, or name. The legacy liability sort key "
+                    "also maps to tracked star growth."
                 ),
             ),
         ] = "stars",
@@ -114,6 +128,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                 unmaintained_days=unmaintained_days,
                 min_age_years=min_age_years,
                 min_velocity_percent=min_velocity_percent,
+                min_star_growth_percent=min_star_growth_percent,
                 min_liability_percent=min_liability_percent,
                 archived=archived,
                 ai_development=ai_development,
@@ -252,7 +267,20 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         unmaintained_days: Annotated[int | None, Field(ge=1)] = None,
         min_age_years: Annotated[int | None, Field(ge=1)] = None,
         min_velocity_percent: Annotated[int | None, Field(ge=0)] = None,
-        min_liability_percent: Annotated[int | None, Field(ge=0)] = None,
+        min_star_growth_percent: Annotated[
+            int | None,
+            Field(description="Minimum tracked GitHub star growth percentage.", ge=0),
+        ] = None,
+        min_liability_percent: Annotated[
+            int | None,
+            Field(
+                description=(
+                    "Legacy alias for min_star_growth_percent; filters by tracked "
+                    "GitHub star growth percentage."
+                ),
+                ge=0,
+            ),
+        ] = None,
         archived: Annotated[str, Field(description="'yes', 'no', or blank.")] = "",
         ai_development: Annotated[str, Field(description="'yes', 'no', or blank.")] = "",
         sort: Annotated[
@@ -260,7 +288,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             Field(
                 description=(
                     "Sort by stars, recent, created, oldest, commits, velocity, "
-                    "liability, awesome, or name."
+                    "star_growth, awesome, or name. The legacy liability sort key "
+                    "also maps to tracked star growth."
                 ),
             ),
         ] = "stars",
@@ -291,6 +320,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                     unmaintained_days=unmaintained_days,
                     min_age_years=min_age_years,
                     min_velocity_percent=min_velocity_percent,
+                    min_star_growth_percent=min_star_growth_percent,
                     min_liability_percent=min_liability_percent,
                     archived=archived,
                     ai_development=ai_development,

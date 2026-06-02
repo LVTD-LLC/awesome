@@ -145,6 +145,7 @@ REPOSITORY_FILTER_PARAM_NAMES = (
     "unmaintained_days",
     "min_age_years",
     "min_velocity_percent",
+    "min_star_growth_percent",
     "min_liability_percent",
     "archived",
     "ai_development",
@@ -158,6 +159,7 @@ REPOSITORY_SORT_LABELS = {
     "oldest": "Oldest first commit",
     "commits": "Most commits",
     "velocity": "Commit velocity",
+    "star_growth": "Star growth",
     "liability": "Star growth",
     "awesome": "Most awesome-list mentions",
     "least_awesome": "Fewest awesome-list mentions",
@@ -178,6 +180,7 @@ REPOSITORY_FILTER_LABELS = {
     "unmaintained_days": "Unmaintained",
     "min_age_years": "Age",
     "min_velocity_percent": "Velocity",
+    "min_star_growth_percent": "Star growth",
     "min_liability_percent": "Star growth",
     "archived": "Archived",
     "ai_development": "AI dev",
@@ -367,7 +370,11 @@ def active_repository_filter_chips(params) -> list[dict[str, str]]:
             value = f"{value}+ days"
         elif name == "min_age_years":
             value = f"{value}+ years"
-        elif name in {"min_velocity_percent", "min_liability_percent"}:
+        elif name in {
+            "min_velocity_percent",
+            "min_star_growth_percent",
+            "min_liability_percent",
+        }:
             value = f"{value}%+"
         elif name == "sort":
             value = REPOSITORY_SORT_LABELS.get(value, value)

@@ -120,6 +120,7 @@ def test_mcp_search_repositories_tool_uses_shared_search_service(client, profile
                         "language": "Python",
                         "topic": "django",
                         "framework": "django",
+                        "sort": "star_growth",
                     },
                 },
             }

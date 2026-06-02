@@ -162,7 +162,7 @@ def test_repository_search_api_uses_existing_filters(client, profile):
             "min_stars": "100",
             "min_age_years": "10",
             "min_velocity_percent": "40",
-            "min_liability_percent": "40",
+            "min_star_growth_percent": "40",
             "unmaintained_days": "365",
             "topic": "django",
             "framework": "django",

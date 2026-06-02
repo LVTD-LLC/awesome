@@ -2146,6 +2146,14 @@ def _positive_int_param(params, name: str) -> int | None:
     return parsed
 
 
+def _first_positive_int_param(params, *names: str) -> int | None:
+    for name in names:
+        value = _positive_int_param(params, name)
+        if value is not None:
+            return value
+    return None
+
+
 def minimum_age_cutoff(params, name: str = "min_age_years"):
     years = _positive_int_param(params, name)
     if not years or years > MAX_AGE_YEARS_FILTER:
@@ -2233,13 +2241,18 @@ def _apply_repository_state_filters(qs, params):
         qs = qs.filter(uses_ai_for_development=True)
     elif ai_development == "no":
         qs = qs.filter(uses_ai_for_development=False)
+    unmaintained_days = _positive_int_param(params, "unmaintained_days")
     updated_days = _positive_int_param(params, "updated_days")
-    if updated_days and updated_days <= MAX_UPDATED_DAYS_FILTER:
+    valid_unmaintained_days = (
+        unmaintained_days
+        if unmaintained_days and unmaintained_days <= MAX_UPDATED_DAYS_FILTER
+        else None
+    )
+    if updated_days and updated_days <= MAX_UPDATED_DAYS_FILTER and not valid_unmaintained_days:
         cutoff = timezone.now() - timezone.timedelta(days=updated_days)
         qs = qs.filter(github_pushed_at__gte=cutoff)
-    unmaintained_days = _positive_int_param(params, "unmaintained_days")
-    if unmaintained_days and unmaintained_days <= MAX_UPDATED_DAYS_FILTER:
-        cutoff = timezone.now() - timezone.timedelta(days=unmaintained_days)
+    if valid_unmaintained_days:
+        cutoff = timezone.now() - timezone.timedelta(days=valid_unmaintained_days)
         qs = qs.filter(github_pushed_at__lte=cutoff)
     age_cutoff = minimum_age_cutoff(params)
     if age_cutoff:
@@ -2247,9 +2260,13 @@ def _apply_repository_state_filters(qs, params):
     min_velocity_percent = _positive_int_param(params, "min_velocity_percent")
     if min_velocity_percent is not None:
         qs = qs.filter(commits_growth_percent__gte=min_velocity_percent)
-    min_liability_percent = _positive_int_param(params, "min_liability_percent")
-    if min_liability_percent is not None:
-        qs = qs.filter(stars_growth_percent__gte=min_liability_percent)
+    min_star_growth_percent = _first_positive_int_param(
+        params,
+        "min_star_growth_percent",
+        "min_liability_percent",
+    )
+    if min_star_growth_percent is not None:
+        qs = qs.filter(stars_growth_percent__gte=min_star_growth_percent)
     return qs
 
 
@@ -2259,7 +2276,7 @@ def _apply_repository_filters(qs, params, *, allow_list_filter: bool):
 
 
 def _sort_direction(params, default_direction: str) -> str:
-    direction = (params.get("sort_direction") or params.get("direction") or "").strip().lower()
+    direction = (params.get("sort_direction") or "").strip().lower()
     if direction in {"asc", "desc"}:
         return direction
     return default_direction
@@ -2282,6 +2299,7 @@ def _order_repositories(qs, params):
         "oldest": ("first_commit_at", "asc"),
         "commits": ("commit_count", "desc"),
         "velocity": ("commits_growth_percent", "desc"),
+        "star_growth": ("stars_growth_percent", "desc"),
         "liability": ("stars_growth_percent", "desc"),
         "awesome": ("awesome_count", "desc"),
         "least_awesome": ("awesome_count", "asc"),
@@ -2297,11 +2315,15 @@ def _order_repositories(qs, params):
 
 def _requires_repository_snapshot_metrics(params) -> bool:
     sort = (params.get("sort") or "").strip()
-    if sort in {"velocity", "liability"}:
+    if sort in {"velocity", "star_growth", "liability"}:
         return True
     return any(
         _positive_int_param(params, name) is not None
-        for name in ("min_velocity_percent", "min_liability_percent")
+        for name in (
+            "min_velocity_percent",
+            "min_star_growth_percent",
+            "min_liability_percent",
+        )
     )
 
 

@@ -3509,11 +3509,15 @@ def test_repository_search_filters_growth_unmaintained_and_sort_direction():
     )
 
     assert list(repository_search_queryset({"min_velocity_percent": "40"})) == [fast]
+    assert list(repository_search_queryset({"min_star_growth_percent": "30"})) == [fast]
     assert list(repository_search_queryset({"min_liability_percent": "30"})) == [fast]
     assert list(repository_search_queryset({"unmaintained_days": "365"})) == [
         unknown_baseline,
         fast,
     ]
+    assert list(
+        repository_search_queryset({"updated_days": "30", "unmaintained_days": "365"})
+    ) == [unknown_baseline, fast]
 
     repos = list(repository_search_queryset({"sort": "velocity"}))
     assert repos == [fast, slow, unknown_baseline]
@@ -3521,10 +3525,25 @@ def test_repository_search_filters_growth_unmaintained_and_sort_direction():
     assert repos[0].stars_growth_percent == 50
     assert repos[2].commits_growth_percent is None
     assert repos[2].stars_growth_percent is None
+    assert list(repository_search_queryset({"sort": "star_growth"})) == [
+        fast,
+        slow,
+        unknown_baseline,
+    ]
+    assert list(repository_search_queryset({"sort": "liability"})) == [
+        fast,
+        slow,
+        unknown_baseline,
+    ]
 
     assert list(
         repository_search_queryset({"sort": "stars", "sort_direction": "asc"})
     ) == [slow, fast, unknown_baseline]
+    assert list(repository_search_queryset({"sort": "stars", "direction": "asc"})) == [
+        unknown_baseline,
+        fast,
+        slow,
+    ]
 
     list_repos = list(
         awesome_list_repository_queryset(awesome_list, {"min_velocity_percent": "40"})
