@@ -372,6 +372,7 @@ def repository_filter_context(
     awesome_list=None,
     profile=None,
     show_list_filter: bool = True,
+    show_search_mode: bool = True,
     search_field_class: str = "",
     filter_id_prefix: str = "repo-filter",
 ):
@@ -423,7 +424,7 @@ def repository_filter_context(
         "filter_id_prefix": filter_id_prefix,
         "search_field_class": search_field_class,
         "show_list_filter": show_list_filter,
-        "show_search_mode": True,
+        "show_search_mode": show_search_mode,
         "search_action_url": search_url,
         "search_reset_url": reset_url,
     }
