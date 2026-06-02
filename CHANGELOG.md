@@ -56,6 +56,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
 
 ### Changed
+- Awesome: repository search results no longer show tracked commit-growth deltas.
 - Awesome: unified repository search filters across global search, awesome-list repository search, and personal starred-repository search.
 - Awesome: added Settings to the account navbar, simplified Settings around GitHub imports and future repository update preferences, and moved awesome-list requests into the Lists page flow.
 - Awesome: compacted repository-detail AI development signals into summary badges and bounded config-path lists.
