@@ -100,9 +100,9 @@ function handleShortcutKeydown(event, shortcuts, state) {
 
   if (state.prefix) {
     const shortcut = shortcuts.find((candidate) => candidate.key === `${state.prefix} ${pressedKey}`);
-    event.preventDefault();
 
     if (shortcut) {
+      event.preventDefault();
       clearPrefix(state);
       shortcut.run();
       return;
@@ -179,10 +179,7 @@ function clearPrefix(state) {
 function focusSearchInput(root) {
   const searchInput = firstVisible(root.querySelectorAll("[data-shortcut-search]"));
   if (!searchInput) {
-    const searchShortcut = collectLinkShortcuts(root).find((shortcut) => shortcut.key === "g r");
-    if (searchShortcut) {
-      searchShortcut.run();
-    }
+    navigateTo(searchFormAction(root));
     return;
   }
 
@@ -212,6 +209,12 @@ function navigateTo(href) {
   }
 
   window.location.assign(href);
+}
+
+function searchFormAction(root) {
+  const searchControl = root.querySelector("[data-shortcut-search]");
+  const form = searchControl ? searchControl.closest("form") : null;
+  return form ? form.action : "";
 }
 
 function openHelpDialog(shortcuts, state) {
@@ -262,7 +265,7 @@ function buildHelpDialog(shortcuts, state) {
   backdrop.addEventListener("click", () => closeHelpDialog(state));
 
   const panel = document.createElement("div");
-  panel.className = "absolute left-1/2 top-20 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50 sm:top-24";
+  panel.className = "absolute left-1/2 top-20 max-h-[calc(100vh-8rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50 sm:top-24";
 
   const header = document.createElement("div");
   header.className = "flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-gray-800";
@@ -283,7 +286,7 @@ function buildHelpDialog(shortcuts, state) {
   header.append(title, closeButton);
 
   const list = document.createElement("div");
-  list.className = "divide-y divide-gray-200 dark:divide-gray-800";
+  list.className = "max-h-[calc(100vh-13rem)] overflow-y-auto divide-y divide-gray-200 dark:divide-gray-800";
 
   shortcuts.forEach((shortcut) => {
     list.appendChild(buildShortcutRow(shortcut));
