@@ -1034,6 +1034,14 @@ def test_starred_repository_search_uses_shared_repository_filters(auth_client, p
     assert "Awesome Django (1)" in content
     assert "web-framework (1)" in content
     assert "Sort: Most forks" in content
+    assert 'aria-label="Remove Sort filter: Most forks"' in content
+    assert 'aria-label="Remove Framework filter: django"' in content
+    framework_chip = re.search(
+        r'<a\s+href="([^"]*)"\s+class="[^"]*"\s+aria-label="Remove Framework filter: django"',
+        content,
+    )
+    assert framework_chip is not None
+    assert "stack=django" not in framework_chip.group(1)
     assert response.context["page_obj"].paginator.count == 1
 
 
@@ -4569,12 +4577,13 @@ def test_search_page_renders(client):
     content = response.content
     assert response.status_code == 200
     assert b"django/django" in content
-    assert b"Open filters" in content
-    assert b"Repository filters" in content
+    assert b"Find repositories" in content
+    assert b"Tune results" in content
+    assert b"More filters" in content
     assert b"Any GitHub topic" in content
     assert b"Any detected framework" in content
     assert b"Commit velocity" in content
-    assert b"Sort direction" in content
+    assert b"Direction" in content
     assert b"django (1)" in content
     assert b'href="/?topic=django"' in content
     assert b"web-framework (1)" in content
@@ -4804,7 +4813,7 @@ def test_repository_search_is_root_page(client):
 
     assert reverse("repos:search") == "/"
     assert response.status_code == 200
-    assert b"Search every repository hiding inside awesome lists." in response.content
+    assert b"Search awesome repositories" in response.content
     assert b"Browse awesome lists" in response.content
     assert b"Request a list" in response.content
 
@@ -4825,7 +4834,7 @@ def test_search_page_exposes_semantic_search_filter(client):
     content = response.content.decode()
     assert 'name="mode"' in content
     assert 'x-model="searchMode"' in content
-    assert '<option value="semantic" selected>Semantic relevance</option>' in content
+    assert re.search(r'<input\b[^>]*name="mode"[^>]*value="semantic"[^>]*checked', content)
 
     sort_select = re.search(r'<select\b[^>]*\bname="sort"[^>]*>', content)
     assert sort_select is not None
@@ -5251,8 +5260,8 @@ def test_awesome_list_detail_page_filters_repositories(client):
     assert 'name="list"' not in content
     assert 'class="md:col-span-2"' in content
     assert "List: awesome-python" not in content
-    assert "Most forks" in content
-    assert "Fewest awesome-list mentions" in content
+    assert "Forks" in content
+    assert "Fewest list mentions" in content
     assert "Search: django" in content
     assert "Mode: Semantic relevance" not in content
     assert "list=awesome-python" not in response.context["querystring"]
