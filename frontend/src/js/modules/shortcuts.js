@@ -227,7 +227,7 @@ function openHelpDialog(shortcuts, state) {
   state.helpDialog.classList.remove("hidden");
   document.body.classList.add("overflow-hidden");
 
-  const closeButton = state.helpDialog.querySelector("[data-shortcuts-close]");
+  const closeButton = state.helpDialog.querySelector("button[data-shortcuts-close]");
   if (closeButton) {
     closeButton.focus({ preventScroll: true });
   }
@@ -355,6 +355,12 @@ function trapDialogFocus(event, dialog) {
 
   const first = focusableElements[0];
   const last = focusableElements[focusableElements.length - 1];
+
+  if (!dialog.contains(document.activeElement)) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
 
   if (event.shiftKey && document.activeElement === first) {
     event.preventDefault();
