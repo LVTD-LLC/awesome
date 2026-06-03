@@ -170,7 +170,11 @@ def upsert_highlighted_repo_from_checkout_session(session):
     return purchase
 
 
-def enable_remove_ads_for_checkout_session(session):
+def enable_remove_ads_for_checkout_session(session, expected_user_id=None):
+    metadata = session.get("metadata", {})
+    if metadata.get("app") != "awesome" or metadata.get("kind") != "remove_ads":
+        return None
+
     if session.get("payment_status") != "paid":
         return None
 
@@ -181,6 +185,9 @@ def enable_remove_ads_for_checkout_session(session):
     try:
         user_id = int(client_reference_id)
     except (TypeError, ValueError):
+        return None
+
+    if expected_user_id is not None and user_id != expected_user_id:
         return None
 
     profile = Profile.objects.filter(user_id=user_id).first()
@@ -481,7 +488,10 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
             session_id = self.request.GET.get("session_id", "")
             if session_id and remove_ads_checkout_configured():
                 try:
-                    enable_remove_ads_for_checkout_session(retrieve_checkout_session(session_id))
+                    enable_remove_ads_for_checkout_session(
+                        retrieve_checkout_session(session_id),
+                        expected_user_id=user.id,
+                    )
                     profile.refresh_from_db()
                     context["remove_ads_enabled"] = profile.remove_ads
                 except (StripeConfigurationError, StripeRequestError) as exc:

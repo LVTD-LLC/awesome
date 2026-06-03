@@ -504,6 +504,67 @@ class TestRemoveAdsCheckout:
         profile.refresh_from_db()
         assert profile.remove_ads is True
 
+    @override_settings(
+        STRIPE_SECRET_KEY="sk_test",
+        STRIPE_AWESOME_REMOVE_ADS_PRICE_ID="price_remove_ads",
+    )
+    def test_remove_ads_success_requires_remove_ads_checkout_kind(
+        self, client, django_user_model, monkeypatch
+    ):
+        user = django_user_model.objects.create_user(username="buyer", password="pw")
+        profile = user.profile
+        client.force_login(user)
+        monkeypatch.setattr(
+            "apps.core.views.retrieve_checkout_session",
+            lambda session_id: {
+                "id": session_id,
+                "payment_status": "paid",
+                "client_reference_id": str(user.id),
+                "metadata": {"app": "awesome", "kind": "highlighted_repo"},
+            },
+        )
+
+        response = client.get(
+            reverse("settings"),
+            {"remove_ads": "success", "session_id": "cs_paid_highlight"},
+        )
+
+        assert response.status_code == 200
+        profile.refresh_from_db()
+        assert profile.remove_ads is False
+
+    @override_settings(
+        STRIPE_SECRET_KEY="sk_test",
+        STRIPE_AWESOME_REMOVE_ADS_PRICE_ID="price_remove_ads",
+    )
+    def test_remove_ads_success_requires_current_user_checkout_session(
+        self, client, django_user_model, monkeypatch
+    ):
+        buyer = django_user_model.objects.create_user(username="buyer", password="pw")
+        other_user = django_user_model.objects.create_user(username="other", password="pw")
+        profile = buyer.profile
+        client.force_login(buyer)
+        monkeypatch.setattr(
+            "apps.core.views.retrieve_checkout_session",
+            lambda session_id: {
+                "id": session_id,
+                "payment_status": "paid",
+                "client_reference_id": str(other_user.id),
+                "metadata": {"app": "awesome", "kind": "remove_ads"},
+            },
+        )
+
+        response = client.get(
+            reverse("settings"),
+            {"remove_ads": "success", "session_id": "cs_paid_other_user"},
+        )
+
+        assert response.status_code == 200
+        profile.refresh_from_db()
+        other_user.profile.refresh_from_db()
+        assert profile.remove_ads is False
+        assert other_user.profile.remove_ads is False
+
     def test_remove_ads_profile_hides_sponsor_and_highlighted_ads(
         self, django_user_model, rf, monkeypatch
     ):
