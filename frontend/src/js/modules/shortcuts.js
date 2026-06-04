@@ -1,4 +1,3 @@
-const SHORTCUT_TIMEOUT_MS = 900;
 const READY_ATTRIBUTE = "data-navigation-shortcuts-ready";
 
 export function initNavigationShortcuts(root = document) {
@@ -7,20 +6,14 @@ export function initNavigationShortcuts(root = document) {
   }
   document.documentElement.setAttribute(READY_ATTRIBUTE, "true");
 
-  const state = {
-    prefix: "",
-    prefixTimeoutId: null,
-  };
-
   const shortcuts = buildShortcutList(root);
 
   document.addEventListener("keydown", (event) => {
     if (shouldIgnoreShortcutEvent(event)) {
-      clearPrefix(state);
       return;
     }
 
-    handleShortcutKeydown(event, shortcuts, state);
+    handleShortcutKeydown(event, shortcuts);
   });
 }
 
@@ -72,39 +65,14 @@ function collectLinkShortcuts(root) {
   return shortcuts;
 }
 
-function handleShortcutKeydown(event, shortcuts, state) {
+function handleShortcutKeydown(event, shortcuts) {
   const pressedKey = normalizeEventKey(event);
   if (!pressedKey) {
-    clearPrefix(state);
-    return;
-  }
-
-  if (state.prefix) {
-    const shortcut = shortcuts.find((candidate) => candidate.key === `${state.prefix} ${pressedKey}`);
-
-    if (shortcut) {
-      event.preventDefault();
-      clearPrefix(state);
-      shortcut.run();
-      return;
-    }
-
-    clearPrefix(state);
-    return;
-  }
-
-  const hasSequence = shortcuts.some((shortcut) => shortcut.key.startsWith(`${pressedKey} `));
-  if (hasSequence) {
-    event.preventDefault();
-    state.prefix = pressedKey;
-    window.clearTimeout(state.prefixTimeoutId);
-    state.prefixTimeoutId = window.setTimeout(() => clearPrefix(state), SHORTCUT_TIMEOUT_MS);
     return;
   }
 
   const shortcut = shortcuts.find((candidate) => candidate.key === pressedKey);
   if (!shortcut) {
-    clearPrefix(state);
     return;
   }
 
@@ -145,12 +113,6 @@ function normalizeShortcutKey(key) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
-}
-
-function clearPrefix(state) {
-  state.prefix = "";
-  window.clearTimeout(state.prefixTimeoutId);
-  state.prefixTimeoutId = null;
 }
 
 function focusSearchInput(root) {
