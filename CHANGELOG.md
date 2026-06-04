@@ -59,6 +59,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added experimental superuser-only repository newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
 - Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
 - Awesome: added a recently-starred sort for personal GitHub starred repository search.
+- Awesome: added shareable SVG repository badges with copyable Markdown and HTML snippets on repository detail pages.
 
 ### Changed
 - Awesome: optimized root and starred repository search pages by skipping unused history-growth annotations and caching public filter metadata.

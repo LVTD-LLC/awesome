@@ -1,3 +1,5 @@
+from html import escape as html_escape
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,6 +18,7 @@ from django.views.generic import DetailView, FormView, ListView
 from django_q.tasks import async_task
 
 from apps.core.models import Profile
+from apps.repos.badges import repository_badge_svg
 from apps.repos.cache import (
     PUBLIC_REPOSITORY_FILTER_OPTIONS_CACHE_KEY,
     PUBLIC_REPOSITORY_FILTER_OPTIONS_CACHE_TIMEOUT_SECONDS,
@@ -349,6 +352,40 @@ def toggle_repository_like(request, owner: str, name: str):
         )
 
     return redirect(next_url)
+
+
+def repository_badge(request, owner: str, name: str):
+    repository = get_object_or_404(
+        Repository.objects.annotate(awesome_count=Count("awesome_items", distinct=True)),
+        full_name=f"{owner}/{name}",
+    )
+    svg = repository_badge_svg(
+        repository,
+        metric=request.GET.get("metric", "stars"),
+        theme=request.GET.get("theme", "light"),
+    )
+    response = HttpResponse(svg, content_type="image/svg+xml; charset=utf-8")
+    response["Cache-Control"] = "public, max-age=3600"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def repository_badge_embed_context(request, repository: Repository) -> dict[str, str]:
+    badge_url = request.build_absolute_uri(
+        reverse("repos:repo_badge", kwargs={"owner": repository.owner, "name": repository.name})
+    )
+    detail_url = request.build_absolute_uri(repository.get_absolute_url())
+    alt_text = f"{repository.full_name} on Awesome"
+    markdown_alt = alt_text.replace("\\", "\\\\").replace("]", "\\]")
+    return {
+        "badge_url": badge_url,
+        "badge_markdown": f"[![{markdown_alt}]({badge_url})]({detail_url})",
+        "badge_html": (
+            f'<a href="{html_escape(detail_url, quote=True)}">'
+            f'<img src="{html_escape(badge_url, quote=True)}" '
+            f'alt="{html_escape(alt_text, quote=True)}"></a>'
+        ),
+    }
 
 
 def awesome_list_request_client_ip(request) -> str:
@@ -847,6 +884,7 @@ class RepositoryDetailView(DetailView):
         context["ai_development_signal_summary"] = _ai_development_signal_summary(
             self.object.ai_development_signals
         )
+        context["badge_embed"] = repository_badge_embed_context(self.request, self.object)
         context["newsletter_issues"] = self.object.newsletter_issues.filter(
             published_at__isnull=False,
         )[:5]

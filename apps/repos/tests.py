@@ -6124,6 +6124,114 @@ def test_repository_detail_page_renders_performance_history(client):
 
 
 @pytest.mark.django_db
+def test_repository_badge_svg_renders_shareable_history(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        language="Python",
+        stars=123456,
+        commit_count=90,
+    )
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=2),
+        stars=123431,
+        commit_count=70,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=1),
+        stars=123456,
+        commit_count=90,
+    )
+
+    response = client.get(reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"}))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "image/svg+xml; charset=utf-8"
+    assert response["Cache-Control"] == "public, max-age=3600"
+    assert response["X-Content-Type-Options"] == "nosniff"
+    content = response.content.decode()
+    assert content.startswith("<svg")
+    assert "Awesome badge for django/django" in content
+    assert "123.5k" in content
+    assert "stars" in content
+    assert "1 awesome list" in content
+    assert "Python" in content
+    assert "2 captures" in content
+
+
+@pytest.mark.django_db
+def test_repository_badge_svg_supports_commit_metric_and_escapes_metadata(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        language='"><script>alert(1)</script>',
+        stars=75,
+        commit_count=9,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=1),
+        stars=70,
+        commit_count=5,
+    )
+
+    response = client.get(
+        reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"}),
+        {"metric": "commits", "theme": "dark"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Commit history" in content
+    assert "commits" in content
+    assert "#020617" in content
+    assert "<script>" not in content
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in content
+
+
+@pytest.mark.django_db
+def test_repository_detail_page_renders_share_badge_embed_snippets(client):
+    Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+        language="Python",
+        stars=123456,
+        commit_count=90,
+    )
+
+    response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": "django", "name": "django"})
+    )
+
+    assert response.status_code == 200
+    badge_path = reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"})
+    content = response.content.decode()
+    assert "Share badge" in content
+    assert f"http://testserver{badge_path}" in content
+    assert (
+        f"[![django/django on Awesome](http://testserver{badge_path})]"
+        "(http://testserver/repos/django/django/)"
+    ) in content
+    assert 'data-copy-source="#repo-badge-markdown"' in content
+    assert 'data-copy-source="#repo-badge-html"' in content
+
+
+@pytest.mark.django_db
 def test_repository_detail_page_skips_chart_data_without_history(client, monkeypatch):
     Repository.objects.create(
         full_name="django/django",
