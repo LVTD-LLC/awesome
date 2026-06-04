@@ -1,4 +1,5 @@
 const READY_ATTRIBUTE = "data-navigation-shortcuts-ready";
+const RESERVED_LINK_SHORTCUT_KEYS = new Set(["j", "k", "n", "p"]);
 
 export function initNavigationShortcuts(root = document) {
   if (document.documentElement.hasAttribute(READY_ATTRIBUTE)) {
@@ -26,9 +27,9 @@ function buildShortcutList(root) {
     },
   ];
 
-  collectLinkShortcuts(root).forEach((shortcut) => shortcuts.push(shortcut));
   collectListShortcuts(root).forEach((shortcut) => shortcuts.push(shortcut));
   collectPaginationShortcuts(root).forEach((shortcut) => shortcuts.push(shortcut));
+  collectLinkShortcuts(root).forEach((shortcut) => shortcuts.push(shortcut));
 
   shortcuts.push({
     key: "t",
@@ -40,10 +41,6 @@ function buildShortcutList(root) {
 }
 
 function collectListShortcuts(root) {
-  if (!shortcutListItems(root).length) {
-    return [];
-  }
-
   return [
     {
       key: "j",
@@ -61,27 +58,20 @@ function collectListShortcuts(root) {
 }
 
 function collectPaginationShortcuts(root) {
-  const shortcuts = [];
-
-  if (paginationLink(root, "next")) {
-    shortcuts.push({
+  return [
+    {
       key: "n",
       label: "Next page",
-      when: () => Boolean(paginationLink(root, "next")),
-      run: () => navigateTo(paginationLink(root, "next").href),
-    });
-  }
-
-  if (paginationLink(root, "previous")) {
-    shortcuts.push({
+      resolve: () => paginationLink(root, "next"),
+      run: (link) => navigateTo(link.href),
+    },
+    {
       key: "p",
       label: "Previous page",
-      when: () => Boolean(paginationLink(root, "previous")),
-      run: () => navigateTo(paginationLink(root, "previous").href),
-    });
-  }
-
-  return shortcuts;
+      resolve: () => paginationLink(root, "previous"),
+      run: (link) => navigateTo(link.href),
+    },
+  ];
 }
 
 function collectLinkShortcuts(root) {
@@ -92,7 +82,7 @@ function collectLinkShortcuts(root) {
     const key = normalizeShortcutKey(link.dataset.shortcutKey);
     const label = link.dataset.shortcutLabel || link.textContent.trim();
 
-    if (!key || !label || seenKeys.has(key)) {
+    if (!key || !label || seenKeys.has(key) || RESERVED_LINK_SHORTCUT_KEYS.has(key)) {
       return;
     }
 
@@ -122,8 +112,13 @@ function handleShortcutKeydown(event, shortcuts) {
     return;
   }
 
+  const resolvedTarget = shortcut.resolve ? shortcut.resolve() : null;
+  if (shortcut.resolve && !resolvedTarget) {
+    return;
+  }
+
   event.preventDefault();
-  shortcut.run();
+  shortcut.run(resolvedTarget);
 }
 
 function shouldIgnoreShortcutEvent(event) {
