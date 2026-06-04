@@ -129,7 +129,7 @@
         </div>
         <div class="flex flex-col gap-2 sm:items-end">
           <div class="text-sm text-gray-500 dark:text-gray-400">Latest repo push {{ repo_stats.latest_repo_push|date:"Y-m-d"|default:"-" }}</div>
-          {% if page_obj.paginator.count %}
+          {% if page_obj %}
             <span class="shortcut-hint hidden text-xs font-black uppercase text-gray-500 dark:text-gray-400 lg:inline-flex" aria-label="List navigation shortcuts">
               Browse
               <kbd class="shortcut-kbd" aria-hidden="true">J</kbd>

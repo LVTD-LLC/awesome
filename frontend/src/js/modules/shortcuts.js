@@ -131,7 +131,15 @@ function shouldIgnoreShortcutEvent(event) {
     return true;
   }
 
+  if (hasOpenDialog()) {
+    return true;
+  }
+
   return isTypingTarget(event.target);
+}
+
+function hasOpenDialog() {
+  return Array.from(document.querySelectorAll("[role='dialog'][aria-modal='true']")).some(isVisible);
 }
 
 function isTypingTarget(target) {
