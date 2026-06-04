@@ -5425,7 +5425,7 @@ def test_repository_pages_render_starred_badge_for_authenticated_user(
     response = auth_client.get(reverse("repos:search"))
 
     assert response.status_code == 200
-    assert b"Starred django/django on GitHub on 2026-05-01" in response.content
+    assert b"Starred django/django on GitHub" in response.content
     assert b"Starred pallets/flask on GitHub" not in response.content
 
     response = auth_client.get(reverse("repos:starred"))
@@ -5437,20 +5437,20 @@ def test_repository_pages_render_starred_badge_for_authenticated_user(
     response = auth_client.get(reverse("repos:list_detail", kwargs={"slug": awesome_list.slug}))
 
     assert response.status_code == 200
-    assert b"Starred django/django on GitHub on 2026-05-01" in response.content
+    assert b"Starred django/django on GitHub" in response.content
     assert b"Starred pallets/flask on GitHub" not in response.content
 
     response = auth_client.get(reverse("repos:liked"))
 
     assert response.status_code == 200
-    assert b"Starred django/django on GitHub on 2026-05-01" in response.content
+    assert b"Starred django/django on GitHub" in response.content
 
     response = auth_client.get(
         reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
     )
 
     assert response.status_code == 200
-    assert b"Starred django/django on GitHub on 2026-05-01" in response.content
+    assert b"Starred django/django on GitHub" in response.content
 
     response = auth_client.get(
         reverse(
@@ -5461,6 +5461,29 @@ def test_repository_pages_render_starred_badge_for_authenticated_user(
 
     assert response.status_code == 200
     assert b"Starred pallets/flask on GitHub" not in response.content
+
+
+@pytest.mark.django_db
+def test_repository_pages_hide_starred_badge_when_authenticated_user_has_no_profile(
+    auth_client,
+    user,
+):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework",
+    )
+    user.profile.delete()
+
+    response = auth_client.get(
+        reverse("repos:repo_detail", kwargs={"owner": repo.owner, "name": repo.name})
+    )
+
+    assert response.status_code == 200
+    assert b"django/django" in response.content
+    assert b"Starred django/django on GitHub" not in response.content
 
 
 @pytest.mark.django_db

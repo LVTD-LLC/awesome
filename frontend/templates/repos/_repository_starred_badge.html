@@ -1,4 +1,4 @@
-{% if user.is_authenticated and repository.is_starred %}
+{% if user.is_authenticated and repository.user_starred_repository_id %}
   <span
     class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-yellow-300 bg-yellow-50 text-yellow-700 shadow-sm dark:border-yellow-700/70 dark:bg-yellow-950/40 dark:text-yellow-300"
     title="Starred on GitHub"

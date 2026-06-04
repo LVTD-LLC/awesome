@@ -871,8 +871,10 @@ def with_repository_like_state(queryset, user):
             repository=models.OuterRef("pk"),
             profile_id=profile_pk,
         )
-        annotations["is_starred"] = models.Exists(starred_link)
-        annotations["user_starred_at"] = models.Subquery(starred_link.values("starred_at")[:1])
+        annotations["user_starred_repository_id"] = models.Subquery(
+            starred_link.values("pk")[:1],
+            output_field=models.PositiveIntegerField(),
+        )
 
     return queryset.annotate(**annotations)
 
