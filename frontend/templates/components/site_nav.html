@@ -10,7 +10,7 @@
         </span>
         <span class="hidden items-center gap-2 sm:flex">
           <span class="text-base font-black">Awesome</span>
-          <kbd class="shortcut-kbd hidden lg:inline-flex">H</kbd>
+          <kbd class="shortcut-kbd hidden lg:inline-flex" aria-hidden="true">H</kbd>
         </span>
       </a>
 
@@ -28,7 +28,7 @@
             placeholder="Search repositories"
             class="h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-11 pr-20 text-sm font-medium text-gray-900 shadow-inner shadow-gray-200/40 transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:shadow-black/20 dark:placeholder:text-gray-500 dark:focus:bg-gray-950"
           />
-          <span class="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 lg:flex">
+          <span class="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 lg:flex" aria-hidden="true">
             <kbd class="shortcut-kbd">K</kbd>
             <kbd class="shortcut-kbd">/</kbd>
           </span>
@@ -46,7 +46,7 @@
         >
           <span class="shortcut-hint">
             Repos
-            <kbd class="shortcut-kbd hidden xl:inline-flex">R</kbd>
+            <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">R</kbd>
           </span>
         </a>
         <a
@@ -59,7 +59,7 @@
         >
           <span class="shortcut-hint">
             Lists
-            <kbd class="shortcut-kbd hidden xl:inline-flex">L</kbd>
+            <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">L</kbd>
           </span>
         </a>
         {% if user.is_authenticated %}
@@ -73,7 +73,7 @@
           >
             <span class="shortcut-hint">
               Starred
-              <kbd class="shortcut-kbd hidden xl:inline-flex">S</kbd>
+              <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">S</kbd>
             </span>
           </a>
           <a
@@ -86,7 +86,7 @@
           >
             <span class="shortcut-hint">
               Liked
-              <kbd class="shortcut-kbd hidden xl:inline-flex">F</kbd>
+              <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">F</kbd>
             </span>
           </a>
         {% endif %}
@@ -94,7 +94,7 @@
           <a href="{% url 'admin_panel' %}" data-shortcut-link data-shortcut-key="a" data-shortcut-label="Admin" class="rounded-full px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-green-300 dark:hover:bg-green-950 dark:focus-visible:ring-offset-gray-950">
             <span class="shortcut-hint">
               Admin
-              <kbd class="shortcut-kbd hidden xl:inline-flex">A</kbd>
+              <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">A</kbd>
             </span>
           </a>
         {% endif %}
@@ -122,7 +122,7 @@
           <svg data-theme-icon="dark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden h-5 w-5">
             <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
           </svg>
-          <kbd class="shortcut-kbd pointer-events-none absolute -right-1 -top-1 hidden lg:inline-flex">T</kbd>
+          <kbd class="shortcut-kbd pointer-events-none absolute -right-1 -top-1 hidden lg:inline-flex" aria-hidden="true">T</kbd>
         </button>
         {% if user.is_authenticated %}
           <a
@@ -140,7 +140,7 @@
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            <kbd class="shortcut-kbd pointer-events-none absolute -right-1 -top-1 hidden lg:inline-flex">,</kbd>
+            <kbd class="shortcut-kbd pointer-events-none absolute -right-1 -top-1 hidden lg:inline-flex" aria-hidden="true">,</kbd>
           </a>
           <form method="post" action="{% url 'account_logout' %}">
             {% csrf_token %}
