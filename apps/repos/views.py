@@ -940,6 +940,17 @@ class RepositoryNewsletterIssueDetailView(DetailView):
         queryset = self.get_queryset() if queryset is None else queryset
         return get_object_or_404(queryset, slug=self.kwargs["slug"])
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        issue = self.object
+        context["newsletter_issue_meta_description"] = (
+            f"{issue.repository.full_name} {issue.get_cadence_display().lower()} update: "
+            f"{issue.title} covering {issue.commit_count} commit"
+            f"{'' if issue.commit_count == 1 else 's'} from "
+            f"{issue.period_start:%Y-%m-%d} to {issue.period_end:%Y-%m-%d}."
+        )
+        return context
+
 
 class RepositoryNewsletterFeed(Feed):
     def get_object(self, request, owner: str, name: str, cadence: str):

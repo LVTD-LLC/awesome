@@ -265,11 +265,11 @@
     "@type": "CollectionPage",
     "name": "{{ awesome_list.name|escapejs }}",
     "description": "{{ awesome_list.description|default:'Awesome-list repository collection indexed by Awesome.'|truncatechars:300|escapejs }}",
-    "url": "https://{{ request.get_host }}{{ awesome_list.get_absolute_url }}",
+    "url": "{{ site_url }}{{ awesome_list.get_absolute_url }}",
     "isPartOf": {
       "@type": "WebSite",
       "name": "Awesome",
-      "url": "https://{{ request.get_host }}/"
+      "url": "{{ site_url }}/"
     }
   }
 </script>

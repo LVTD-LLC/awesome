@@ -1,7 +1,7 @@
 {% extends "base_landing.html" %}
 {% block meta %}
-  {% with meta_title=issue.title|add:" · Awesome" meta_description="Generated repository change update from Awesome." %}
-    {% include "components/seo_meta.html" with title=meta_title description=meta_description canonical_path=request.path og_type="article" %}
+  {% with meta_title=issue.title|add:" · Awesome" %}
+    {% include "components/seo_meta.html" with title=meta_title description=newsletter_issue_meta_description canonical_path=request.path og_type="article" %}
   {% endwith %}
 {% endblock meta %}
 {% block content %}

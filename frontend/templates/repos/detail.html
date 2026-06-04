@@ -307,7 +307,7 @@
     "description": "{{ repository.description|default:'GitHub repository indexed by Awesome.'|truncatechars:300|escapejs }}",
     "codeRepository": "{{ repository.url|escapejs }}",
     "programmingLanguage": "{{ repository.language|default:''|escapejs }}",
-    "url": "https://{{ request.get_host }}{{ repository.get_absolute_url }}"
+    "url": "{{ site_url }}{{ repository.get_absolute_url }}"
   }
 </script>
 {% endblock schema %}

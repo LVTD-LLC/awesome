@@ -110,8 +110,8 @@
       "@type": "WebSite",
       "name": "Awesome",
       "description": "Search GitHub repositories discovered across curated awesome lists.",
-      "thumbnailUrl": "https://{{ request.get_host }}{% static 'brand/awesome-repos-social.png' %}",
-      "url": "https://{{ request.get_host }}/",
+      "thumbnailUrl": "{{ site_url }}{% static 'brand/awesome-repos-social.png' %}",
+      "url": "{{ site_url }}/",
       "publisher": {
         "@type": "Organization",
         "name": "LVTD LLC",
@@ -119,7 +119,7 @@
       },
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://{{ request.get_host }}/?q={search_term_string}",
+        "target": "{{ site_url }}/?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }

@@ -1,8 +1,16 @@
+from datetime import date
+
 import pytest
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from apps.repos.models import AwesomeList, Repository
+from apps.repos.models import (
+    AwesomeList,
+    NewsletterCadence,
+    Repository,
+    RepositoryNewsletterIssue,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -11,6 +19,7 @@ def response_text(response):
     return response.content.decode()
 
 
+@override_settings(SITE_URL="https://testserver")
 def test_public_search_page_has_complete_seo_metadata(client):
     response = client.get(reverse("repos:search"))
 
@@ -29,6 +38,7 @@ def test_public_search_page_has_complete_seo_metadata(client):
     assert '<meta name="keywords"' not in content
 
 
+@override_settings(SITE_URL="https://testserver")
 def test_repository_detail_has_page_specific_metadata_and_schema(client):
     repository = Repository.objects.create(
         full_name="django/django",
@@ -54,8 +64,10 @@ def test_repository_detail_has_page_specific_metadata_and_schema(client):
     assert '<meta property="og:type" content="article" />' in content
     assert '"@type": "SoftwareSourceCode"' in content
     assert '"codeRepository": "https://github.com/django/django"' in content
+    assert '"url": "https://testserver/repos/django/django/"' in content
 
 
+@override_settings(SITE_URL="https://testserver")
 def test_awesome_list_detail_has_page_specific_metadata_and_schema(client):
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",
@@ -75,6 +87,46 @@ def test_awesome_list_detail_has_page_specific_metadata_and_schema(client):
     )
     assert '<link rel="canonical" href="https://testserver/lists/awesome-django/" />' in content
     assert '"@type": "CollectionPage"' in content
+    assert '"url": "https://testserver/lists/awesome-django/"' in content
+
+
+@override_settings(SITE_URL="https://testserver")
+def test_newsletter_issue_detail_has_unique_seo_description(client):
+    repository = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        description="The Web framework for perfectionists with deadlines.",
+    )
+    issue = RepositoryNewsletterIssue.objects.create(
+        repository=repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Django weekly update",
+        content_markdown="## Changes\n- Added tracking.",
+        content_html="<h2>Changes</h2><ul><li>Added tracking.</li></ul>",
+        commit_count=3,
+        published_at=timezone.now(),
+    )
+
+    response = client.get(issue.get_absolute_url())
+
+    assert response.status_code == 200
+    content = response_text(response)
+    assert "<title>Django weekly update · Awesome</title>" in content
+    assert (
+        '<meta name="description" content="django/django weekly update: Django weekly update '
+        'covering 3 commits from 2026-05-25 to 2026-05-31." />'
+        in content
+    )
+    assert (
+        '<link rel="canonical" '
+        'href="https://testserver/repos/django/django/newsletters/weekly/2026-05-25/" />'
+        in content
+    )
 
 
 @override_settings(SITE_URL="https://awesome.example")
