@@ -112,8 +112,14 @@ def track_event(
                 **set_properties,
             }
 
+    capture_log_data = {
+        **base_log_data,
+        "distinct_id": distinct_id,
+        "properties": event_properties,
+    }
+
     if not distinct_id:
-        logger.warning("[TrackEvent] Missing distinct id.", **base_log_data)
+        logger.warning("[TrackEvent] Missing distinct id.", **capture_log_data)
         return f"No distinct id provided for event {event_name}."
 
     posthog.capture(
@@ -122,7 +128,7 @@ def track_event(
         properties=event_properties,
     )
 
-    logger.info("[TrackEvent] Tracked event", **base_log_data)
+    logger.info("[TrackEvent] Tracked event", **capture_log_data)
 
     return f"Tracked event {event_name}"
 

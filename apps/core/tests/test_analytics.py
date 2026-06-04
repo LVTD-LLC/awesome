@@ -99,6 +99,7 @@ def test_track_event_identifies_profile_without_email(profile, monkeypatch):
 @override_settings(POSTHOG_API_KEY="phc_test")
 def test_track_event_does_not_set_person_properties_by_default(profile, monkeypatch):
     captured = {}
+    logs = []
 
     def fake_capture(distinct_id, *, event, properties):
         captured["distinct_id"] = distinct_id
@@ -106,6 +107,10 @@ def test_track_event_does_not_set_person_properties_by_default(profile, monkeypa
         captured["properties"] = properties
 
     monkeypatch.setattr("apps.core.tasks.posthog.capture", fake_capture)
+    monkeypatch.setattr(
+        "apps.core.tasks.logger.info",
+        lambda message, **kwargs: logs.append((message, kwargs)),
+    )
 
     result = track_event(
         profile_id=profile.id,
@@ -119,6 +124,18 @@ def test_track_event_does_not_set_person_properties_by_default(profile, monkeypa
     assert captured["properties"]["profile_id"] == profile.id
     assert captured["properties"]["repository_full_name"] == "django/django"
     assert "$set" not in captured["properties"]
+    assert logs == [
+        (
+            "[TrackEvent] Tracked event",
+            {
+                "profile_id": profile.id,
+                "distinct_id": str(profile.id),
+                "event_name": "repository_liked",
+                "properties": captured["properties"],
+                "source_function": None,
+            },
+        )
+    ]
 
 
 @pytest.mark.django_db
