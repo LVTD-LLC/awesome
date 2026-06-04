@@ -1,4 +1,4 @@
-from html import escape as html_escape
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -359,10 +359,16 @@ def repository_badge(request, owner: str, name: str):
         Repository.objects.annotate(awesome_count=Count("awesome_items", distinct=True)),
         full_name=f"{owner}/{name}",
     )
+    try:
+        days = int(request.GET.get("days", "7"))
+    except ValueError:
+        days = 7
     svg = repository_badge_svg(
         repository,
         metric=request.GET.get("metric", "stars"),
         theme=request.GET.get("theme", "light"),
+        variant=request.GET.get("variant", "history"),
+        days=days,
     )
     response = HttpResponse(svg, content_type="image/svg+xml; charset=utf-8")
     response["Cache-Control"] = "public, max-age=3600"
@@ -370,21 +376,67 @@ def repository_badge(request, owner: str, name: str):
     return response
 
 
-def repository_badge_embed_context(request, repository: Repository) -> dict[str, str]:
-    badge_url = request.build_absolute_uri(
-        reverse("repos:repo_badge", kwargs={"owner": repository.owner, "name": repository.name})
-    )
+REPOSITORY_BADGE_EMBED_OPTIONS = (
+    {
+        "key": "star-history",
+        "label": "Star history",
+        "query": {"metric": "stars"},
+    },
+    {
+        "key": "commit-history",
+        "label": "Commit history",
+        "query": {"metric": "commits"},
+    },
+    {
+        "key": "star-growth-7",
+        "label": "7-day star growth",
+        "query": {"metric": "stars", "variant": "growth", "days": "7"},
+    },
+    {
+        "key": "star-growth-30",
+        "label": "30-day star growth",
+        "query": {"metric": "stars", "variant": "growth", "days": "30"},
+    },
+    {
+        "key": "commit-velocity-7",
+        "label": "7-day commit velocity",
+        "query": {"metric": "commits", "variant": "growth", "days": "7"},
+    },
+    {
+        "key": "commit-velocity-30",
+        "label": "30-day commit velocity",
+        "query": {"metric": "commits", "variant": "growth", "days": "30"},
+    },
+)
+
+
+def repository_badge_url(request, repository: Repository, query: dict[str, str]) -> str:
+    path = reverse("repos:repo_badge", kwargs={"owner": repository.owner, "name": repository.name})
+    url = request.build_absolute_uri(path)
+    if query:
+        url = f"{url}?{urlencode(query)}"
+    return url
+
+
+def repository_badge_embed_context(request, repository: Repository) -> dict:
     detail_url = request.build_absolute_uri(repository.get_absolute_url())
-    alt_text = f"{repository.full_name} on Awesome"
-    markdown_alt = alt_text.replace("\\", "\\\\").replace("]", "\\]")
+    options = []
+    for option in REPOSITORY_BADGE_EMBED_OPTIONS:
+        badge_url = repository_badge_url(request, repository, option["query"])
+        alt_text = f"{repository.full_name} {option['label']} on Awesome"
+        markdown_alt = alt_text.replace("\\", "\\\\").replace("]", "\\]")
+        options.append(
+            {
+                "key": option["key"],
+                "label": option["label"],
+                "badge_url": badge_url,
+                "badge_markdown": f"[![{markdown_alt}]({badge_url})]({detail_url})",
+            }
+        )
+
     return {
-        "badge_url": badge_url,
-        "badge_markdown": f"[![{markdown_alt}]({badge_url})]({detail_url})",
-        "badge_html": (
-            f'<a href="{html_escape(detail_url, quote=True)}">'
-            f'<img src="{html_escape(badge_url, quote=True)}" '
-            f'alt="{html_escape(alt_text, quote=True)}"></a>'
-        ),
+        "primary": options[0],
+        "options": options,
     }
 
 

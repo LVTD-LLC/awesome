@@ -6202,6 +6202,78 @@ def test_repository_badge_svg_supports_commit_metric_and_escapes_metadata(client
 
 
 @pytest.mark.django_db
+def test_repository_badge_svg_renders_star_growth_periods(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=130,
+        commit_count=90,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=8),
+        stars=100,
+        commit_count=70,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=2),
+        stars=125,
+        commit_count=85,
+    )
+
+    response = client.get(
+        reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"}),
+        {"metric": "stars", "variant": "growth", "days": "7"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "7-day star growth" in content
+    assert "+30" in content
+    assert "stars in last 7 days" in content
+    assert "100 to 130" in content
+
+
+@pytest.mark.django_db
+def test_repository_badge_svg_renders_commit_velocity_periods(client):
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        stars=130,
+        commit_count=120,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=31),
+        stars=100,
+        commit_count=75,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=timezone.now() - timedelta(days=5),
+        stars=125,
+        commit_count=115,
+    )
+
+    response = client.get(
+        reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"}),
+        {"metric": "commits", "variant": "growth", "days": "30"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "30-day commit velocity" in content
+    assert "+45" in content
+    assert "commits in last 30 days" in content
+    assert "75 to 120" in content
+
+
+@pytest.mark.django_db
 def test_repository_detail_page_renders_share_badge_embed_snippets(client):
     Repository.objects.create(
         full_name="django/django",
@@ -6221,14 +6293,22 @@ def test_repository_detail_page_renders_share_badge_embed_snippets(client):
     assert response.status_code == 200
     badge_path = reverse("repos:repo_badge", kwargs={"owner": "django", "name": "django"})
     content = response.content.decode()
-    assert "Share badge" in content
-    assert f"http://testserver{badge_path}" in content
+    assert "Share badges" in content
+    assert "Star history" in content
+    assert "Commit history" in content
+    assert "7-day star growth" in content
+    assert "30-day star growth" in content
+    assert "7-day commit velocity" in content
+    assert "30-day commit velocity" in content
     assert (
-        f"[![django/django on Awesome](http://testserver{badge_path})]"
+        f"[![django/django Star history on Awesome](http://testserver{badge_path}?metric=stars)]"
         "(http://testserver/repos/django/django/)"
     ) in content
-    assert 'data-copy-source="#repo-badge-markdown"' in content
-    assert 'data-copy-source="#repo-badge-html"' in content
+    assert (
+        f"http://testserver{badge_path}?metric=commits&amp;variant=growth&amp;days=30"
+    ) in content
+    assert 'data-copy-source="#repo-badge-markdown-star-history"' in content
+    assert 'data-copy-source="#repo-badge-markdown-commit-velocity-30"' in content
 
 
 @pytest.mark.django_db

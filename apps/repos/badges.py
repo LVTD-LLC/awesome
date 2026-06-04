@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from xml.sax.saxutils import escape as xml_escape
+
+from django.utils import timezone
 
 if TYPE_CHECKING:
     from apps.repos.models import Repository
@@ -78,9 +81,28 @@ def repository_badge_svg(
     *,
     metric: str = "stars",
     theme: str = "light",
+    variant: str = "history",
+    days: int | None = None,
 ) -> str:
     metric_config = BADGE_METRICS.get(metric, BADGE_METRICS["stars"])
     colors = BADGE_THEMES.get(theme, BADGE_THEMES["light"])
+    if variant == "growth":
+        return _repository_growth_badge_svg(
+            repository,
+            metric_config,
+            colors=colors,
+            days=days or 7,
+        )
+
+    return _repository_history_badge_svg(repository, metric_config, colors=colors)
+
+
+def _repository_history_badge_svg(
+    repository: Repository,
+    metric_config: BadgeMetric,
+    *,
+    colors: dict[str, str],
+) -> str:
     history_values = _metric_history_values(repository, metric_config)
     current_value = _current_metric_value(repository, metric_config)
     current_label = _format_compact_number(current_value)
@@ -92,8 +114,6 @@ def repository_badge_svg(
     if repository.is_archived:
         secondary_parts.append("archived")
 
-    line_path = _sparkline_path(history_values)
-    area_path = _sparkline_area_path(line_path)
     minimum = min(history_values)
     maximum = max(history_values)
     range_label = _format_range(minimum, maximum)
@@ -106,6 +126,100 @@ def repository_badge_svg(
         f"{repository.full_name} has {_format_full_number(current_value)} {metric_label} "
         f"and appears in {awesome_list_count} awesome {_pluralize('list', awesome_list_count)}."
     )
+
+    return _render_badge_svg(
+        colors=colors,
+        full_name=full_name,
+        title=title,
+        description=description,
+        current_label=current_label,
+        metric_label=metric_label,
+        secondary_parts=secondary_parts,
+        chart_title=metric_config.title,
+        footer_left=history_label,
+        footer_right=range_label,
+        history_values=history_values,
+    )
+
+
+def _repository_growth_badge_svg(
+    repository: Repository,
+    metric_config: BadgeMetric,
+    *,
+    colors: dict[str, str],
+    days: int,
+) -> str:
+    period_days = 30 if days == 30 else 7
+    current_value = _current_metric_value(repository, metric_config)
+    baseline_snapshot = _period_baseline_snapshot(repository, metric_config, period_days)
+    baseline_value = (
+        int(getattr(baseline_snapshot, metric_config.snapshot_attr))
+        if baseline_snapshot is not None
+        else None
+    )
+    delta = current_value - baseline_value if baseline_value is not None else None
+    full_name = _truncate_text(repository.full_name, 34)
+    growth_name = "star growth" if metric_config.key == "stars" else "commit velocity"
+    metric_label = f"{metric_config.plural_label} in last {period_days} days"
+    chart_title = f"{period_days}-day {growth_name}"
+
+    if delta is None:
+        current_label = "n/a"
+        footer_left = "needs baseline capture"
+        footer_right = _format_full_number(current_value)
+        history_values = [current_value]
+        description_text = (
+            f"{repository.full_name} does not have enough tracked history for "
+            f"{period_days}-day {growth_name}."
+        )
+    else:
+        current_label = _format_signed_compact_number(delta)
+        footer_left = f"baseline {baseline_snapshot.captured_at:%Y-%m-%d}"
+        footer_right = (
+            f"{_format_full_number(baseline_value)} to {_format_full_number(current_value)}"
+        )
+        history_values = _period_metric_history_values(
+            repository,
+            metric_config,
+            baseline_snapshot=baseline_snapshot,
+            current_value=current_value,
+        )
+        description_text = (
+            f"{repository.full_name} changed by {_format_full_number(delta)} "
+            f"{metric_config.plural_label} over the last {period_days} days."
+        )
+
+    return _render_badge_svg(
+        colors=colors,
+        full_name=full_name,
+        title=_escape_text(f"{chart_title} for {repository.full_name}"),
+        description=_escape_text(description_text),
+        current_label=current_label,
+        metric_label=metric_label,
+        secondary_parts=_repository_secondary_parts(repository),
+        chart_title=chart_title,
+        footer_left=footer_left,
+        footer_right=footer_right,
+        history_values=history_values,
+    )
+
+
+def _render_badge_svg(
+    *,
+    colors: dict[str, str],
+    full_name: str,
+    title: str,
+    description: str,
+    current_label: str,
+    metric_label: str,
+    secondary_parts: list[str],
+    chart_title: str,
+    footer_left: str,
+    footer_right: str,
+    history_values: list[int],
+) -> str:
+    line_path = _sparkline_path(history_values)
+    area_path = _sparkline_area_path(line_path)
     last_x = _sparkline_last_x(history_values)
     last_y = _sparkline_last_y(history_values)
     mid_y = CHART_Y + CHART_HEIGHT / 2
@@ -158,15 +272,15 @@ def repository_badge_svg(
         ),
         (
             f'    <text x="{CHART_X}" y="34" font-size="14" font-weight="800" '
-            f'fill="{text}">{_escape_text(metric_config.title)}</text>'
+            f'fill="{text}">{_escape_text(chart_title)}</text>'
         ),
         (
             f'    <text x="{CHART_X}" y="160" font-size="12" font-weight="600" '
-            f'fill="{muted}">{_escape_text(history_label)}</text>'
+            f'fill="{muted}">{_escape_text(footer_left)}</text>'
         ),
         (
             f'    <text x="{chart_right}" y="160" text-anchor="end" font-size="12" '
-            f'font-weight="600" fill="{muted}">{_escape_text(range_label)}</text>'
+            f'font-weight="600" fill="{muted}">{_escape_text(footer_right)}</text>'
         ),
         (
             f'    <rect x="{CHART_X}" y="{CHART_Y}" width="{CHART_WIDTH}" '
@@ -189,6 +303,16 @@ def repository_badge_svg(
     return "\n".join(svg_lines)
 
 
+def _repository_secondary_parts(repository: Repository) -> list[str]:
+    awesome_list_count = _awesome_list_count(repository)
+    secondary_parts = [f"{awesome_list_count} awesome {_pluralize('list', awesome_list_count)}"]
+    if repository.language:
+        secondary_parts.append(repository.language)
+    if repository.is_archived:
+        secondary_parts.append("archived")
+    return secondary_parts
+
+
 def _metric_history_values(repository: Repository, metric: BadgeMetric) -> list[int]:
     snapshots = list(
         repository.snapshots.order_by("-captured_at", "-id").only(
@@ -205,6 +329,43 @@ def _metric_history_values(repository: Repository, metric: BadgeMetric) -> list[
     current_value = _current_metric_value(repository, metric)
     if not values:
         return [current_value]
+    if values[-1] != current_value:
+        values.append(current_value)
+    return values
+
+
+def _period_baseline_snapshot(repository: Repository, metric: BadgeMetric, days: int):
+    cutoff = timezone.now() - timedelta(days=days)
+    return (
+        repository.snapshots.filter(
+            captured_at__lte=cutoff,
+            **{f"{metric.snapshot_attr}__isnull": False},
+        )
+        .order_by("-captured_at", "-id")
+        .only("captured_at", "stars", "commit_count")
+        .first()
+    )
+
+
+def _period_metric_history_values(
+    repository: Repository,
+    metric: BadgeMetric,
+    *,
+    baseline_snapshot,
+    current_value: int,
+) -> list[int]:
+    snapshots = list(
+        repository.snapshots.filter(
+            captured_at__gte=baseline_snapshot.captured_at,
+            **{f"{metric.snapshot_attr}__isnull": False},
+        )
+        .order_by("captured_at", "id")
+        .only("captured_at", "stars", "commit_count")[:BADGE_HISTORY_LIMIT]
+    )
+    values = [int(getattr(snapshot, metric.snapshot_attr)) for snapshot in snapshots]
+    baseline_value = int(getattr(baseline_snapshot, metric.snapshot_attr))
+    if not values or values[0] != baseline_value:
+        values.insert(0, baseline_value)
     if values[-1] != current_value:
         values.append(current_value)
     return values
@@ -236,6 +397,12 @@ def _format_compact_number(value: int) -> str:
     if absolute >= 1_000:
         return f"{_format_compact_decimal(value / 1_000)}k"
     return str(value)
+
+
+def _format_signed_compact_number(value: int) -> str:
+    if value > 0:
+        return f"+{_format_compact_number(value)}"
+    return _format_compact_number(value)
 
 
 def _format_compact_decimal(value: float) -> str:
