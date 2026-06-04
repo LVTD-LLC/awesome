@@ -53,7 +53,8 @@ class RepositorySitemap(ConfiguredDomainSitemap):
             .values("repo_full_name")
         )
         return (
-            Repository.objects.exclude(is_awesome_list_candidate=True)
+            Repository.objects.filter(is_archived=False, is_disabled=False)
+            .exclude(is_awesome_list_candidate=True)
             .exclude(full_name__in=active_list_source_repositories)
             .order_by("id")
         )

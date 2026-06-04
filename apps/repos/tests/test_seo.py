@@ -151,6 +151,22 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         url="https://github.com/django/django",
         description="The Web framework for perfectionists with deadlines.",
     )
+    Repository.objects.create(
+        full_name="django/channels",
+        owner="django",
+        name="channels",
+        url="https://github.com/django/channels",
+        description="Archived Django Channels repository.",
+        is_archived=True,
+    )
+    Repository.objects.create(
+        full_name="django/disabled",
+        owner="django",
+        name="disabled",
+        url="https://github.com/django/disabled",
+        description="Disabled Django repository.",
+        is_disabled=True,
+    )
     AwesomeList.objects.create(
         name="Awesome Django",
         slug="awesome-django",
@@ -165,4 +181,6 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
     assert "<loc>https://awesome.example/</loc>" in content
     assert "<loc>https://awesome.example/lists/</loc>" in content
     assert "<loc>https://awesome.example/repos/django/django/</loc>" in content
+    assert "<loc>https://awesome.example/repos/django/channels/</loc>" not in content
+    assert "<loc>https://awesome.example/repos/django/disabled/</loc>" not in content
     assert "<loc>https://awesome.example/lists/awesome-django/</loc>" in content
