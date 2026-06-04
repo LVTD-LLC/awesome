@@ -92,13 +92,33 @@ def _track_purchase_completed(*, session, product: str, profile: Profile | None 
     )
 
 
+def _profile_for_checkout_session(session, expected_user_id=None) -> Profile | None:
+    client_reference_id = session.get("client_reference_id")
+    if not client_reference_id:
+        return None
+
+    try:
+        user_id = int(client_reference_id)
+    except (TypeError, ValueError):
+        return None
+
+    if expected_user_id is not None and user_id != expected_user_id:
+        return None
+
+    return Profile.objects.filter(user_id=user_id).first()
+
+
 def _handle_completed_checkout_session(session) -> None:
     metadata = session.get("metadata", {})
     if metadata.get("app") == "awesome" and metadata.get("kind", "sponsor_ads") == "sponsor_ads":
         purchase = upsert_purchase_from_checkout_session(session)
         if purchase.status in {SponsorAdPurchase.Status.PAID, SponsorAdPurchase.Status.ACTIVE}:
             notify_sponsor_payment(purchase)
-            _track_purchase_completed(session=session, product="sponsor_ads")
+            _track_purchase_completed(
+                session=session,
+                product="sponsor_ads",
+                profile=_profile_for_checkout_session(session),
+            )
     elif metadata.get("app") == "awesome" and metadata.get("kind") == "highlighted_repo":
         purchase = upsert_highlighted_repo_from_checkout_session(session)
         if purchase.status in {
@@ -106,7 +126,11 @@ def _handle_completed_checkout_session(session) -> None:
             HighlightedRepoPurchase.Status.ACTIVE,
         }:
             notify_highlighted_repo_payment(purchase)
-            _track_purchase_completed(session=session, product="highlighted_repo")
+            _track_purchase_completed(
+                session=session,
+                product="highlighted_repo",
+                profile=_profile_for_checkout_session(session),
+            )
     elif metadata.get("app") == "awesome" and metadata.get("kind") == "remove_ads":
         profile = enable_remove_ads_for_checkout_session(session)
         if profile is not None:
@@ -239,19 +263,7 @@ def enable_remove_ads_for_checkout_session(session, expected_user_id=None):
     if session.get("payment_status") != "paid":
         return None
 
-    client_reference_id = session.get("client_reference_id")
-    if not client_reference_id:
-        return None
-
-    try:
-        user_id = int(client_reference_id)
-    except (TypeError, ValueError):
-        return None
-
-    if expected_user_id is not None and user_id != expected_user_id:
-        return None
-
-    profile = Profile.objects.filter(user_id=user_id).first()
+    profile = _profile_for_checkout_session(session, expected_user_id=expected_user_id)
     if profile is None:
         return None
 

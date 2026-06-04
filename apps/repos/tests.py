@@ -5096,6 +5096,48 @@ def test_authenticated_user_can_toggle_repository_like_with_htmx(auth_client, us
 
 
 @pytest.mark.django_db
+def test_repository_search_tracks_first_page_only(auth_client, user, monkeypatch):
+    for index in range(31):
+        Repository.objects.create(
+            full_name=f"example/repo-{index}",
+            owner="example",
+            name=f"repo-{index}",
+            url=f"https://github.com/example/repo-{index}",
+            description="A framework for testing.",
+        )
+    events = []
+    monkeypatch.setattr(
+        "apps.repos.views.queue_track_event", lambda **kwargs: events.append(kwargs)
+    )
+
+    response = auth_client.get(reverse("repos:search"), {"q": "framework"})
+
+    assert response.status_code == 200
+    assert events == [
+        {
+            "event_name": "search_performed",
+            "profile_id": user.profile.id,
+            "properties": {
+                "query": "framework",
+                "mode": "",
+                "results_count": 31,
+                "sort": "",
+                "sort_direction": "",
+                "search_scope": "public_repositories",
+                "filters_applied": True,
+            },
+            "source_function": "RepositorySearchView",
+        }
+    ]
+
+    events.clear()
+    response = auth_client.get(reverse("repos:search"), {"q": "framework", "page": "2"})
+
+    assert response.status_code == 200
+    assert events == []
+
+
+@pytest.mark.django_db
 def test_repository_like_queues_analytics_event(auth_client, user, monkeypatch):
     repo = Repository.objects.create(
         full_name="django/django",

@@ -622,10 +622,11 @@ class RepositorySearchView(ListView):
         context["repositories"] = attach_repository_snapshot_counts(context["repositories"])
         context["object_list"] = context["repositories"]
         context["page_obj"].object_list = context["repositories"]
+        search_page = self.request.GET.get("page") or "1"
         if self.request.user.is_authenticated and repository_filters_applied(
             self.request.GET,
             include_sort=True,
-        ):
+        ) and search_page == "1":
             params = repository_search_params(self.request)
             queue_track_event(
                 event_name="search_performed",

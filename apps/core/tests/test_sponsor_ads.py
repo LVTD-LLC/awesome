@@ -206,7 +206,15 @@ class TestSponsorAdsCheckout:
         assert response.status_code == 403
 
     @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
-    def test_webhook_marks_purchase_paid_and_sends_notification(self, client, monkeypatch):
+    def test_webhook_marks_purchase_paid_and_sends_notification(
+        self,
+        client,
+        django_user_model,
+        monkeypatch,
+    ):
+        user = django_user_model.objects.create_user(username="buyer", password="pw")
+        profile = user.profile
+        events = []
         event = {
             "type": "checkout.session.completed",
             "data": {
@@ -218,6 +226,7 @@ class TestSponsorAdsCheckout:
                     "customer": "cus_123",
                     "payment_intent": "pi_123",
                     "customer_details": {"email": "buyer@example.com", "name": "Buyer"},
+                    "client_reference_id": str(user.id),
                     "metadata": {"app": "awesome"},
                 }
             },
@@ -230,6 +239,10 @@ class TestSponsorAdsCheckout:
         monkeypatch.setattr(
             "apps.core.views.notify_sponsor_payment",
             lambda purchase: notified.append(purchase.id),
+        )
+        monkeypatch.setattr(
+            "apps.core.views.queue_track_event",
+            lambda **kwargs: events.append(kwargs),
         )
 
         response = client.post(
@@ -244,6 +257,20 @@ class TestSponsorAdsCheckout:
         assert purchase.status == SponsorAdPurchase.Status.PAID
         assert purchase.buyer_email == "buyer@example.com"
         assert notified == [purchase.id]
+        assert events == [
+            {
+                "event_name": "purchase_completed",
+                "profile_id": profile.id,
+                "distinct_id": "stripe_checkout:cs_test_paid",
+                "properties": {
+                    "product": "sponsor_ads",
+                    "value": 1000,
+                    "currency": "usd",
+                    "transaction_id": "cs_test_paid",
+                },
+                "source_function": "sponsor_ads checkout completion",
+            }
+        ]
 
 
 @pytest.mark.django_db
@@ -381,9 +408,12 @@ class TestHighlightedRepoCheckout:
         assert active_highlighted_repo(None) == {"awesome_highlighted_repo": None}
 
     @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
-    def test_webhook_routes_highlighted_repo_payment(self, client, monkeypatch):
+    def test_webhook_routes_highlighted_repo_payment(self, client, django_user_model, monkeypatch):
         from apps.core.models import HighlightedRepoPurchase, SponsorAdPurchase
 
+        user = django_user_model.objects.create_user(username="buyer", password="pw")
+        profile = user.profile
+        events = []
         event = {
             "type": "checkout.session.completed",
             "data": {
@@ -393,6 +423,7 @@ class TestHighlightedRepoCheckout:
                     "amount_total": 50000,
                     "currency": "usd",
                     "customer_details": {"email": "buyer@example.com"},
+                    "client_reference_id": str(user.id),
                     "metadata": {"app": "awesome", "kind": "highlighted_repo"},
                 }
             },
@@ -405,6 +436,10 @@ class TestHighlightedRepoCheckout:
         monkeypatch.setattr(
             "apps.core.views.notify_highlighted_repo_payment",
             lambda purchase: notified.append(purchase.id),
+        )
+        monkeypatch.setattr(
+            "apps.core.views.queue_track_event",
+            lambda **kwargs: events.append(kwargs),
         )
 
         response = client.post(
@@ -423,6 +458,20 @@ class TestHighlightedRepoCheckout:
             stripe_checkout_session_id="cs_test_highlight_paid"
         ).exists()
         assert len(notified) == 1
+        assert events == [
+            {
+                "event_name": "purchase_completed",
+                "profile_id": profile.id,
+                "distinct_id": "stripe_checkout:cs_test_highlight_paid",
+                "properties": {
+                    "product": "highlighted_repo",
+                    "value": 500,
+                    "currency": "usd",
+                    "transaction_id": "cs_test_highlight_paid",
+                },
+                "source_function": "highlighted_repo checkout completion",
+            }
+        ]
 
 
 @pytest.mark.django_db
