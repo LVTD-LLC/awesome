@@ -74,6 +74,7 @@ quote-style = "double"
 [tool.djlint]
 profile="django"
 ignore = "H031,H006,H023,H021,H011,T002"
+per-file-ignores = { "frontend/templates/base_app.html" = "H016,H030", "frontend/templates/base_landing.html" = "H016,H030" }
 
 [build-system]
 requires = ["setuptools>=68"]
