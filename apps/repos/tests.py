@@ -5525,6 +5525,8 @@ def test_awesome_list_list_page_renders_activity_metrics(client):
 
     assert response.status_code == 200
     assert {"label": "History", "value": "10+ years old"} in response.context["active_list_filters"]
+    assert {"label": "Sort", "value": "Oldest first commit"} in response.context["active_list_filters"]
+    assert response.context["selected_list_sort_label"] == "Oldest first commit"
     assert response.context["awesome_lists"][0].indexed_repo_count == 1
     assert response.context["total_indexed_links"] == 1
     assert b"Awesome Django" in response.content
