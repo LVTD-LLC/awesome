@@ -42,6 +42,7 @@ from apps.repos.search_services import (
     visible_awesome_list_item_count,
 )
 from apps.repos.services import (
+    RECENT_REPOSITORY_GROWTH_DAYS,
     annotate_repository_recent_growth_metrics,
     awesome_list_directory_totals,
     awesome_list_history_chart_data,
@@ -631,6 +632,7 @@ def repository_filter_context(
         "show_search_mode": show_search_mode,
         "search_action_url": search_url,
         "search_reset_url": reset_url,
+        "recent_repository_growth_days": RECENT_REPOSITORY_GROWTH_DAYS,
     }
 
 

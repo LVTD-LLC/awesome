@@ -16,8 +16,12 @@ from apps.repos.search_services import (
     search_awesome_lists_payload,
     search_repositories_payload,
 )
+from apps.repos.services import RECENT_REPOSITORY_GROWTH_DAYS
 
 READ_ONLY_TOOL = ToolAnnotations(readOnlyHint=True, idempotentHint=True)
+RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION = (
+    f"latest {RECENT_REPOSITORY_GROWTH_DAYS}-day capture window"
+)
 
 
 def _safe_payload(payload: dict) -> dict:
@@ -82,8 +86,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             int | None,
             Field(
                 description=(
-                    "Minimum observed GitHub star growth percentage in the latest "
-                    "7-day capture window."
+                    "Minimum observed GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
@@ -93,7 +97,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             Field(
                 description=(
                     "Legacy alias for min_star_growth_percent; filters by tracked "
-                    "GitHub star growth percentage in the latest 7-day capture window."
+                    "GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
@@ -277,8 +282,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             int | None,
             Field(
                 description=(
-                    "Minimum observed GitHub star growth percentage in the latest "
-                    "7-day capture window."
+                    "Minimum observed GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
@@ -288,7 +293,8 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             Field(
                 description=(
                     "Legacy alias for min_star_growth_percent; filters by tracked "
-                    "GitHub star growth percentage in the latest 7-day capture window."
+                    "GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
