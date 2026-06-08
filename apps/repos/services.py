@@ -57,7 +57,6 @@ RepositorySortMap = Mapping[str, tuple[str, RepositorySortDirection]]
 GITHUB_API_VERSION = "2026-03-10"
 GITHUB_DEFAULT_ACCEPT = "application/vnd.github+json"
 GITHUB_STARRED_ACCEPT = "application/vnd.github.star+json"
-REPOSITORY_RECENT_GROWTH_DAYS = 7
 
 GITHUB_REPO_RE = re.compile(
     r"https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)(?:[/#?][^\s)\]>'\"]*)?",
@@ -2452,7 +2451,7 @@ def _annotate_repository_snapshot_metrics(qs):
     )
     recent_growth_window_start = models.ExpressionWrapper(
         models.OuterRef("latest_snapshot_captured_at")
-        - models.Value(timezone.timedelta(days=REPOSITORY_RECENT_GROWTH_DAYS)),
+        - models.Value(timezone.timedelta(days=RECENT_REPOSITORY_GROWTH_DAYS)),
         output_field=models.DateTimeField(),
     )
     recent_baseline_snapshot = RepositorySnapshot.objects.filter(
