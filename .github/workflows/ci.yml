@@ -78,7 +78,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: ESLint
         run: npm run lint

@@ -225,7 +225,7 @@ class Repository(BaseModel):
         full_name: str,
         *,
         github_access_token: str | None = None,
-    ) -> Repository:
+    ) -> "Repository":
         from apps.repos.services import upsert_repository_from_github
 
         return upsert_repository_from_github(full_name, github_access_token=github_access_token)

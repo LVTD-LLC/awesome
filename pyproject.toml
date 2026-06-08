@@ -42,7 +42,7 @@ dependencies = [
 dev = [
     "djlint>=1.36.4",
     "pre-commit>=4.6.0",
-    "ruff>=0.15.12",
+    "ruff>=0.15.14",
     "ty>=0.0.34",
 ]
 
@@ -53,6 +53,8 @@ required-environments = [
 
 [tool.ruff]
 line-length = 100
+# Avoid emitting Python 3.14-only formatting that external review tooling may not parse yet.
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
