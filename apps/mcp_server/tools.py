@@ -16,8 +16,12 @@ from apps.repos.search_services import (
     search_awesome_lists_payload,
     search_repositories_payload,
 )
+from apps.repos.services import RECENT_REPOSITORY_GROWTH_DAYS
 
 READ_ONLY_TOOL = ToolAnnotations(readOnlyHint=True, idempotentHint=True)
+RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION = (
+    f"latest {RECENT_REPOSITORY_GROWTH_DAYS}-day capture window"
+)
 
 
 def _safe_payload(payload: dict) -> dict:
@@ -80,14 +84,21 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         min_velocity_percent: Annotated[int | None, Field(ge=0)] = None,
         min_star_growth_percent: Annotated[
             int | None,
-            Field(description="Minimum tracked GitHub star growth percentage.", ge=0),
+            Field(
+                description=(
+                    "Minimum observed GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
+                ),
+                ge=0,
+            ),
         ] = None,
         min_liability_percent: Annotated[
             int | None,
             Field(
                 description=(
                     "Legacy alias for min_star_growth_percent; filters by tracked "
-                    "GitHub star growth percentage."
+                    "GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
@@ -269,14 +280,21 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
         min_velocity_percent: Annotated[int | None, Field(ge=0)] = None,
         min_star_growth_percent: Annotated[
             int | None,
-            Field(description="Minimum tracked GitHub star growth percentage.", ge=0),
+            Field(
+                description=(
+                    "Minimum observed GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
+                ),
+                ge=0,
+            ),
         ] = None,
         min_liability_percent: Annotated[
             int | None,
             Field(
                 description=(
                     "Legacy alias for min_star_growth_percent; filters by tracked "
-                    "GitHub star growth percentage."
+                    "GitHub star growth percentage in the "
+                    f"{RECENT_REPOSITORY_GROWTH_WINDOW_DESCRIPTION}."
                 ),
                 ge=0,
             ),
