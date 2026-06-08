@@ -7,7 +7,7 @@ import os
 import re
 import time
 from collections.abc import Collection, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlparse
@@ -1772,7 +1772,7 @@ def awesome_list_repository_history_chart_data(
     if limit <= 0:
         return []
 
-    cutoff = timezone.now() - timezone.timedelta(days=limit)
+    cutoff = timezone.now() - timedelta(days=limit)
     list_snapshots = RepositorySnapshot.objects.filter(
         repository__awesome_items__awesome_list=awesome_list
     )
@@ -2354,10 +2354,10 @@ def _apply_repository_state_filters(qs, params):
         else None
     )
     if updated_days and updated_days <= MAX_UPDATED_DAYS_FILTER and not valid_unmaintained_days:
-        cutoff = timezone.now() - timezone.timedelta(days=updated_days)
+        cutoff = timezone.now() - timedelta(days=updated_days)
         qs = qs.filter(github_pushed_at__gte=cutoff)
     if valid_unmaintained_days:
-        cutoff = timezone.now() - timezone.timedelta(days=valid_unmaintained_days)
+        cutoff = timezone.now() - timedelta(days=valid_unmaintained_days)
         qs = qs.filter(github_pushed_at__lte=cutoff)
     age_cutoff = minimum_age_cutoff(params)
     if age_cutoff:
@@ -2506,15 +2506,18 @@ def _annotate_repository_snapshot_metrics(qs):
     )
 
 
-def annotate_repository_recent_growth_metrics(qs, *, days: int = RECENT_REPOSITORY_GROWTH_DAYS):
-    cutoff = timezone.now() - timezone.timedelta(days=days)
+def annotate_repository_recent_growth_metrics(qs):
+    cutoff = timezone.now() - timedelta(days=RECENT_REPOSITORY_GROWTH_DAYS)
     recent_snapshot = RepositorySnapshot.objects.filter(
         repository=models.OuterRef("pk"),
         captured_at__gte=cutoff,
     ).order_by("captured_at", "id")
     return (
         qs.annotate(
-            growth_window_days=models.Value(days, output_field=models.IntegerField()),
+            growth_window_days=models.Value(
+                RECENT_REPOSITORY_GROWTH_DAYS,
+                output_field=models.IntegerField(),
+            ),
             growth_baseline_7d_at=models.Subquery(
                 recent_snapshot.values("captured_at")[:1],
                 output_field=models.DateTimeField(),
