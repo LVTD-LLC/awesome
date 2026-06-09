@@ -113,7 +113,7 @@
                     <div>
                         <dt class="font-medium text-gray-500 dark:text-gray-400">Issues</dt>
                         <dd class="mt-0.5 font-semibold text-gray-900 dark:text-gray-100">
-                            {{ repo.open_issues|intcomma }} open
+                            {{ repo|repository_issues_label }}
                         </dd>
                     </div>
                 </dl>

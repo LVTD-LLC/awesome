@@ -1514,6 +1514,41 @@ def test_package_manager_label_template_filter_formats_slugs():
     assert rendered == "Go modules"
 
 
+def test_repository_issues_label_template_filter_formats_issue_states():
+    template = Template("{% load repo_stack_tags %}{{ repo|repository_issues_label }}")
+
+    assert (
+        template.render(
+            Context(
+                {
+                    "repo": SimpleNamespace(
+                        open_issues=12,
+                        raw={"has_issues": True, "open_issues_count": 12},
+                    )
+                }
+            )
+        )
+        == "12 open"
+    )
+    assert (
+        template.render(
+            Context(
+                {
+                    "repo": SimpleNamespace(
+                        open_issues=0,
+                        raw={"has_issues": False, "open_issues_count": 0},
+                    )
+                }
+            )
+        )
+        == "Disabled"
+    )
+    assert (
+        template.render(Context({"repo": SimpleNamespace(open_issues=0, raw={})}))
+        == "Unknown"
+    )
+
+
 def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch):
     monkeypatch.setattr(
         "apps.repos.services.fetch_json",
@@ -5136,6 +5171,7 @@ def test_search_page_renders(client):
         stars=80000,
         commit_count=90100,
         open_issues=12,
+        raw={"has_issues": True, "open_issues_count": 12},
     )
     RepositorySnapshot.objects.create(
         repository=repo,
