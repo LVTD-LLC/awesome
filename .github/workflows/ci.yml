@@ -67,7 +67,21 @@ jobs:
         run: uv python install 3.14
 
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --locked
+
+      - name: Pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
 
       - name: Create dummy webpack manifest (tests)
         run: |

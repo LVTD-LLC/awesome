@@ -5165,13 +5165,11 @@ def test_search_page_renders(client):
     assert b"Commit velocity" in content
     assert b"What does Commit velocity mean?" in content
     assert (
-        b"observed commit-count growth over the repository's latest 7-day capture window"
-        in content
+        b"observed commit-count growth over the repository's latest 7-day capture window" in content
     )
     assert b"What does Star growth mean?" in content
     assert (
-        b"observed GitHub star growth over the repository's latest 7-day capture window"
-        in content
+        b"observed GitHub star growth over the repository's latest 7-day capture window" in content
     )
     assert b"Direction" in content
     assert_option_label_with_count(content, "django", 1)
