@@ -1517,33 +1517,13 @@ def test_package_manager_label_template_filter_formats_slugs():
 def test_repository_issues_label_template_filter_formats_issue_states():
     template = Template("{% load repo_stack_tags %}{{ repo|repository_issues_label }}")
 
-    assert (
-        template.render(
-            Context(
-                {
-                    "repo": SimpleNamespace(
-                        open_issues=12,
-                        raw={"has_issues": True, "open_issues_count": 12},
-                    )
-                }
-            )
-        )
-        == "12 open"
-    )
-    assert (
-        template.render(
-            Context(
-                {
-                    "repo": SimpleNamespace(
-                        open_issues=0,
-                        raw={"has_issues": False, "open_issues_count": 0},
-                    )
-                }
-            )
-        )
-        == "Disabled"
-    )
-    assert template.render(Context({"repo": SimpleNamespace(open_issues=0, raw={})})) == "Unknown"
+    def render_issues_label(open_issues, raw):
+        return template.render(Context({"repo": SimpleNamespace(open_issues=open_issues, raw=raw)}))
+
+    assert render_issues_label(12, {"has_issues": True, "open_issues_count": 12}) == "12 open"
+    assert render_issues_label(0, {"has_issues": True, "open_issues_count": 0}) == "0 open"
+    assert render_issues_label(0, {"has_issues": False, "open_issues_count": 0}) == ("Disabled")
+    assert render_issues_label(0, {}) == "Unknown"
 
 
 def test_fetch_repository_tree_items_rejects_truncated_github_trees(monkeypatch):
