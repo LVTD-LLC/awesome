@@ -376,14 +376,13 @@
                                     </span>
                                 {% endif %}
                             </div>
-                            {# Keep the compact limit below in sync across slice, guard, and overflow count. #}
                             <ul class="mt-3 flex flex-wrap gap-1.5 text-xs text-gray-600 dark:text-gray-300">
-                                {% for dependency_file in repository_dependency_files|slice:":8" %}
+                                {% for dependency_file in repository_visible_dependency_files %}
                                     <li class="min-w-0 max-w-full"
                                         title="{{ dependency_file.path }} · {{ dependency_file.ecosystem }} · {{ dependency_file.dependency_count }} dependenc{{ dependency_file.dependency_count|pluralize:'y,ies' }}">
-                                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 dark:border-gray-800 dark:bg-gray-900/70"
-                                              aria-label="{{ dependency_file.path }} · {{ dependency_file.ecosystem }} · {{ dependency_file.dependency_count }} dependenc{{ dependency_file.dependency_count|pluralize:'y,ies' }}">
+                                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 dark:border-gray-800 dark:bg-gray-900/70">
                                             <code class="min-w-0 max-w-40 truncate bg-transparent p-0 font-mono text-[11px] font-semibold text-gray-900 dark:text-gray-100">{{ dependency_file.path }}</code>
+                                            <span class="sr-only"> {{ dependency_file.ecosystem }} ecosystem, </span>
                                             <span class="shrink-0 rounded bg-white px-1 text-[10px] font-bold leading-4 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
                                                 {{ dependency_file.dependency_count }}<span class="sr-only"> dependenc{{ dependency_file.dependency_count|pluralize:'y,ies' }}</span>
                                             </span>
@@ -392,12 +391,10 @@
                                 {% empty %}
                                     <li class="rounded-xl border border-dashed border-gray-300 p-3 text-gray-500 dark:border-gray-700 dark:text-gray-400">No dependency manifests detected.</li>
                                 {% endfor %}
-                                {% if repository_detail_summary.dependency_file_count > 8 %}
-                                    {% with hidden_dependency_file_count=repository_detail_summary.dependency_file_count|add:"-8" %}
-                                        <li class="inline-flex items-center rounded-md border border-dashed border-gray-300 px-1.5 py-0.5 text-xs font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                                            {{ hidden_dependency_file_count }} more file{{ hidden_dependency_file_count|pluralize }}
-                                        </li>
-                                    {% endwith %}
+                                {% if repository_hidden_dependency_file_count %}
+                                    <li class="inline-flex items-center rounded-md border border-dashed border-gray-300 px-1.5 py-0.5 text-xs font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                        {{ repository_hidden_dependency_file_count }} more file{{ repository_hidden_dependency_file_count|pluralize }}
+                                    </li>
                                 {% endif %}
                             </ul>
                             {% if repository.stack_detection_last_error %}

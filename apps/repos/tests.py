@@ -6525,6 +6525,8 @@ def test_repository_detail_page_uses_normalized_dependency_file_count(client):
 
     assert response.status_code == 200
     assert len(response.context["repository_dependency_files"]) == 13
+    assert len(response.context["repository_visible_dependency_files"]) == 8
+    assert response.context["repository_hidden_dependency_file_count"] == 5
     assert response.context["repository_detail_summary"]["dependency_file_count"] == 13
     content = response.content.decode()
     assert "13 manifests" in content
@@ -6604,6 +6606,8 @@ def test_repository_badge_svg_supports_commit_metric_and_escapes_metadata(client
     )
 
     assert response.status_code == 200
+    assert len(response.context["repository_visible_dependency_files"]) == 8
+    assert response.context["repository_hidden_dependency_file_count"] == 1
     content = response.content.decode()
     assert "Commit history" in content
     assert "commits" in content
