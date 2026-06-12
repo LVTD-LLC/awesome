@@ -73,6 +73,31 @@ select = [
 [tool.ruff.format]
 quote-style = "double"
 
+[tool.pyscn.output]
+directory = ".pyscn/reports"
+
+[tool.pyscn.analysis]
+exclude_patterns = [
+    "**/migrations/**",
+    "**/tests/**",
+    "**/tests.py",
+    "apps/*/tests.py",
+    "tests.py",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/__pycache__/**",
+    ".venv/**",
+    "venv/**",
+    "env/**",
+]
+
+[tool.pyscn.complexity]
+max_complexity = 15
+
+[tool.pyscn.clones]
+min_lines = 20
+similarity_threshold = 0.90
+
 [tool.djlint]
 profile="django"
 ignore = "H031,H006,H023,H021,H011,T002"
