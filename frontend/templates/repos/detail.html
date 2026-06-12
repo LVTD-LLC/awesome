@@ -497,7 +497,7 @@
                                             {% if signal.url %}
                                                 <a href="{{ signal.url }}"
                                                    target="_blank"
-                                                   rel="noopener"
+                                                   rel="noopener noreferrer"
                                                    class="min-w-0 flex-1 truncate rounded bg-white px-1.5 py-0.5 font-mono text-xs text-green-700 ring-1 ring-gray-200 hover:underline dark:bg-gray-950 dark:text-green-300 dark:ring-gray-800"
                                                    title="{{ signal.path }}">{{ signal.path }}</a>
                                             {% else %}
@@ -526,7 +526,7 @@
                                                 {% if signal.url %}
                                                     <a href="{{ signal.url }}"
                                                        target="_blank"
-                                                       rel="noopener"
+                                                       rel="noopener noreferrer"
                                                        class="min-w-0 flex-1 truncate rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-green-700 hover:underline dark:bg-gray-900 dark:text-green-300"
                                                        title="{{ signal.path }}">{{ signal.path }}</a>
                                                 {% else %}

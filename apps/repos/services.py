@@ -2312,6 +2312,40 @@ def repository_has_file_filters(params) -> list[str]:
     return selected
 
 
+def _apply_repository_has_file_filter(qs, file_path: str):
+    table_name = connection.ops.quote_name(Repository._meta.db_table)
+    column_name = connection.ops.quote_name(
+        Repository._meta.get_field("ai_development_signals").column
+    )
+    normalized_file_path = file_path.lower()
+    signal_path = "lower(signal.value ->> 'path')"
+    if "/" in normalized_file_path:
+        match_sql = f"{signal_path} = %s"
+        params = [normalized_file_path]
+    else:
+        match_sql = f"({signal_path} = %s OR {signal_path} LIKE %s)"
+        params = [normalized_file_path, f"%/{normalized_file_path}"]
+
+    return qs.extra(
+        where=[
+            f"""
+            EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(
+                    CASE
+                        WHEN jsonb_typeof({table_name}.{column_name}) = 'array'
+                        THEN {table_name}.{column_name}
+                        ELSE '[]'::jsonb
+                    END
+                ) AS signal(value)
+                WHERE {match_sql}
+            )
+            """
+        ],
+        params=params,
+    )
+
+
 def minimum_age_cutoff(params, name: str = "min_age_years"):
     years = _positive_int_param(params, name)
     if not years or years > MAX_AGE_YEARS_FILTER:
@@ -2383,7 +2417,7 @@ def _apply_repository_taxonomy_filters(qs, params, *, allow_list_filter: bool):
     if package_manager:
         qs = qs.filter(package_managers__contains=[package_manager])
     for file_path in repository_has_file_filters(params):
-        qs = qs.filter(ai_development_signals__contains=[{"path": file_path}])
+        qs = _apply_repository_has_file_filter(qs, file_path)
     return qs
 
 

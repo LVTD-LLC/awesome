@@ -4090,12 +4090,29 @@ def test_repository_search_filters_by_required_files_with_and_logic():
             }
         ],
     )
+    lowercase_subdirectory = Repository.objects.create(
+        full_name="owner/lowercase-subdirectory",
+        owner="owner",
+        name="lowercase-subdirectory",
+        url="https://github.com/owner/lowercase-subdirectory",
+        stars=5,
+        uses_ai_for_development=True,
+        ai_development_signals=[
+            {
+                "path": "docs/design.md",
+                "kind": "file",
+                "tool": "Project docs",
+                "signal": "project_design_doc",
+            }
+        ],
+    )
 
     params = QueryDict("", mutable=True)
     params.setlist("has_file", ["AGENTS.md", "CLAUDE.md"])
 
     assert list(repository_search_queryset(params)) == [matching]
     assert list(repository_search_queryset({"has_file": ["AGENTS.md", "CLAUDE.md"]})) == [matching]
+    assert list(repository_search_queryset({"has_file": ["DESIGN.md"]})) == [lowercase_subdirectory]
 
 
 @pytest.mark.django_db
