@@ -88,7 +88,8 @@
             <footer class="bg-white dark:bg-gray-950">
                 <div class="px-6 py-12 mx-auto max-w-[104rem] md:flex md:items-center md:justify-between lg:px-8">
                     <div class="flex justify-center space-x-6 md:order-2">
-                        <a href="/mcp-server"
+                        {% url 'mcp' as mcp_url %}
+                        <a href="{{ mcp_url|default:'/mcp-server' }}"
                            class="text-sm leading-6 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100">
                             MCP
                         </a>

@@ -1,5 +1,6 @@
 {% load static socialaccount %}
 {% with current_namespace=request.resolver_match.namespace current_name=request.resolver_match.url_name %}
+    {% url 'mcp' as mcp_url %}
     <header class="sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-950/90">
         <div class="mx-auto w-full max-w-[104rem] px-4 sm:px-6 lg:px-8">
             <div class="flex min-h-20 items-center gap-3">
@@ -66,7 +67,7 @@
                             <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">L</kbd>
                         </span>
                     </a>
-                    <a href="/mcp-server"
+                    <a href="{{ mcp_url|default:'/mcp-server' }}"
                        {% if current_name == "mcp" %}aria-current="page"{% endif %}
                        class="rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_name == "mcp" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
                         MCP
@@ -259,7 +260,7 @@
                                class="rounded-xl px-3 py-3 text-sm font-semibold {% if current_namespace == "repos" and current_name == "list" or current_namespace == "repos" and current_name == "list_detail" or current_namespace == "repos" and current_name == "request_list" %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
                                 Lists
                             </a>
-                            <a href="/mcp-server"
+                            <a href="{{ mcp_url|default:'/mcp-server' }}"
                                {% if current_name == "mcp" %}aria-current="page"{% endif %}
                                class="rounded-xl px-3 py-3 text-sm font-semibold {% if current_name == "mcp" %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
                                 MCP
