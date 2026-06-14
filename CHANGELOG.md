@@ -44,7 +44,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome search now has desktop side sponsor placements for future ads.
 - Awesome: show semantically similar repositories on repository detail pages when pgvector embeddings are available.
 - Awesome: added API endpoints for authenticated repository search, repository detail, awesome-list search/detail, and list-scoped repository search.
-- Awesome: added an authenticated Streamable HTTP MCP endpoint at `/mcp` for AI agents to search repositories and awesome lists.
+- Awesome: added a Streamable HTTP MCP endpoint at `/mcp` for AI agents to search repositories and awesome lists.
 - Awesome: added a public awesome-list request form with an admin-reviewable request queue.
 - Awesome: repository topic badges now link to the matching topic-filtered search results.
 - Awesome: expanded desktop side sponsor rails to ten placements, including one open "Get sponsored" slot.
@@ -62,6 +62,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.
 - Awesome: show a GitHub-star badge next to the liked heart when a repository is in the signed-in user's imported starred repos.
 - Awesome: added a multi-select repository file filter for AI/project instruction files such as `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
+- Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added an `/mcp-server` setup page.
 
 ### Changed
 - Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
@@ -92,6 +93,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: repository detail history now relies on D3 charts instead of duplicating growth cards and a snapshot table.
 - Awesome: GitHub star counts now render with thousands separators, and repository search results no longer show tracked star-growth deltas.
 - Awesome: moved the MCP endpoint into its own Django app and rebuilt it on FastMCP while keeping API and MCP search payloads on shared service functions.
+- Awesome: switched web serving from WSGI to ASGI so the FastMCP app runs with its native lifespan instead of a Django forwarding adapter.
 - Awesome: repository generated-tag prompts now include known language, GitHub topics, and AI-development signals.
 
 ### Fixed

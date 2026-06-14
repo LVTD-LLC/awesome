@@ -1,0 +1,98 @@
+{% extends "base_landing.html" %}
+{% block meta %}
+    {% include "components/seo_meta.html" with title="MCP Server · Awesome" description="Connect AI agents to Awesome's public repository discovery MCP server." canonical_path=request.path twitter_card="summary" %}
+{% endblock meta %}
+{% block content %}
+    <div class="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <div class="max-w-3xl">
+            <p class="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">Model Context Protocol</p>
+            <h1 class="mt-4 text-4xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-5xl">
+                Connect agents to Awesome repository search.
+            </h1>
+            <p class="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+                Awesome exposes a public Streamable HTTP MCP server for searching GitHub repositories
+                and awesome lists indexed by the catalog. No API key is required.
+            </p>
+        </div>
+        <section class="mt-12 border-y border-gray-200 py-8 dark:border-gray-800">
+            <h2 class="text-2xl font-bold text-gray-950 dark:text-white">Endpoint</h2>
+            <div class="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-gray-950 p-4 text-sm text-gray-100 dark:border-gray-800">
+                <code>{{ mcp_endpoint_url }}</code>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                Use Streamable HTTP transport. The server is read-only and is intended for repository
+                discovery, comparison, and awesome-list lookup workflows.
+            </p>
+        </section>
+        <section class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-950 dark:text-white">Available Tools</h2>
+                <div class="mt-5 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+                    <div class="py-4">
+                        <h3 class="font-semibold text-gray-950 dark:text-white">search_repositories</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            Search repositories by query, language, topic, stack, package manager, stars,
+                            freshness, age, archived state, and AI-development signals.
+                        </p>
+                    </div>
+                    <div class="py-4">
+                        <h3 class="font-semibold text-gray-950 dark:text-white">get_repository</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            Fetch one indexed repository by <code class="text-xs">owner/name</code>,
+                            with optional README content.
+                        </p>
+                    </div>
+                    <div class="py-4">
+                        <h3 class="font-semibold text-gray-950 dark:text-white">search_awesome_lists</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            Search active awesome lists by name, source repository, topic, or description.
+                        </p>
+                    </div>
+                    <div class="py-4">
+                        <h3 class="font-semibold text-gray-950 dark:text-white">get_awesome_list</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Fetch one active awesome list by slug.</p>
+                    </div>
+                    <div class="py-4">
+                        <h3 class="font-semibold text-gray-950 dark:text-white">search_awesome_list_repositories</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            Search repositories from a single awesome list with the same repository filters.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <aside class="border-y border-gray-200 py-5 dark:border-gray-800 lg:border-l lg:border-y-0 lg:pl-6">
+                <h2 class="text-lg font-bold text-gray-950 dark:text-white">Access</h2>
+                <dl class="mt-4 space-y-4 text-sm">
+                    <div>
+                        <dt class="font-semibold text-gray-950 dark:text-white">Transport</dt>
+                        <dd class="mt-1 text-gray-600 dark:text-gray-300">Streamable HTTP</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-gray-950 dark:text-white">Authentication</dt>
+                        <dd class="mt-1 text-gray-600 dark:text-gray-300">None required</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-gray-950 dark:text-white">Behavior</dt>
+                        <dd class="mt-1 text-gray-600 dark:text-gray-300">Read-only tools over public catalog data</dd>
+                    </div>
+                </dl>
+            </aside>
+        </section>
+        <section class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-950 dark:text-white">Client Configuration</h2>
+            <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                Use the following shape in MCP clients that support remote Streamable HTTP servers.
+            </p>
+            <div class="mt-5 overflow-x-auto rounded-lg border border-gray-200 bg-gray-950 p-4 text-sm text-gray-100 dark:border-gray-800">
+                <pre><code>{
+  "mcpServers": {
+    "awesome": {
+      "url": "{{ mcp_endpoint_url }}",
+      "transport": "streamable-http"
+    }
+  }
+}</code></pre>
+            </div>
+        </section>
+    </div>
+{% endblock content %}

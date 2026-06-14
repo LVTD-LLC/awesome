@@ -36,7 +36,8 @@ The goal of this project is to make that ecosystem easier to explore:
 - Shows repository history, similar repositories, and list membership where data is
   available.
 - Lets users request new awesome lists to add to the catalog.
-- Exposes authenticated API and MCP surfaces for integrations and AI-agent workflows.
+- Exposes an authenticated API and a public MCP surface for integrations and
+  AI-agent workflows.
 
 ## Project status
 
@@ -101,9 +102,10 @@ search accepts filters such as `q`, `language`, `list`, `topic`,
 Repository detail responses include dependency-file stack detection, list
 membership, growth history, README content, and similar repositories.
 
-Awesome also exposes a Streamable HTTP MCP endpoint at `/mcp` so AI agents can
-use the same search surface as the API. Use an account API key as either
-`Authorization: Bearer <api-key>` or `X-API-Key: <api-key>`.
+Awesome also exposes a public Streamable HTTP MCP endpoint at `/mcp` so AI
+agents can use the same repository and awesome-list search surface as the API.
+The MCP server is read-only and does not require authentication. The main site
+documents client setup at `/mcp-server`.
 
 ### Catalog operations
 

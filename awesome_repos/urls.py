@@ -55,7 +55,6 @@ urlpatterns += [
     path("accounts/", include("allauth.urls")),
     path("anymail/", include("anymail.urls")),
     path("uses", TemplateView.as_view(template_name="pages/uses.html"), name="uses"),
-    path("mcp", include("apps.mcp_server.urls")),
     path("api/", include("apps.api.urls")),
     path("robots.txt", robots_txt, name="robots_txt"),
     path("", include("apps.repos.urls")),

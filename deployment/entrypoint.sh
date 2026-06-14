@@ -68,7 +68,11 @@ case "$process_type" in
         else
             uv run --no-sync python manage.py migrate --noinput
         fi
-    exec uv run --no-sync gunicorn ${PROJECT_NAME}.wsgi:application --bind 0.0.0.0:${APP_PORT} --workers 3 --threads 2
+        exec uv run --no-sync gunicorn "${PROJECT_NAME}.asgi:application" \
+            --worker-class uvicorn.workers.UvicornWorker \
+            --bind "0.0.0.0:${APP_PORT}" \
+            --workers 3 \
+            --timeout 120
 
         ;;
     worker)

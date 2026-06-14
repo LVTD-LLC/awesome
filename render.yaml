@@ -7,7 +7,13 @@ services:
       npm install &&
       npm run build &&
       uv run --no-sync python manage.py collectstatic --noinput
-    startCommand: uv run --no-sync python manage.py migrate && uv run --no-sync gunicorn awesome_repos.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+    startCommand: |
+      uv run --no-sync python manage.py migrate &&
+      uv run --no-sync gunicorn awesome_repos.asgi:application \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --bind 0.0.0.0:$PORT \
+        --workers 2 \
+        --timeout 120
     plan: free
     healthCheckPath: /
 
