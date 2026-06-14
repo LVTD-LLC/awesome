@@ -176,7 +176,7 @@ def test_public_nav_hides_personal_repository_links_for_anonymous_users(client):
     content = response.content.decode()
     assert f'href="{reverse("repos:starred")}"' not in content
     assert f'href="{reverse("repos:liked")}"' not in content
-    assert f'href="{reverse("mcp")}"' in content
+    assert 'href="/mcp-server"' in content
 
 
 def test_mcp_page_documents_public_streamable_http_endpoint(client, settings):
