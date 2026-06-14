@@ -159,7 +159,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                 sort_direction=sort_direction,
                 page=page,
                 page_size=page_size,
-            )
+            ),
         )
 
     @server.tool(
@@ -237,7 +237,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                 sort=sort,
                 page=page,
                 page_size=page_size,
-            )
+            ),
         )
 
     @server.tool(
