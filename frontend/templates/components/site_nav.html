@@ -260,6 +260,7 @@
                                 Lists
                             </a>
                             <a href="/mcp-server"
+                               {% if current_name == "mcp" %}aria-current="page"{% endif %}
                                class="rounded-xl px-3 py-3 text-sm font-semibold {% if current_name == "mcp" %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
                                 MCP
                             </a>

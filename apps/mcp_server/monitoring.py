@@ -95,10 +95,6 @@ class MCPMonitoringMiddleware:
     def __init__(self, app):
         self.app = app
 
-    @property
-    def lifespan(self):
-        return self.app.lifespan
-
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
