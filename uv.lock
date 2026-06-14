@@ -234,6 +234,7 @@ dependencies = [
     { name = "structlog" },
     { name = "structlog-sentry" },
     { name = "tqdm" },
+    { name = "uvicorn" },
     { name = "whitenoise" },
 ]
 
@@ -277,6 +278,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.5.0" },
     { name = "structlog-sentry", specifier = ">=2.2.1" },
     { name = "tqdm", specifier = ">=4.67.3" },
+    { name = "uvicorn", specifier = ">=0.47.0" },
     { name = "whitenoise", specifier = ">=6.12.0" },
 ]
 

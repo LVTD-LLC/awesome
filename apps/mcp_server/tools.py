@@ -9,6 +9,7 @@ from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
+from apps.mcp_server.monitoring import record_mcp_tool_call
 from apps.repos.search_services import (
     get_awesome_list_detail_payload,
     get_repository_detail_payload,
@@ -38,10 +39,10 @@ def _not_found_error(exc: Http404) -> ValueError:
     return ValueError("No matching record was found.")
 
 
-def _run_read_only_tool(callback: Callable[[], dict]) -> dict[str, Any]:
+def _run_read_only_tool(tool_name: str, callback: Callable[[], dict]) -> dict[str, Any]:
     close_old_connections()
     try:
-        return _safe_payload(callback())
+        return _safe_payload(record_mcp_tool_call(tool_name, callback))
     finally:
         close_old_connections()
 
@@ -133,6 +134,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     ) -> dict:
         """Search GitHub repositories indexed from awesome lists."""
         return _run_read_only_tool(
+            "search_repositories",
             lambda: search_repositories_payload(
                 q=q,
                 mode=mode,
@@ -202,7 +204,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
                 result["readme_omitted"] = True
             return result
 
-        return _run_read_only_tool(payload)
+        return _run_read_only_tool("get_repository", payload)
 
     @server.tool(
         name="search_awesome_lists",
@@ -228,6 +230,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     ) -> dict:
         """Search active awesome-lists tracked by Awesome."""
         return _run_read_only_tool(
+            "search_awesome_lists",
             lambda: search_awesome_lists_payload(
                 q=q,
                 min_age_years=min_age_years,
@@ -255,7 +258,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             except Http404 as exc:
                 raise _not_found_error(exc) from exc
 
-        return _run_read_only_tool(payload)
+        return _run_read_only_tool("get_awesome_list", payload)
 
     @server.tool(
         name="search_awesome_list_repositories",
@@ -370,4 +373,4 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
             except Http404 as exc:
                 raise _not_found_error(exc) from exc
 
-        return _run_read_only_tool(payload)
+        return _run_read_only_tool("search_awesome_list_repositories", payload)

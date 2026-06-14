@@ -189,6 +189,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "awesome_repos.wsgi.application"
+ASGI_APPLICATION = "awesome_repos.asgi.application"
 
 
 # Database

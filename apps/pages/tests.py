@@ -176,6 +176,21 @@ def test_public_nav_hides_personal_repository_links_for_anonymous_users(client):
     content = response.content.decode()
     assert f'href="{reverse("repos:starred")}"' not in content
     assert f'href="{reverse("repos:liked")}"' not in content
+    assert f'href="{reverse("mcp")}"' in content
+
+
+def test_mcp_page_documents_public_streamable_http_endpoint(client, settings):
+    settings.SITE_URL = "https://awesome.example"
+
+    response = client.get(reverse("mcp"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Connect agents to Awesome repository search" in content
+    assert "https://awesome.example/mcp" in content
+    assert "Streamable HTTP" in content
+    assert "None required" in content
+    assert "search_repositories" in content
 
 
 def test_public_nav_shows_personal_repository_links_for_authenticated_users(client):
