@@ -62,9 +62,10 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.
 - Awesome: show a GitHub-star badge next to the liked heart when a repository is in the signed-in user's imported starred repos.
 - Awesome: added a multi-select repository file filter for AI/project instruction files such as `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
-- Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added an `/mcp-server` setup page.
+- Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.
 - Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
 - Awesome: redesigned repository detail pages into a wider, data-dense dashboard with compact metrics, growth charts, stack/dependency summaries, classification chips, AI-development signals, and sticky metadata panels.
 - Awesome: repository velocity and star-growth filters now require observed recent capture history instead of falling back to all-time tracked growth.

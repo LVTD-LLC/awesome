@@ -575,6 +575,16 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         context["liked_repository_count"] = RepositoryLike.objects.filter(user=user).count()
         context["remove_ads_enabled"] = profile.remove_ads
         context["remove_ads_checkout_configured"] = remove_ads_checkout_configured()
+        mcp_endpoint_url = f"{settings.SITE_URL.rstrip('/')}/mcp"
+        context["mcp_agent_setup_prompt"] = (
+            "Set up the Awesome MCP server in this AI agent.\n\n"
+            "Use Streamable HTTP with this configuration:\n"
+            "- Server name: awesome\n"
+            f"- Endpoint URL: {mcp_endpoint_url}\n"
+            "- Authentication: none required\n\n"
+            "After setup, use the Awesome tools to search GitHub repositories and "
+            "awesome lists."
+        )
         if self.request.GET.get("remove_ads") == "success":
             session_id = self.request.GET.get("session_id", "")
             if session_id and remove_ads_checkout_configured():
