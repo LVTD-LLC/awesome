@@ -1,0 +1,48 @@
+{% extends "base_landing.html" %}
+{% block meta %}
+    {% include "components/seo_meta.html" with title=post.display_title|add:" · Awesome" description=post.seo_description canonical_path=post.get_absolute_url og_type="article" %}
+{% endblock meta %}
+{% block content %}
+    <article class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+        <a href="{% url 'blog:post_list' %}"
+           class="text-sm font-semibold text-green-700 hover:underline dark:text-green-300">← All posts</a>
+        <header class="mt-6 border-b border-gray-200 pb-8 dark:border-gray-800">
+            <div class="flex flex-wrap gap-2">
+                {% for category in post.categories.all %}
+                    <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 dark:bg-green-950 dark:text-green-300">{{ category.name }}</span>
+                {% endfor %}
+            </div>
+            <h1 class="mt-4 text-4xl font-bold text-gray-950 dark:text-white">{{ post.title }}</h1>
+            {% if post.excerpt %}
+                <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">{{ post.excerpt }}</p>
+            {% endif %}
+            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Published {{ post.published_at|date:"M d, Y" }}</p>
+        </header>
+        <div class="prose prose-gray mt-8 max-w-none dark:prose-invert">{{ post.content_html|safe }}</div>
+        {% if post.tags.exists %}
+            <footer class="mt-10 flex flex-wrap gap-2 border-t border-gray-200 pt-6 dark:border-gray-800">
+                {% for tag in post.tags.all %}
+                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ tag.name }}</span>
+                {% endfor %}
+            </footer>
+        {% endif %}
+    </article>
+{% endblock content %}
+{% block schema %}
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{{ post.title|escapejs }}",
+  "description": "{{ post.seo_description|escapejs }}",
+  "datePublished": "{{ post.published_at|date:'c' }}",
+  "dateModified": "{{ post.updated_at|date:'c' }}",
+  "url": "{{ site_url }}{{ post.get_absolute_url }}",
+  "publisher": {
+    "@type": "Organization",
+    "name": "LVTD LLC",
+    "url": "https://lvtd.dev"
+  }
+}
+    </script>
+{% endblock schema %}

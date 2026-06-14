@@ -88,6 +88,11 @@
             <footer class="bg-white dark:bg-gray-950">
                 <div class="px-6 py-12 mx-auto max-w-[104rem] md:flex md:items-center md:justify-between lg:px-8">
                     <div class="flex justify-center space-x-6 md:order-2">
+                        {% url 'blog:post_list' as blog_url %}
+                        <a href="{{ blog_url|default:'/blog/' }}"
+                           class="text-sm leading-6 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100">
+                            Blog
+                        </a>
                         <a href="{% url 'privacy_policy' %}"
                            class="text-sm leading-6 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100">
                             Privacy Policy

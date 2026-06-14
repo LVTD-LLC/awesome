@@ -52,6 +52,18 @@ def _require_superuser(profile: Profile | None) -> Profile | None:
     return None
 
 
+def _require_staff_or_superuser(profile: Profile | None) -> Profile | None:
+    if profile and (profile.user.is_staff or profile.user.is_superuser):
+        return profile
+
+    if profile:
+        logger.warning(
+            "[API Key Auth] Non-staff user attempted staff access",
+            profile_id=profile.user.id,
+        )
+    return None
+
+
 class SuperuserAPIKeyHeaderAuth(APIKeyHeader):
     param_name = "X-API-Key"
 
@@ -64,6 +76,24 @@ class SuperuserBearerAPIKeyAuth(HttpBearer):
         return _require_superuser(get_profile_for_api_key(token))
 
 
+class StaffAPIKeyHeaderAuth(APIKeyHeader):
+    param_name = "X-API-Key"
+
+    def authenticate(self, request: HttpRequest, key: str) -> Profile | None:
+        return _require_staff_or_superuser(get_profile_for_api_key(key))
+
+
+class StaffBearerAPIKeyAuth(HttpBearer):
+    def authenticate(self, request: HttpRequest, token: str) -> Profile | None:
+        return _require_staff_or_superuser(get_profile_for_api_key(token))
+
+
+class StaffSessionAuth(SessionAuth):
+    def authenticate(self, request: HttpRequest) -> Profile | None:
+        return _require_staff_or_superuser(super().authenticate(request))
+
+
 api_key_auth = [APIKeyHeaderAuth(), BearerAPIKeyAuth()]
 session_auth = SessionAuth()
 superuser_api_auth = [SuperuserAPIKeyHeaderAuth(), SuperuserBearerAPIKeyAuth()]
+staff_api_auth = [StaffAPIKeyHeaderAuth(), StaffBearerAPIKeyAuth(), StaffSessionAuth()]

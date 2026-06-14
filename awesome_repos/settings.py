@@ -139,6 +139,7 @@ THIRD_PARTY_APPS = [
 CUSTOM_APPS = [
     "apps.core.CoreConfig",
     "apps.api.ApiConfig",
+    "apps.blog.apps.BlogConfig",
     "apps.mcp_server.apps.McpConfig",
     "apps.pages.PagesConfig",
     "apps.repos.apps.ReposConfig",

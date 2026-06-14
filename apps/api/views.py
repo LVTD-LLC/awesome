@@ -22,6 +22,7 @@ from apps.api.schemas import (
 from apps.api.services import (
     serialize_user_info,
 )
+from apps.blog.api import router as blog_router
 from apps.repos.forms import AwesomeListCreateForm
 from apps.repos.models import AwesomeList, Repository
 from apps.repos.search_services import (
@@ -44,6 +45,7 @@ from awesome_repos.utils import get_awesome_repos_logger
 logger = get_awesome_repos_logger(__name__)
 
 api = NinjaAPI()
+api.add_router("/blog", blog_router)
 REPOSITORY_SEARCH_PAGE_SIZE = DEFAULT_API_PAGE_SIZE
 AWESOME_LIST_SEARCH_PAGE_SIZE = DEFAULT_API_PAGE_SIZE
 AWESOME_LIST_REPOSITORY_PAGE_SIZE = 50

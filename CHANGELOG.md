@@ -124,6 +124,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Sentry setup now includes release metadata, configurable tracing/profiling/log settings, logging breadcrumbs/events, and the `before_send` hook by default.
 
 ### Added
+- Awesome: added a dedicated blog app with public blog pages, published-post sitemap entries, and hidden staff-only blog CRUD/review/publish API endpoints for agent workflows.
 - Fly.io deployment support with `fly.toml`, web and worker process groups, migration release commands, and `DATABASE_URL` support.
 - HTMX, django-htmx middleware, Alpine.js, and frontend rules for Django-native interactivity.
 - `ALLOW_SIGNUPS` environment flag (default `True`) to pause new email/social registrations while keeping existing user logins available.
