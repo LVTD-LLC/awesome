@@ -104,8 +104,8 @@ membership, growth history, README content, and similar repositories.
 
 Awesome also exposes a public Streamable HTTP MCP endpoint at `/mcp` so AI
 agents can use the same repository and awesome-list search surface as the API.
-The MCP server is read-only and does not require authentication. The main site
-documents client setup at `/mcp-server`.
+The MCP server is read-only and does not require authentication. Settings
+includes a copyable setup prompt users can paste into AI agents.
 
 ### Catalog operations
 

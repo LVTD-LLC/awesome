@@ -176,21 +176,28 @@ def test_public_nav_hides_personal_repository_links_for_anonymous_users(client):
     content = response.content.decode()
     assert f'href="{reverse("repos:starred")}"' not in content
     assert f'href="{reverse("repos:liked")}"' not in content
-    assert 'href="/mcp-server"' in content
+    assert 'href="/mcp-server"' not in content
+    assert "MCP for AI agents" not in content
 
 
-def test_mcp_page_documents_public_streamable_http_endpoint(client, settings):
+def test_settings_includes_copyable_mcp_setup_prompt(client, settings):
     settings.SITE_URL = "https://awesome.example"
+    user = get_user_model().objects.create_user(
+        username="mcp-settings-user",
+        email="mcp-settings@example.com",
+        password="strong-test-pass-123",
+    )
+    client.force_login(user)
 
-    response = client.get(reverse("mcp"))
+    response = client.get(reverse("settings"))
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Connect agents to Awesome repository search" in content
+    assert "MCP for AI agents" in content
     assert "https://awesome.example/mcp" in content
-    assert "Streamable HTTP" in content
-    assert "None required" in content
-    assert "search_repositories" in content
+    assert "Authentication: none required" in content
+    assert 'id="mcp-agent-setup-prompt"' in content
+    assert 'data-copy-source="#mcp-agent-setup-prompt"' in content
 
 
 def test_public_nav_shows_personal_repository_links_for_authenticated_users(client):

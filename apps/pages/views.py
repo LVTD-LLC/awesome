@@ -83,14 +83,5 @@ class PrivacyPolicyView(TemplateView):
     template_name = "pages/privacy-policy.html"
 
 
-class McpView(TemplateView):
-    template_name = "pages/mcp.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["mcp_endpoint_url"] = f"{settings.SITE_URL.rstrip('/')}/mcp"
-        return context
-
-
 class TermsOfServiceView(TemplateView):
     template_name = "pages/terms-of-service.html"
