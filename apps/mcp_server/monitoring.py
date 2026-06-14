@@ -11,6 +11,10 @@ from awesome_repos.utils import get_awesome_repos_logger
 logger = get_awesome_repos_logger(__name__)
 
 
+class MCPToolUserError(ValueError):
+    """Expected tool error caused by user input or missing records."""
+
+
 def _duration_ms(start: float) -> int:
     return round((time.perf_counter() - start) * 1000)
 
@@ -68,21 +72,42 @@ def record_mcp_tool_call(tool_name: str, callback) -> dict[str, Any]:
         "tool_name": tool_name,
         "transport": "streamable_http",
     }
+    user_error: MCPToolUserError | None = None
 
     try:
         with sentry_sdk.start_span(op="mcp.tool", name=tool_name) as span:
             span.set_tag("mcp.tool_name", tool_name)
-            payload = callback()
-            result_count = _payload_result_count(payload)
-            if result_count is not None:
-                span.set_data("result_count", result_count)
-                event_properties["result_count"] = result_count
+            try:
+                payload = callback()
+            except MCPToolUserError as exc:
+                user_error = exc
+                span.set_tag("mcp.tool_error", True)
+                span.set_data("error_type", type(exc).__name__)
+            else:
+                result_count = _payload_result_count(payload)
+                if result_count is not None:
+                    span.set_data("result_count", result_count)
+                    event_properties["result_count"] = result_count
     except Exception:
         duration_ms = _duration_ms(start)
         event_properties.update({"duration_ms": duration_ms, "success": False})
         logger.exception("[MCP] Tool failed", **event_properties)
         _queue_mcp_event(event_name="mcp_tool_called", properties=event_properties)
         raise
+
+    if user_error is not None:
+        duration_ms = _duration_ms(start)
+        event_properties.update(
+            {
+                "duration_ms": duration_ms,
+                "success": True,
+                "tool_error": True,
+                "error_type": type(user_error).__name__,
+            }
+        )
+        logger.info("[MCP] Tool returned user error", **event_properties)
+        _queue_mcp_event(event_name="mcp_tool_called", properties=event_properties)
+        raise user_error
 
     duration_ms = _duration_ms(start)
     event_properties.update({"duration_ms": duration_ms, "success": True})

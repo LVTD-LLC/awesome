@@ -1,6 +1,8 @@
 import pytest
 from starlette.testclient import TestClient
 
+from apps.mcp_server import monitoring
+from apps.mcp_server.monitoring import MCPToolUserError, record_mcp_tool_call
 from apps.repos.models import AwesomeList, AwesomeListItem, Repository
 
 
@@ -17,6 +19,34 @@ def _mcp_headers() -> dict:
         "accept": "application/json, text/event-stream",
         "mcp-protocol-version": "2025-11-25",
     }
+
+
+def test_mcp_tool_user_errors_are_not_tracked_as_server_failures(monkeypatch):
+    queued_events = []
+    exception_logs = []
+
+    monkeypatch.setattr(
+        monitoring,
+        "queue_track_event",
+        lambda **kwargs: queued_events.append(kwargs),
+    )
+    monkeypatch.setattr(
+        monitoring.logger,
+        "exception",
+        lambda *args, **kwargs: exception_logs.append((args, kwargs)),
+    )
+
+    with pytest.raises(MCPToolUserError, match="No matching record"):
+        record_mcp_tool_call(
+            "get_repository",
+            lambda: (_ for _ in ()).throw(MCPToolUserError("No matching record was found.")),
+        )
+
+    assert exception_logs == []
+    assert queued_events[0]["event_name"] == "mcp_tool_called"
+    assert queued_events[0]["properties"]["success"] is True
+    assert queued_events[0]["properties"]["tool_error"] is True
+    assert queued_events[0]["properties"]["error_type"] == "MCPToolUserError"
 
 
 @pytest.mark.django_db(transaction=True)

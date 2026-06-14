@@ -9,7 +9,7 @@ from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from apps.mcp_server.monitoring import record_mcp_tool_call
+from apps.mcp_server.monitoring import MCPToolUserError, record_mcp_tool_call
 from apps.repos.search_services import (
     get_awesome_list_detail_payload,
     get_repository_detail_payload,
@@ -31,12 +31,12 @@ def _safe_payload(payload: dict) -> dict:
 
 def _positive_int(value: int, name: str) -> int:
     if value < 1:
-        raise ValueError(f"{name} must be positive.")
+        raise MCPToolUserError(f"{name} must be positive.")
     return value
 
 
-def _not_found_error(exc: Http404) -> ValueError:
-    return ValueError("No matching record was found.")
+def _not_found_error(exc: Http404) -> MCPToolUserError:
+    return MCPToolUserError("No matching record was found.")
 
 
 def _run_read_only_tool(tool_name: str, callback: Callable[[], dict]) -> dict[str, Any]:
@@ -183,7 +183,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     ) -> dict:
         """Fetch one indexed GitHub repository by owner/name."""
         if "/" not in full_name:
-            raise ValueError("full_name must use the owner/name format.")
+            raise MCPToolUserError("full_name must use the owner/name format.")
 
         def payload() -> dict:
             owner, name = full_name.split("/", 1)
@@ -250,7 +250,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     ) -> dict:
         """Fetch one active awesome list by slug."""
         if not slug:
-            raise ValueError("slug is required.")
+            raise MCPToolUserError("slug is required.")
 
         def payload() -> dict:
             try:
@@ -342,7 +342,7 @@ def register_tools(server: FastMCP) -> None:  # noqa: C901
     ) -> dict:
         """Search repositories indexed from one awesome list."""
         if not slug:
-            raise ValueError("slug is required.")
+            raise MCPToolUserError("slug is required.")
 
         def payload() -> dict:
             try:

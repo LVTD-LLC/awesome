@@ -28,6 +28,7 @@ class AwesomeASGIApplication:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
+            # Django's ASGIHandler only accepts HTTP scopes; FastMCP owns lifespan.
             await self.mcp_app(scope, receive, send)
             return
 
