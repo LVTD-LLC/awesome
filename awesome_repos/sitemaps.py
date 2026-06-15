@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import sitemaps
 from django.urls import reverse
 
+from apps.blog.models import BlogPost
 from apps.repos.models import AwesomeList, Repository
 
 
@@ -33,6 +34,7 @@ class StaticViewSitemap(ConfiguredDomainSitemap):
             "repos:search",
             "repos:list",
             "repos:request_list",
+            "blog:post_list",
             "uses",
             "privacy_policy",
             "terms_of_service",
@@ -74,8 +76,20 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
         return item.last_scanned_at or item.github_pushed_at or item.updated_at
 
 
+class BlogPostSitemap(ConfiguredDomainSitemap):
+    changefreq = "monthly"
+    priority = 0.7
+
+    def items(self):
+        return BlogPost.objects.published().order_by("id")
+
+    def lastmod(self, item):
+        return item.updated_at
+
+
 sitemaps = {
     "static": StaticViewSitemap,
     "repositories": RepositorySitemap,
     "awesome_lists": AwesomeListSitemap,
+    "blog_posts": BlogPostSitemap,
 }
