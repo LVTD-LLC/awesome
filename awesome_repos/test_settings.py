@@ -45,6 +45,8 @@ Q_CLUSTER = {
     **{key: value for key, value in base_settings.Q_CLUSTER.items() if key != "redis"},
     "name": f"awesome_repos-test-{TEST_WORKER_ID}",
     "orm": "default",
+    "timeout": 30,
+    "retry": 60,
     "workers": 1,
     "max_attempts": 1,
     "save_limit": 0,
