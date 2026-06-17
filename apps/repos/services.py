@@ -1734,7 +1734,8 @@ def repository_history_chart_data(
         }
         for snapshot in reversed(snapshots)
     ]
-    return _history_chart_data_with_origin(points, repository.first_commit_at)
+    first_point_at = snapshots[-1].captured_at if snapshots else None
+    return _history_chart_data_with_origin(points, repository.first_commit_at, first_point_at)
 
 
 def awesome_list_history_chart_data(
@@ -1761,7 +1762,8 @@ def awesome_list_history_chart_data(
             }
             for snapshot in reversed(snapshots)
         ]
-        return _history_chart_data_with_origin(points, awesome_list.first_commit_at)
+        first_point_at = snapshots[-1].captured_at
+        return _history_chart_data_with_origin(points, awesome_list.first_commit_at, first_point_at)
 
     has_current_metadata = awesome_list.stars > 0 or awesome_list.commits_count is not None
     if not has_current_metadata:
@@ -1775,18 +1777,18 @@ def awesome_list_history_chart_data(
             "commit_count": awesome_list.commits_count,
         }
     ]
-    return _history_chart_data_with_origin(points, awesome_list.first_commit_at)
+    return _history_chart_data_with_origin(points, awesome_list.first_commit_at, captured_at)
 
 
 def _history_chart_data_with_origin(
     points: list[dict[str, int | str | None]],
     first_commit_at: datetime | None,
+    first_point_at: datetime | None,
 ) -> list[dict[str, int | str | None]]:
-    if not points or first_commit_at is None:
+    if not points or first_commit_at is None or first_point_at is None:
         return points
 
-    first_point_at = parse_datetime(str(points[0]["captured_at"]))
-    if first_point_at is None or first_commit_at >= first_point_at:
+    if first_commit_at >= first_point_at:
         return points
 
     return [
