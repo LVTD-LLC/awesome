@@ -11,7 +11,7 @@ Until Domain Rating is measured, assume the domain has limited authority for new
 ## How To Use This Document
 
 1. Read this entire `docs/seo-sprint.md` file.
-2. Read `.seo/brand.md`, `.seo/link-inventory.md`, `.seo/config.json`, and `.seo/keyword-research.json`.
+2. Read `AGENTS.md`, `.seo/brand.md`, `.seo/link-inventory.md`, `.seo/config.json`, and `.seo/keyword-research.json`.
 3. Find the next `pending` phase in the Phase Status Tracker.
 4. Read the phase section. It is intentionally self-contained.
 5. Execute only that phase, verify the quality gate, and update the tracker row in the same branch as the work.
@@ -118,7 +118,7 @@ Checks performed on 2026-06-17:
 
 **Honesty section:** Required on every `/alternatives/[brand]` page. Include 3-4 honest tradeoffs where the competitor wins.
 
-**Plural-form capture:** Every alternative page's first major comparison section should use "Best [Brand] alternatives in 2026".
+**Plural-form capture:** Every alternative page's first major comparison section should use "Best [Brand] alternatives in [CURRENT_YEAR]". Substitute the four-digit year at page-generation time.
 
 **Internal-link minimums per page:**
 - `/alternatives/*`: at least 2 sibling alternatives, 1 feature, and 1 tool.
@@ -302,7 +302,7 @@ Each phase should be one deployable PR unless the user asks for a different cade
 
 **Internal links:** `/`, `/lists/`, Phase 1, Phase 2, at least two sibling alternatives once available.
 
-**Verification:** At least 600 words, "Best GitHub Topics alternatives in 2026" section, 3-4 honesty rows, FAQPage schema.
+**Verification:** At least 600 words, a "Best GitHub Topics alternatives in [CURRENT_YEAR]" section with the current four-digit year substituted at page-generation time, 3-4 honesty rows, FAQPage schema.
 
 ### Phase 6 - Ship `/alternatives/github-trending/`
 

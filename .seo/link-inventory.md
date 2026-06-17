@@ -16,6 +16,10 @@
 | `/privacy-policy` | https://awesome.lvtd.dev/privacy-policy | Privacy Policy | trust/footer |
 | `/terms-of-service` | https://awesome.lvtd.dev/terms-of-service | Terms of Service | trust/footer |
 
+Note: `/uses` intentionally omits a trailing slash because the current Django route is
+`path("uses", ...)`; production `/uses` returns 200 while `/uses/` returned 500 on
+2026-06-17. If Phase 0 canonicalizes that route to a trailing slash, update this row.
+
 ### Features
 
 | Slug | URL | Title | Linked by |
