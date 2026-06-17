@@ -5058,6 +5058,35 @@ def test_repository_history_chart_data_limits_latest_snapshots_chronologically()
 
 
 @pytest.mark.django_db
+def test_repository_history_chart_data_starts_from_first_commit_origin():
+    first_commit_at = datetime(2005, 7, 13, tzinfo=UTC)
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        first_commit_at=first_commit_at,
+    )
+    for index in range(2):
+        RepositorySnapshot.objects.create(
+            repository=repo,
+            captured_at=first_commit_at + timedelta(days=10 + index),
+            stars=100 + index,
+            commit_count=200 + index,
+        )
+
+    chart_data = repository_history_chart_data(repo, limit=1)
+
+    assert chart_data[0] == {
+        "captured_at": first_commit_at.isoformat(),
+        "stars": 0,
+        "commit_count": 0,
+    }
+    assert [point["stars"] for point in chart_data] == [0, 101]
+    assert [point["commit_count"] for point in chart_data] == [0, 201]
+
+
+@pytest.mark.django_db
 def test_awesome_list_history_chart_data_uses_list_snapshots_chronologically():
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",
@@ -5078,6 +5107,35 @@ def test_awesome_list_history_chart_data_uses_list_snapshots_chronologically():
 
     assert [point["stars"] for point in chart_data] == [102, 103, 104]
     assert [point["commit_count"] for point in chart_data] == [202, 203, 204]
+
+
+@pytest.mark.django_db
+def test_awesome_list_history_chart_data_starts_from_first_commit_origin():
+    first_commit_at = datetime(2015, 1, 2, tzinfo=UTC)
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+        repo_full_name="wsvincent/awesome-django",
+        first_commit_at=first_commit_at,
+    )
+    for index in range(2):
+        AwesomeListSnapshot.objects.create(
+            awesome_list=awesome_list,
+            captured_at=first_commit_at + timedelta(days=10 + index),
+            stars=100 + index,
+            commits_count=200 + index,
+        )
+
+    chart_data = awesome_list_history_chart_data(awesome_list, limit=1)
+
+    assert chart_data[0] == {
+        "captured_at": first_commit_at.isoformat(),
+        "stars": 0,
+        "commit_count": 0,
+    }
+    assert [point["stars"] for point in chart_data] == [0, 101]
+    assert [point["commit_count"] for point in chart_data] == [0, 201]
 
 
 @pytest.mark.django_db
