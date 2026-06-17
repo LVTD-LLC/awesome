@@ -65,12 +65,6 @@ jobs:
       - name: pyscn static analysis
         run: make pyscn-check
 
-      - name: Migrations check
-        run: uv run python manage.py makemigrations --check --dry-run
-
-      - name: Django checks
-        run: uv run python manage.py check
-
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -133,6 +127,12 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --locked
+
+      - name: Migrations check
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Django checks
+        run: uv run python manage.py check
 
       - name: Create dummy webpack manifest (tests)
         run: |
