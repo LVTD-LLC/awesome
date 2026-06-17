@@ -1,0 +1,31 @@
+{
+  "created_at": "2026-06-17",
+  "roadmap_path": "docs/seo-sprint.md",
+  "mode": "initialize",
+  "research_mode": "manual",
+  "ahrefs_project_id": null,
+  "domain": "https://awesome.lvtd.dev",
+  "domain_source": "Inferred from Plausible data-domain in base templates and verified with production curl checks.",
+  "framework_family": "Django",
+  "stack": "django-templates",
+  "framework_version": "Django 6.0.x",
+  "routing_convention": "URLConf/controller-based",
+  "component_language": "Django templates",
+  "python_package_manager": "uv",
+  "frontend_tooling": "Tailwind CSS 4 CLI, HTMX, Alpine.js",
+  "marketing_route_prefix": "apps/pages, apps/repos, apps/blog",
+  "marketing_layout": "frontend/templates/base_landing.html",
+  "app_layout": "frontend/templates/base_app.html",
+  "components_dir": "frontend/templates/components",
+  "seo_meta_template": "frontend/templates/components/seo_meta.html",
+  "sitemap_path": "awesome_repos/sitemaps.py",
+  "robots_path": "awesome_repos/urls.py",
+  "tailwind_config": "frontend/src/styles/index.css",
+  "seo_content_dir": "content/seo",
+  "recommended_django_seo_app": "apps/pages or a future apps/seo module",
+  "notes": [
+    "The seo-sprint skill does not include a native Django adapter, so the roadmap records Django-specific paths and treats markdown fallback content as a temporary generation format until Phase 0 adds a Django renderer.",
+    "Ahrefs MCP was unavailable during initialization. Keyword volume, KD, and traffic potential values in .seo/keyword-research.json are estimated and should be refreshed with Ahrefs, Semrush, or GSC data before deep page work.",
+    "Production sitemap and robots are already reachable at the configured domain."
+  ]
+}

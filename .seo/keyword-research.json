@@ -1,0 +1,388 @@
+{
+  "metadata": {
+    "created_at": "2026-06-17",
+    "research_mode": "manual",
+    "ahrefs_available": false,
+    "domain": "https://awesome.lvtd.dev",
+    "domain_rating": null,
+    "domain_rating_note": "Not measured. Until DR is available, treat this as a low-authority domain and favor long-tail, high-intent pages.",
+    "volume_note": "Volume ranges are manual estimates from repository context and web-search signals, not Ahrefs metrics.",
+    "kd_note": "KD is heuristic: low, medium, high, or unknown. Refresh with Ahrefs/Semrush before committing to large page batches."
+  },
+  "sources": [
+    {
+      "title": "Awesome README",
+      "url": "README.md",
+      "use": "Product positioning and audience"
+    },
+    {
+      "title": "Production site",
+      "url": "https://awesome.lvtd.dev/",
+      "use": "Domain, current homepage metadata, sitemap and robots checks"
+    },
+    {
+      "title": "GitHub Topics: awesome-lists",
+      "url": "https://github.com/topics/awesome-lists",
+      "use": "Search-intent competitor and source-corpus context"
+    },
+    {
+      "title": "GitHub Trending",
+      "url": "https://github.com/trending",
+      "use": "Repository discovery competitor"
+    },
+    {
+      "title": "Libraries.io",
+      "url": "https://libraries.io/",
+      "use": "Open-source package discovery competitor"
+    },
+    {
+      "title": "ecosyste.ms",
+      "url": "https://ecosyste.ms/",
+      "use": "Open-source data and repository intelligence competitor"
+    },
+    {
+      "title": "OSS Insight",
+      "url": "https://ossinsight.io/",
+      "use": "GitHub repository analytics competitor"
+    },
+    {
+      "title": "OpenAlternative",
+      "url": "https://openalternative.co/",
+      "use": "Open-source alternatives directory competitor"
+    }
+  ],
+  "technical_audit": {
+    "production_checked_at": "2026-06-17",
+    "robots_txt": {
+      "url": "https://awesome.lvtd.dev/robots.txt",
+      "status": 200,
+      "finding": "Allows all crawlers and advertises https://awesome.lvtd.dev/sitemap.xml."
+    },
+    "sitemap_xml": {
+      "url": "https://awesome.lvtd.dev/sitemap.xml",
+      "status": 200,
+      "finding": "Reachable XML sitemap with static pages, repository pages, awesome-list pages, and lastmod values. Full parse timed out during initialization due sitemap size, so Phase 0 should add a bounded verifier."
+    },
+    "homepage_meta": {
+      "title": "Search Awesome Repositories \u00b7 Awesome",
+      "description": "Search names, descriptions, topics, tags, and stacks, then tune results by ecosystem, freshness, health, and cross-list signal.",
+      "canonical": "https://awesome.lvtd.dev/",
+      "h1_count": 1,
+      "schema_types": ["WebSite", "Organization", "SearchAction"]
+    },
+    "local_files": {
+      "sitemap": "awesome_repos/sitemaps.py",
+      "robots": "awesome_repos/urls.py",
+      "seo_meta": "frontend/templates/components/seo_meta.html",
+      "schema_blocks": [
+        "frontend/templates/base_landing.html",
+        "frontend/templates/base_app.html",
+        "frontend/templates/repos/detail.html",
+        "frontend/templates/repos/list_detail.html",
+        "frontend/templates/blog/post_detail.html"
+      ]
+    }
+  },
+  "competitors": [
+    {
+      "brand": "GitHub Topics/Search",
+      "slug": "github-topics",
+      "url": "https://github.com/topics",
+      "tier": "head",
+      "confidence": "high"
+    },
+    {
+      "brand": "GitHub Trending",
+      "slug": "github-trending",
+      "url": "https://github.com/trending",
+      "tier": "head",
+      "confidence": "high"
+    },
+    {
+      "brand": "Libraries.io",
+      "slug": "libraries-io",
+      "url": "https://libraries.io/",
+      "tier": "mid",
+      "confidence": "medium"
+    },
+    {
+      "brand": "ecosyste.ms",
+      "slug": "ecosyste-ms",
+      "url": "https://ecosyste.ms/",
+      "tier": "mid",
+      "confidence": "medium"
+    },
+    {
+      "brand": "OSS Insight",
+      "slug": "ossinsight",
+      "url": "https://ossinsight.io/",
+      "tier": "mid",
+      "confidence": "medium"
+    },
+    {
+      "brand": "OpenAlternative",
+      "slug": "openalternative",
+      "url": "https://openalternative.co/",
+      "tier": "niche",
+      "confidence": "medium"
+    },
+    {
+      "brand": "sindresorhus/awesome",
+      "slug": "sindresorhus-awesome",
+      "url": "https://github.com/sindresorhus/awesome",
+      "tier": "head",
+      "confidence": "medium"
+    }
+  ],
+  "candidates": {
+    "alternatives": [
+      {
+        "phase": 5,
+        "slug": "github-topics",
+        "target_keyword": "GitHub Topics alternative",
+        "volume_range": "30-150",
+        "kd_estimate": "high",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Official GitHub discovery pages are the head competitor; only target after stronger use-case pages exist."
+      },
+      {
+        "phase": 6,
+        "slug": "github-trending",
+        "target_keyword": "GitHub Trending alternative",
+        "volume_range": "30-150",
+        "kd_estimate": "high",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Relevant for users looking for repository discovery beyond daily popularity spikes."
+      },
+      {
+        "phase": 7,
+        "slug": "libraries-io",
+        "target_keyword": "Libraries.io alternative",
+        "volume_range": "10-100",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Closest package-discovery competitor with stronger package/dependency angle."
+      },
+      {
+        "phase": 12,
+        "slug": "ossinsight",
+        "target_keyword": "OSS Insight alternative",
+        "volume_range": "10-100",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Useful once Awesome has stronger analytics-oriented repository pages."
+      },
+      {
+        "phase": 13,
+        "slug": "ecosyste-ms",
+        "target_keyword": "ecosyste.ms alternative",
+        "volume_range": "0-50",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "High relevance for data/API users, but likely low search volume."
+      },
+      {
+        "phase": 14,
+        "slug": "openalternative",
+        "target_keyword": "OpenAlternative alternative",
+        "volume_range": "0-50",
+        "kd_estimate": "low",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Niche but commercially relevant for open-source alternatives discovery."
+      }
+    ],
+    "use_cases": [
+      {
+        "phase": 1,
+        "slug": "find-maintained-open-source-projects",
+        "target_keyword": "find maintained open source projects",
+        "volume_range": "50-300",
+        "kd_estimate": "low-medium",
+        "traffic_potential": null,
+        "confidence": "medium",
+        "source": "manual_web_search",
+        "why": "Directly maps to the product promise and avoids head-term competition."
+      },
+      {
+        "phase": 2,
+        "slug": "search-awesome-lists",
+        "target_keyword": "search awesome lists",
+        "volume_range": "30-150",
+        "kd_estimate": "low-medium",
+        "traffic_potential": null,
+        "confidence": "medium",
+        "source": "manual_web_search",
+        "why": "Highest-fit phrase for the current catalog and homepage."
+      },
+      {
+        "phase": 3,
+        "slug": "github-repository-search",
+        "target_keyword": "GitHub repository search",
+        "volume_range": "500-2000",
+        "kd_estimate": "high",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Large head-adjacent term. Use a long-tail angle around awesome-list and freshness filters."
+      },
+      {
+        "phase": 8,
+        "slug": "find-github-repositories-by-topic",
+        "target_keyword": "find GitHub repositories by topic",
+        "volume_range": "50-300",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Relevant to generated tags, topics, language, and stack filtering."
+      },
+      {
+        "phase": 10,
+        "slug": "repository-monitoring",
+        "target_keyword": "GitHub repository monitoring",
+        "volume_range": "50-300",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "repo_context",
+        "why": "Maps to repository history, newsletter, rescan, and freshness workflows."
+      }
+    ],
+    "audiences": [
+      {
+        "phase": 9,
+        "slug": "developers",
+        "target_keyword": "open source discovery for developers",
+        "volume_range": "30-150",
+        "kd_estimate": "low-medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "repo_context",
+        "why": "Primary persona page that can link to search, lists, repo detail examples, and blog."
+      },
+      {
+        "phase": 11,
+        "slug": "mcp-github-repository-search",
+        "target_keyword": "MCP server for GitHub repository search",
+        "volume_range": "0-100",
+        "kd_estimate": "low",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "repo_context",
+        "why": "Emerging but high-intent AI-agent query. Useful because Awesome already exposes a public MCP endpoint."
+      }
+    ],
+    "compare": [
+      {
+        "phase": 15,
+        "slug": "libraries-io-vs-github-topics",
+        "target_keyword": "Libraries.io vs GitHub Topics",
+        "volume_range": "0-50",
+        "kd_estimate": "low",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Comparison page can position Awesome between package metadata and broad GitHub discovery."
+      },
+      {
+        "phase": 16,
+        "slug": "oss-insight-vs-github-trending",
+        "target_keyword": "OSS Insight vs GitHub Trending",
+        "volume_range": "0-50",
+        "kd_estimate": "low",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Useful for analytics/trend intent once the app has stronger examples."
+      }
+    ],
+    "playbooks": [
+      {
+        "phase": 4,
+        "slug": "evaluate-github-repository",
+        "target_keyword": "how to evaluate a GitHub repository",
+        "volume_range": "50-300",
+        "kd_estimate": "low-medium",
+        "traffic_potential": null,
+        "confidence": "medium",
+        "source": "repo_context",
+        "why": "Strong editorial bridge from search intent to product filters."
+      },
+      {
+        "phase": 17,
+        "slug": "use-awesome-lists-for-tool-discovery",
+        "target_keyword": "how to use awesome lists",
+        "volume_range": "50-300",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "manual_web_search",
+        "why": "Educational page that can rank around awesome-list discovery and link deeply into list pages."
+      },
+      {
+        "phase": 18,
+        "slug": "choose-open-source-dependency",
+        "target_keyword": "how to choose an open source dependency",
+        "volume_range": "50-300",
+        "kd_estimate": "medium",
+        "traffic_potential": null,
+        "confidence": "estimated",
+        "source": "repo_context",
+        "why": "Product fit for freshness, archive status, stack detection, and similar repository features."
+      }
+    ],
+    "striking_distance": [],
+    "saturated_head_terms": [
+      {
+        "keyword": "GitHub",
+        "reason": "Navigational head term owned by GitHub."
+      },
+      {
+        "keyword": "open source",
+        "reason": "Extremely broad, high-authority SERP."
+      },
+      {
+        "keyword": "open source software",
+        "reason": "Broad informational query with major directory and nonprofit competition."
+      },
+      {
+        "keyword": "GitHub search",
+        "reason": "Official GitHub product query; target modifiers instead."
+      },
+      {
+        "keyword": "best GitHub repositories",
+        "reason": "Listicle-heavy and likely too broad without a category modifier."
+      },
+      {
+        "keyword": "software alternatives",
+        "reason": "OpenAlternative/AlternativeTo-style query; only target via precise open-source/developer-tool modifiers."
+      }
+    ],
+    "out_of_scope": [
+      {
+        "keyword": "GitHub alternatives",
+        "reason": "Awesome is not a Git hosting or DevOps platform."
+      },
+      {
+        "keyword": "GitHub security scanner",
+        "reason": "Awesome surfaces repository signals but is not a security scanner."
+      },
+      {
+        "keyword": "package vulnerability database",
+        "reason": "Not the current product category."
+      }
+    ]
+  }
+}
