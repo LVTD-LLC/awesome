@@ -80,6 +80,7 @@ uv run python manage.py check
 uv run pytest -q
 make pyscn-check
 npm run lint
+npm run build
 ```
 
 If you change models, create and inspect migrations before opening a pull request:
@@ -88,6 +89,13 @@ If you change models, create and inspect migrations before opening a pull reques
 uv run python manage.py makemigrations
 uv run python manage.py makemigrations --check --dry-run
 ```
+
+### CI checks
+
+GitHub Actions runs Python quality checks, frontend checks, and pytest in
+parallel. Pytest uses `awesome_repos.test_settings`, which keeps test cache,
+media, and task-queue state local to the test process while preserving the
+PostgreSQL-backed migration path in CI.
 
 ### API and MCP
 

@@ -66,6 +66,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ### Changed
 - Awesome: repository and awesome-list star/commit history charts now start from zero at the first commit date when that metadata is available.
+- Awesome: split CI into parallel Python quality, frontend, and pytest jobs with pytest-only settings, strict markers, and slow-test duration reporting.
 - Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.
 - Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
 - Awesome: redesigned repository detail pages into a wider, data-dense dashboard with compact metrics, growth charts, stack/dependency summaries, classification chips, AI-development signals, and sticky metadata panels.
