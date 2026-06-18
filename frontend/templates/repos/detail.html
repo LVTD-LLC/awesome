@@ -202,8 +202,8 @@
             </section>
         {% endif %}
 
-        <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-            <div class="min-w-0 space-y-6">
+        <div class="mt-6 space-y-6">
+            <div class="space-y-6">
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
                          aria-labelledby="repository-growth-heading">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -280,28 +280,28 @@
                                     Stars from baseline {{ performance.stars_since_first_label }}
                                 </p>
                             </div>
-                            <div class="mt-5 grid gap-4 lg:grid-cols-2">
-                                <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
+                            <div class="mt-5 grid gap-5">
+                                <section class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/60 p-5 dark:border-gray-800 dark:bg-gray-900/40"
                                          data-repository-history-chart
                                          data-history-source="repository-history-data"
                                          data-metric="stars"
                                          data-label="Stars">
-                                    <div class="flex items-baseline justify-between gap-3">
-                                        <h4 class="text-sm font-semibold text-gray-950 dark:text-white">Stars history</h4>
-                                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total stars</span>
+                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                                        <h4 class="text-base font-bold text-gray-950 dark:text-white">Stars history</h4>
+                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total stars</span>
                                     </div>
-                                    <div class="mt-4 h-64 w-full" data-chart-plot></div>
+                                    <div class="mt-4 h-80 w-full sm:h-[22rem]" data-chart-plot></div>
                                 </section>
-                                <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
+                                <section class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/60 p-5 dark:border-gray-800 dark:bg-gray-900/40"
                                          data-repository-history-chart
                                          data-history-source="repository-history-data"
                                          data-metric="commit_count"
                                          data-label="Commits">
-                                    <div class="flex items-baseline justify-between gap-3">
-                                        <h4 class="text-sm font-semibold text-gray-950 dark:text-white">Commits history</h4>
-                                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Default branch commits</span>
+                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                                        <h4 class="text-base font-bold text-gray-950 dark:text-white">Commits history</h4>
+                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Default branch commits</span>
                                     </div>
-                                    <div class="mt-4 h-64 w-full" data-chart-plot></div>
+                                    <div class="mt-4 h-80 w-full sm:h-[22rem]" data-chart-plot></div>
                                 </section>
                             </div>
                         </div>
@@ -595,18 +595,18 @@
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Nearest indexed repositories by embedding similarity.</p>
                             </div>
                         </div>
-                        <div class="mt-5 grid gap-4 md:grid-cols-2">
+                        <div class="mt-5 space-y-3">
                             {% for similar_repo in similar_repositories %}
-                                <article class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 transition hover:border-green-200 hover:bg-green-50/60 dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-green-900/70 dark:hover:bg-green-950/20">
+                                    <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                                         <div class="min-w-0">
-                                            <h3 class="truncate font-semibold text-gray-950 dark:text-white">
+                                            <h3 class="break-words text-lg font-bold leading-snug text-gray-950 dark:text-white">
                                                 <a class="hover:text-green-700 hover:underline"
                                                    href="{{ similar_repo.get_absolute_url }}">{{ similar_repo.full_name }}</a>
                                             </h3>
-                                            <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{{ similar_repo.description|default:"No description." }}</p>
+                                            <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ similar_repo.description|default:"No description." }}</p>
                                         </div>
-                                        <div class="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
+                                        <div class="w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold tabular-nums text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
                                             {{ similar_repo.stars|intcomma }} stars
                                         </div>
                                     </div>
@@ -626,51 +626,51 @@
                 {% endif %}
             </div>
 
-            <aside class="space-y-6 xl:sticky xl:top-24">
+            <section class="grid gap-6" aria-label="Repository reference">
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
                          aria-labelledby="repository-metadata-heading">
                     <h2 id="repository-metadata-heading"
                         class="text-lg font-black tracking-tight text-gray-950 dark:text-white">Metadata</h2>
-                    <dl class="mt-4 divide-y divide-gray-200 text-sm dark:divide-gray-800">
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Language</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.language|default:"n/a" }}</dd>
+                            <dd class="mt-1 break-words font-semibold text-gray-950 dark:text-white">{{ repository.language|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">License</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.license_name|default:"n/a" }}</dd>
+                            <dd class="mt-1 break-words font-semibold text-gray-950 dark:text-white">{{ repository.license_name|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Default branch</dt>
-                            <dd class="max-w-40 truncate text-right font-mono text-xs font-semibold text-gray-950 dark:text-white">{{ repository.default_branch|default:"n/a" }}</dd>
+                            <dd class="mt-1 break-words font-mono text-xs font-semibold text-gray-950 dark:text-white">{{ repository.default_branch|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Created</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.github_created_at|date:"Y-m-d"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.github_created_at|date:"Y-m-d"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">First commit</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.first_commit_at|date:"Y-m-d"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.first_commit_at|date:"Y-m-d"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Last pushed</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.github_pushed_at|date:"Y-m-d"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.github_pushed_at|date:"Y-m-d"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">GitHub updated</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.github_updated_at|date:"Y-m-d"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.github_updated_at|date:"Y-m-d"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Last synced</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.last_synced_at|date:"Y-m-d H:i"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.last_synced_at|date:"Y-m-d H:i"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Stack detected</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.stack_detected_at|date:"Y-m-d H:i"|default:"n/a" }}</dd>
+                            <dd class="mt-1 font-semibold tabular-nums text-gray-950 dark:text-white">{{ repository.stack_detected_at|date:"Y-m-d H:i"|default:"n/a" }}</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4 py-2.5">
+                        <div class="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
                             <dt class="text-gray-500 dark:text-gray-400">Archived</dt>
-                            <dd class="text-right font-semibold text-gray-950 dark:text-white">{{ repository.is_archived|yesno:"yes,no" }}</dd>
+                            <dd class="mt-1 font-semibold text-gray-950 dark:text-white">{{ repository.is_archived|yesno:"yes,no" }}</dd>
                         </div>
                     </dl>
                 </section>
@@ -719,10 +719,10 @@
                             class="text-lg font-black tracking-tight text-gray-950 dark:text-white">Appears in</h2>
                         <span class="text-sm font-semibold tabular-nums text-gray-500 dark:text-gray-400">{{ repository_detail_summary.awesome_list_count }}</span>
                     </div>
-                    <ul class="mt-4 space-y-2 text-sm">
+                    <ul class="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                         {% for item in awesome_list_items %}
                             <li>
-                                <a class="block rounded-xl border border-gray-200 px-3 py-2 font-semibold text-green-700 transition hover:bg-green-50 dark:border-gray-800 dark:text-green-300 dark:hover:bg-green-950/30"
+                                <a class="block h-full rounded-xl border border-gray-200 px-3 py-2 font-semibold text-green-700 transition hover:bg-green-50 dark:border-gray-800 dark:text-green-300 dark:hover:bg-green-950/30"
                                    href="{{ item.awesome_list.get_absolute_url }}">{{ item.awesome_list.name }}</a>
                             </li>
                         {% empty %}
@@ -730,7 +730,7 @@
                         {% endfor %}
                     </ul>
                 </section>
-            </aside>
+            </section>
         </div>
     </section>
 {% endblock content %}
