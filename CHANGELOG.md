@@ -70,7 +70,6 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: redesigned repository detail pages into a single-column content flow with full-width history charts and readable similar-repository cards.
 - Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.
 - Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
-- Awesome: redesigned repository detail pages into a wider, data-dense dashboard with compact metrics, growth charts, stack/dependency summaries, classification chips, AI-development signals, and sticky metadata panels.
 - Awesome: repository velocity and star-growth filters now require observed recent capture history instead of falling back to all-time tracked growth.
 - Awesome: expanded analytics coverage for search, repository likes, starred imports, and checkout events while avoiding email-based PostHog identification.
 - Awesome: optimized root and starred repository search pages by skipping unused history-growth annotations and caching public filter metadata.
