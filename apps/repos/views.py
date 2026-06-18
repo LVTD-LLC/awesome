@@ -1085,8 +1085,8 @@ class RepositoryNewsletterIssueListView(ListView):
         context = super().get_context_data(**kwargs)
         context["repository"] = self.repository
         context["newsletter_list_meta_description"] = (
-            f"{self.repository.full_name} repository newsletter archive with generated "
-            "weekly and monthly change updates plus RSS feeds from tracked commits."
+            f"{self.repository.full_name} repository updates archive with generated "
+            "weekly and monthly change reports plus RSS feeds from tracked commits."
         )
         return context
 
@@ -1128,7 +1128,7 @@ class RepositoryNewsletterFeed(Feed):
 
     def title(self, obj):
         repository, cadence = obj
-        return f"{repository.full_name} {cadence} newsletter"
+        return f"{repository.full_name} {cadence} updates"
 
     def link(self, obj):
         repository, _cadence = obj
