@@ -111,8 +111,7 @@ def test_repository_update_list_has_repository_specific_seo_description(client):
         in content
     )
     assert (
-        '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />'
-        in content
+        '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />' in content
     )
 
 
