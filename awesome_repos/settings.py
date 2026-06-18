@@ -659,7 +659,7 @@ NEWSLETTER_AI_PROVIDER = env("NEWSLETTER_AI_PROVIDER", default="openrouter")
 NEWSLETTER_AI_MODEL_LABEL = env("NEWSLETTER_AI_MODEL_LABEL", default="newsletter")
 NEWSLETTER_OPENROUTER_MODEL = env(
     "NEWSLETTER_OPENROUTER_MODEL",
-    default="google/gemini-2.5-flash-lite",
+    default="deepseek/deepseek-v4-flash",
 )
 NEWSLETTER_COMMIT_POLL_LIMIT = env.int("NEWSLETTER_COMMIT_POLL_LIMIT", default=25)
 NEWSLETTER_COMMIT_SUMMARY_LIMIT = env.int("NEWSLETTER_COMMIT_SUMMARY_LIMIT", default=100)

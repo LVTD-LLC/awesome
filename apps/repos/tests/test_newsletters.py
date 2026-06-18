@@ -1,4 +1,6 @@
+import ast
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 from django.db import IntegrityError, transaction
@@ -706,10 +708,35 @@ def test_render_newsletter_markdown_preserves_blockquotes_and_query_links():
     assert "&amp;amp;" not in rendered
 
 
+def test_default_newsletter_openrouter_model_uses_deepseek_v4_flash():
+    settings_path = Path(__file__).resolve().parents[3] / "awesome_repos" / "settings.py"
+    settings_tree = ast.parse(settings_path.read_text())
+
+    for node in ast.walk(settings_tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "NEWSLETTER_OPENROUTER_MODEL"
+            for target in node.targets
+        ):
+            continue
+
+        assert isinstance(node.value, ast.Call)
+        default_keyword = next(
+            (keyword for keyword in node.value.keywords if keyword.arg == "default"), None
+        )
+        assert default_keyword is not None
+        assert isinstance(default_keyword.value, ast.Constant)
+        assert default_keyword.value.value == "deepseek/deepseek-v4-flash"
+        return
+
+    pytest.fail("NEWSLETTER_OPENROUTER_MODEL setting was not found.")
+
+
 @override_settings(
     OPENROUTER_API_KEY="test-key",
     OPENROUTER_BASE_URL="https://openrouter.example/api/v1",
-    SUPPORTED_AI_MODELS={"openrouter": {"newsletter": "google/gemini-2.5-flash-lite"}},
+    SUPPORTED_AI_MODELS={"openrouter": {"newsletter": "deepseek/deepseek-v4-flash"}},
 )
 def test_build_model_supports_openrouter_provider():
     model = build_model(provider="openrouter", label="newsletter")
