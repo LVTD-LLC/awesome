@@ -740,12 +740,68 @@ def test_staff_session_can_create_blog_post_without_api_key(client, django_user_
 
 
 @pytest.mark.django_db
-def test_regular_api_key_cannot_manage_blog_posts(client, profile):
-    response = client.post(
-        "/api/blog/posts",
-        data=json.dumps({"title": "Unauthorized post"}),
-        content_type="application/json",
-        **_api_key_header(profile),
+def test_superuser_api_key_can_create_blog_post(client, django_user_model):
+    superuser = django_user_model.objects.create_user(
+        username="blog-superuser",
+        email="blog-superuser@example.com",
+        password="password123",
+        is_superuser=True,
     )
 
-    assert response.status_code in {401, 403}
+    response = client.post(
+        "/api/blog/posts",
+        data=json.dumps({"title": "Superuser-created blog post"}),
+        content_type="application/json",
+        **{"HTTP_X_API_KEY": superuser.profile.rotate_api_key()},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["author_username"] == "blog-superuser"
+
+
+@pytest.mark.django_db
+def test_blog_management_endpoints_reject_regular_and_anonymous_users(client, profile):
+    from apps.blog.models import BlogPost
+
+    post = BlogPost.objects.create(
+        title="Protected post",
+        slug="protected-post",
+        content_markdown="Original body.",
+    )
+    request_specs = [
+        ("get", "/api/blog/posts", None),
+        ("post", "/api/blog/posts", {"title": "Unauthorized post"}),
+        ("get", "/api/blog/posts/protected-post", None),
+        ("put", "/api/blog/posts/protected-post", {"title": "Unauthorized replacement"}),
+        ("patch", "/api/blog/posts/protected-post", {"title": "Unauthorized patch"}),
+        ("delete", "/api/blog/posts/protected-post", None),
+        ("post", "/api/blog/posts/protected-post/review", None),
+        ("post", "/api/blog/posts/protected-post/publish", None),
+        ("get", "/api/blog/categories", None),
+        ("get", "/api/blog/tags", None),
+    ]
+
+    callers = [
+        ("anonymous", {}),
+        ("regular API key", _api_key_header(profile)),
+    ]
+
+    for caller_name, headers in callers:
+        for method, path, payload in request_specs:
+            request_kwargs = dict(headers)
+            if payload is not None:
+                request_kwargs["data"] = json.dumps(payload)
+                request_kwargs["content_type"] = "application/json"
+
+            response = getattr(client, method)(path, **request_kwargs)
+
+            assert response.status_code in {401, 403}, (
+                f"{caller_name} {method.upper()} {path} returned "
+                f"{response.status_code}"
+            )
+
+    post.refresh_from_db()
+    assert post.title == "Protected post"
+    assert post.status == BlogPost.Status.DRAFT
+    assert BlogPost.objects.filter(slug="protected-post").exists()
+    assert not BlogPost.objects.filter(slug="unauthorized-post").exists()
