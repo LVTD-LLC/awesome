@@ -87,6 +87,9 @@ Notes:
   `content_markdown`; do not send HTML directly.
 - `status` defaults to `draft`. Valid values are `draft`, `review`,
   `published`, and `archived`.
+- `canonical_url` and `og_image_url` are optional absolute URLs. Omit them or
+  send an empty string when they are not needed; use `null` only in `PATCH`
+  requests when clearing an existing value.
 - `source_data` is a JSON object for agent provenance, source URLs, seed terms,
   or generation metadata.
 
@@ -101,7 +104,7 @@ Optional query params:
 - `category`
 - `tag`
 - `page`
-- `page_size` (bounded by the API maximum)
+- `page_size` (default: 30, maximum: 100)
 
 `GET /api/blog/posts/{slug}`
 
@@ -158,7 +161,7 @@ Deletes the post and returns `204`.
 
 Optional query param:
 
-- `limit` (bounded by the API maximum)
+- `limit` (default and maximum: 100)
 
 These list currently known categories and tags. Create missing taxonomy by
 including slugs in post create/update payloads.
