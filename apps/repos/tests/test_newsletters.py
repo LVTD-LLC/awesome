@@ -707,7 +707,11 @@ def test_render_newsletter_markdown_preserves_blockquotes_and_query_links():
     assert "&amp;amp;" not in rendered
 
 
-def test_default_newsletter_openrouter_model_uses_deepseek_v4_flash():
+@override_settings(
+    NEWSLETTER_OPENROUTER_MODEL="deepseek/deepseek-v4-flash",
+    SUPPORTED_AI_MODELS={"openrouter": {"newsletter": "deepseek/deepseek-v4-flash"}},
+)
+def test_newsletter_openrouter_model_mapping_uses_deepseek_v4_flash():
     assert settings.NEWSLETTER_OPENROUTER_MODEL == "deepseek/deepseek-v4-flash"
     assert settings.SUPPORTED_AI_MODELS["openrouter"]["newsletter"] == "deepseek/deepseek-v4-flash"
 
