@@ -799,8 +799,7 @@ def test_blog_management_endpoints_reject_regular_and_anonymous_users(client, pr
                 f"{caller_name} {method.upper()} {path} returned {response.status_code}"
             )
 
-    post.refresh_from_db()
-    assert post.title == "Protected post"
-    assert post.status == BlogPost.Status.DRAFT
-    assert BlogPost.objects.filter(slug="protected-post").exists()
-    assert not BlogPost.objects.filter(slug="unauthorized-post").exists()
+            post.refresh_from_db()
+            assert post.title == "Protected post"
+            assert post.status == BlogPost.Status.DRAFT
+            assert not BlogPost.objects.filter(slug="unauthorized-post").exists()
