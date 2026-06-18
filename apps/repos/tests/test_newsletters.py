@@ -709,10 +709,7 @@ def test_render_newsletter_markdown_preserves_blockquotes_and_query_links():
 
 def test_default_newsletter_openrouter_model_uses_deepseek_v4_flash():
     assert settings.NEWSLETTER_OPENROUTER_MODEL == "deepseek/deepseek-v4-flash"
-    assert (
-        settings.SUPPORTED_AI_MODELS["openrouter"]["newsletter"]
-        == "deepseek/deepseek-v4-flash"
-    )
+    assert settings.SUPPORTED_AI_MODELS["openrouter"]["newsletter"] == "deepseek/deepseek-v4-flash"
 
 
 @override_settings(
