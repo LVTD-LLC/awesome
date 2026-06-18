@@ -796,8 +796,7 @@ def test_blog_management_endpoints_reject_regular_and_anonymous_users(client, pr
             response = getattr(client, method)(path, **request_kwargs)
 
             assert response.status_code in {401, 403}, (
-                f"{caller_name} {method.upper()} {path} returned "
-                f"{response.status_code}"
+                f"{caller_name} {method.upper()} {path} returned {response.status_code}"
             )
 
     post.refresh_from_db()
