@@ -65,6 +65,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
 - Awesome: repository and awesome-list star/commit history charts now start from zero at the first commit date when that metadata is available.
 - Awesome: split CI into parallel Python quality, frontend, and pytest jobs with pytest-only settings, strict markers, and slow-test duration reporting.
 - Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.

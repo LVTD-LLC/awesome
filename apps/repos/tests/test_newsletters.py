@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 
 import pytest
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.test import override_settings
 from django.urls import reverse
@@ -706,10 +707,18 @@ def test_render_newsletter_markdown_preserves_blockquotes_and_query_links():
     assert "&amp;amp;" not in rendered
 
 
+def test_default_newsletter_openrouter_model_uses_deepseek_v4_flash():
+    assert settings.NEWSLETTER_OPENROUTER_MODEL == "deepseek/deepseek-v4-flash"
+    assert (
+        settings.SUPPORTED_AI_MODELS["openrouter"]["newsletter"]
+        == "deepseek/deepseek-v4-flash"
+    )
+
+
 @override_settings(
     OPENROUTER_API_KEY="test-key",
     OPENROUTER_BASE_URL="https://openrouter.example/api/v1",
-    SUPPORTED_AI_MODELS={"openrouter": {"newsletter": "google/gemini-2.5-flash-lite"}},
+    SUPPORTED_AI_MODELS={"openrouter": {"newsletter": "deepseek/deepseek-v4-flash"}},
 )
 def test_build_model_supports_openrouter_provider():
     model = build_model(provider="openrouter", label="newsletter")
