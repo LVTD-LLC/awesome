@@ -491,7 +491,7 @@ def test_generate_repository_newsletter_issue_retries_after_ai_configuration_ret
 
 
 @pytest.mark.django_db
-def test_public_newsletter_pages_and_rss_render(client, repository):
+def test_public_repository_update_pages_and_rss_render(client, repository):
     issue = RepositoryNewsletterIssue.objects.create(
         repository=repository,
         cadence=NewsletterCadence.WEEKLY,
@@ -525,10 +525,40 @@ def test_public_newsletter_pages_and_rss_render(client, repository):
 
     assert list_response.status_code == 200
     assert b"Django weekly update" in list_response.content
+    assert b"repository updates" in list_response.content
     assert detail_response.status_code == 200
     assert b"Added tracking." in detail_response.content
     assert feed_response.status_code == 200
     assert b"Django weekly update" in feed_response.content
+
+    assert issue.get_absolute_url() == "/repos/django/django/updates/weekly/2026-05-25/"
+
+
+@pytest.mark.django_db
+def test_legacy_newsletter_report_urls_redirect_to_updates(client, repository):
+    issue = RepositoryNewsletterIssue.objects.create(
+        repository=repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Django weekly update",
+        content_markdown="## Changes\n- Added tracking.",
+        content_html="<h2>Changes</h2><ul><li>Added tracking.</li></ul>",
+        commit_count=1,
+        published_at=datetime(2026, 6, 1, 4, tzinfo=UTC),
+    )
+
+    list_response = client.get("/repos/django/django/newsletters/")
+    feed_response = client.get("/repos/django/django/newsletters/weekly/feed.xml")
+    detail_response = client.get("/repos/django/django/newsletters/weekly/2026-05-25/")
+
+    assert list_response.status_code == 301
+    assert list_response["Location"] == "/repos/django/django/updates/"
+    assert feed_response.status_code == 301
+    assert feed_response["Location"] == "/repos/django/django/updates/weekly/feed.xml"
+    assert detail_response.status_code == 301
+    assert detail_response["Location"] == issue.get_absolute_url()
 
 
 @pytest.mark.django_db

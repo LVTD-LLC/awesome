@@ -28,19 +28,34 @@ urlpatterns = [
         name="repo_newsletter_disable",
     ),
     path(
-        "repos/<str:owner>/<str:name>/newsletters/",
+        "repos/<str:owner>/<str:name>/updates/",
         views.RepositoryNewsletterIssueListView.as_view(),
         name="newsletter_issue_list",
     ),
     path(
-        "repos/<str:owner>/<str:name>/newsletters/<str:cadence>/feed.xml",
+        "repos/<str:owner>/<str:name>/updates/<str:cadence>/feed.xml",
         views.RepositoryNewsletterFeed(),
         name="newsletter_feed",
     ),
     path(
-        "repos/<str:owner>/<str:name>/newsletters/<str:cadence>/<slug:slug>/",
+        "repos/<str:owner>/<str:name>/updates/<str:cadence>/<slug:slug>/",
         views.RepositoryNewsletterIssueDetailView.as_view(),
         name="newsletter_issue_detail",
+    ),
+    path(
+        "repos/<str:owner>/<str:name>/newsletters/",
+        RedirectView.as_view(pattern_name="repos:newsletter_issue_list", permanent=True),
+        name="legacy_newsletter_issue_list",
+    ),
+    path(
+        "repos/<str:owner>/<str:name>/newsletters/<str:cadence>/feed.xml",
+        RedirectView.as_view(pattern_name="repos:newsletter_feed", permanent=True),
+        name="legacy_newsletter_feed",
+    ),
+    path(
+        "repos/<str:owner>/<str:name>/newsletters/<str:cadence>/<slug:slug>/",
+        RedirectView.as_view(pattern_name="repos:newsletter_issue_detail", permanent=True),
+        name="legacy_newsletter_issue_detail",
     ),
     path(
         "repos/<str:owner>/<str:name>/like/",

@@ -86,7 +86,7 @@ def test_awesome_list_detail_has_page_specific_metadata_and_schema(client):
 
 
 @override_settings(SITE_URL="https://testserver")
-def test_newsletter_issue_list_has_repository_specific_seo_description(client):
+def test_repository_update_list_has_repository_specific_seo_description(client):
     repository = Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -104,20 +104,19 @@ def test_newsletter_issue_list_has_repository_specific_seo_description(client):
 
     assert response.status_code == 200
     content = response_text(response)
-    assert "<title>django/django newsletters · Awesome</title>" in content
+    assert "<title>django/django updates · Awesome</title>" in content
     assert (
-        '<meta name="description" content="django/django repository newsletter archive '
-        'with generated weekly and monthly change updates plus RSS feeds from tracked commits." />'
+        '<meta name="description" content="django/django repository updates archive '
+        'with generated weekly and monthly change reports plus RSS feeds from tracked commits." />'
         in content
     )
     assert (
-        '<link rel="canonical" href="https://testserver/repos/django/django/newsletters/" />'
-        in content
+        '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />' in content
     )
 
 
 @override_settings(SITE_URL="https://testserver")
-def test_newsletter_issue_detail_has_unique_seo_description(client):
+def test_repository_update_detail_has_unique_seo_description(client):
     repository = Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -149,7 +148,7 @@ def test_newsletter_issue_detail_has_unique_seo_description(client):
     )
     assert (
         '<link rel="canonical" '
-        'href="https://testserver/repos/django/django/newsletters/weekly/2026-05-25/" />' in content
+        'href="https://testserver/repos/django/django/updates/weekly/2026-05-25/" />' in content
     )
 
 

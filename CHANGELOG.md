@@ -66,6 +66,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ### Changed
 - Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
+- Awesome: moved public generated repository report archives and RSS feeds from `/newsletters/` to `/updates/`, with permanent redirects from old report URLs.
 - Awesome: repository and awesome-list star/commit history charts now start from zero at the first commit date when that metadata is available.
 - Awesome: split CI into parallel Python quality, frontend, and pytest jobs with pytest-only settings, strict markers, and slow-test duration reporting.
 - Awesome: redesigned repository detail pages into a single-column content flow with full-width history charts and readable similar-repository cards.
