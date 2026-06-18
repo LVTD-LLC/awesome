@@ -2,10 +2,97 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ENVIRONMENT: test
+  DJANGO_READ_DOT_ENV: "0"
+  DEBUG: "0"
+  SECRET_KEY: test-secret-key
+  SITE_URL: "https://testserver"
+  ALLOWED_HOSTS: "localhost,127.0.0.1"
+
+  POSTGRES_DB: awesome_repos
+  POSTGRES_USER: awesome_repos
+  POSTGRES_PASSWORD: awesome_repos
+  POSTGRES_HOST: 127.0.0.1
+  POSTGRES_PORT: 5432
+
+  REDIS_HOST: 127.0.0.1
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ""
+  REDIS_DB: 0
+
+  MAILGUN_API_KEY: ""
+  AWS_S3_ENDPOINT_URL: ""
 
 jobs:
-  test:
+  quality:
+    name: Python quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Set up Python (uv-managed)
+        run: uv python install 3.14
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: pyscn static analysis
+        run: make pyscn-check
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build frontend assets
+        run: npm run build
+
+  tests:
+    name: Pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -22,46 +109,17 @@ jobs:
           --health-timeout 5s
           --health-retries 20
 
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    env:
-      ENVIRONMENT: test
-      DJANGO_READ_DOT_ENV: "0"
-      DEBUG: "0"
-      SECRET_KEY: test-secret-key
-      SITE_URL: "https://testserver"
-      ALLOWED_HOSTS: "localhost,127.0.0.1"
-
-      POSTGRES_DB: awesome_repos
-      POSTGRES_USER: awesome_repos
-      POSTGRES_PASSWORD: awesome_repos
-      POSTGRES_HOST: 127.0.0.1
-      POSTGRES_PORT: 5432
-
-      REDIS_HOST: 127.0.0.1
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ""
-      REDIS_DB: 0
-
-      # Avoid external email providers in CI
-      MAILGUN_API_KEY: ""
-      AWS_S3_ENDPOINT_URL: ""
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Set up Python (uv-managed)
         run: uv python install 3.14
@@ -69,22 +127,11 @@ jobs:
       - name: Sync dependencies
         run: uv sync --locked
 
-      - name: Pre-commit
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+      - name: Migrations check
+        run: uv run python manage.py makemigrations --check --dry-run
 
-      - name: pyscn static analysis
-        run: make pyscn-check
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: ESLint
-        run: npm run lint
+      - name: Django checks
+        run: uv run python manage.py check
 
       - name: Create dummy webpack manifest (tests)
         run: |
@@ -101,12 +148,6 @@ jobs:
             }
           }
           EOF
-
-      - name: Migrations check
-        run: uv run python manage.py makemigrations --check --dry-run
-
-      - name: Django checks
-        run: uv run python manage.py check
 
       - name: Pytest
         run: uv run pytest -q
