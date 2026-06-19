@@ -7,7 +7,7 @@
 {% block content %}
     <article class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <a href="{% url 'repos:newsletter_issue_list' owner=issue.repository.owner name=issue.repository.name %}"
-           class="text-sm font-semibold text-green-700 hover:underline">← All updates</a>
+           class="touch-inline-link text-sm text-green-700 hover:underline">← All updates</a>
         <header class="mt-6 border-b border-gray-200 pb-8 dark:border-gray-800">
             <div class="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
                 {{ issue.repository.full_name }} · {{ issue.get_cadence_display }} · {{ issue.period_start|date:"M d, Y" }} – {{ issue.period_end|date:"M d, Y" }}

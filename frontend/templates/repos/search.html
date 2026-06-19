@@ -62,21 +62,21 @@
                 </div>
             </div>
             <dl class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                    <dt class="text-sm text-gray-500 dark:text-gray-400">{{ total_repositories_label }}</dt>
-                    <dd class="mt-1 text-2xl font-black text-gray-950 dark:text-white">
+                <div class="catalog-stat-card catalog-stat-card-primary">
+                    <dt class="catalog-stat-label">{{ total_repositories_label }}</dt>
+                    <dd class="catalog-stat-value">
                         {{ total_repositories|intcomma }}
                     </dd>
                 </div>
-                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                    <dt class="text-sm text-gray-500 dark:text-gray-400">{{ total_lists_label }}</dt>
-                    <dd class="mt-1 text-2xl font-black text-gray-950 dark:text-white">
+                <div class="catalog-stat-card catalog-stat-card-source">
+                    <dt class="catalog-stat-label">{{ total_lists_label }}</dt>
+                    <dd class="catalog-stat-value">
                         {{ total_lists|intcomma }}
                     </dd>
                 </div>
-                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                    <dt class="text-sm text-gray-500 dark:text-gray-400">Current results</dt>
-                    <dd class="mt-1 text-2xl font-black text-gray-950 dark:text-white">
+                <div class="catalog-stat-card catalog-stat-card-momentum">
+                    <dt class="catalog-stat-label">Current results</dt>
+                    <dd class="catalog-stat-value">
                         {{ page_obj.paginator.count|intcomma }}
                     </dd>
                 </div>
@@ -95,7 +95,7 @@
                 </div>
                 {% if active_repository_filter_count %}
                     <a href="{{ search_reset_url }}"
-                       class="text-sm font-semibold text-green-700 hover:underline dark:text-green-300">Clear {{ active_repository_filter_count }} refinement{{ active_repository_filter_count|pluralize }}</a>
+                       class="touch-inline-link text-sm text-green-700 hover:underline dark:text-green-300">Clear {{ active_repository_filter_count }} refinement{{ active_repository_filter_count|pluralize }}</a>
                 {% endif %}
             </div>
             <div class="mt-5">{% include "repos/_repository_filter_fields.html" %}</div>
@@ -105,7 +105,7 @@
                     Reset filters
                 </a>
                 <button type="submit"
-                        class="inline-flex min-h-11 items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-900">
+                        class="inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-900">
                     Search repositories
                 </button>
             </div>

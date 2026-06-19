@@ -1,6 +1,6 @@
 {% if is_empty %}
     <button type="button"
-            class="group relative flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50/70 px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-green-700 dark:hover:bg-green-950/30 dark:focus-visible:ring-offset-gray-950"
+            class="group relative flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50/70 px-3 py-3 text-center transition motion-safe:hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-green-700 dark:hover:bg-green-950/30 dark:focus-visible:ring-offset-gray-950"
             data-ad-slot="{{ slot_id }}"
             data-ad-empty-slot="{{ slot_id }}"
             data-sponsor-modal-open
@@ -34,14 +34,16 @@
 {% else %}
     <a href="{% if href %}{{ href }}{% else %}mailto:rasul@lvtd.dev?subject=Sponsor%20Awesome{% endif %}"
        {% if href %}target="_blank" rel="noreferrer sponsored"{% endif %}
-       class="group relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-lg border px-3 py-3 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 side-ad-card {{ tone_class|default:'side-ad-card-blue' }} shadow-sm hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:hover:border-green-700 dark:hover:bg-green-950/30"
+       class="group relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-lg border px-3 py-3 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 side-ad-card {{ tone_class|default:'side-ad-card-blue' }} shadow-sm motion-safe:hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50/70 hover:shadow-md dark:hover:border-green-700 dark:hover:bg-green-950/30"
        data-ad-slot="{{ slot_id }}"
        aria-label="{{ position }} sponsor placement{% if headline %}: {{ headline }}{% endif %}">
         <span class="absolute right-2 top-2 rounded-full border border-black/10 bg-white/80 px-1.5 py-0.5 text-[0.625rem] font-black uppercase leading-none text-gray-600 shadow-sm dark:border-white/10 dark:bg-gray-950/80 dark:text-gray-300">Ad</span>
         <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-950">
-            {% if logo_url %}
+            {% if logo_url and external_marketing_assets_enabled %}
                 <img src="{{ logo_url }}"
                      alt="{{ headline }}"
+                     width="32"
+                     height="32"
                      class="h-full w-full object-contain"
                      loading="lazy"
                      decoding="async"

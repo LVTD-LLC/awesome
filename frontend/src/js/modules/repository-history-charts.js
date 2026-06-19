@@ -1,4 +1,14 @@
 const CHART_SELECTOR = "[data-repository-history-chart]";
+const CHART_THEME_TOKENS = {
+  border: "--awesome-chart-border",
+  commits: "--awesome-chart-commits",
+  grid: "--awesome-chart-grid",
+  hoverLine: "--awesome-chart-hover-line",
+  muted: "--awesome-chart-muted",
+  stars: "--awesome-chart-stars",
+  surface: "--awesome-chart-surface",
+  text: "--awesome-chart-text",
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   if (window.d3) {
@@ -195,17 +205,24 @@ function attachTooltip({ content, data, height, label, margin, plot, theme, widt
 }
 
 function chartTheme(metric) {
-  const dark = document.documentElement.classList.contains("dark");
-  const line = metric === "stars" ? "#15803d" : "#2563eb";
+  const styles = getComputedStyle(document.documentElement);
+  const line =
+    metric === "stars"
+      ? themeToken(styles, CHART_THEME_TOKENS.stars)
+      : themeToken(styles, CHART_THEME_TOKENS.commits);
   return {
-    border: dark ? "#334155" : "#e2e8f0",
-    grid: dark ? "#1e293b" : "#e2e8f0",
-    hoverLine: dark ? "#64748b" : "#94a3b8",
+    border: themeToken(styles, CHART_THEME_TOKENS.border),
+    grid: themeToken(styles, CHART_THEME_TOKENS.grid),
+    hoverLine: themeToken(styles, CHART_THEME_TOKENS.hoverLine),
     line,
-    muted: dark ? "#94a3b8" : "#64748b",
-    surface: dark ? "#020617" : "#ffffff",
-    text: dark ? "#e2e8f0" : "#0f172a",
+    muted: themeToken(styles, CHART_THEME_TOKENS.muted),
+    surface: themeToken(styles, CHART_THEME_TOKENS.surface),
+    text: themeToken(styles, CHART_THEME_TOKENS.text),
   };
+}
+
+function themeToken(styles, name) {
+  return styles.getPropertyValue(name).trim();
 }
 
 function styleAxis(axis, theme) {

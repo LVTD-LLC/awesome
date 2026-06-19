@@ -21,6 +21,35 @@ colors:
   success: "#166534"
   warning: "#F59E0B"
   danger: "#DC2626"
+  signal-source: "oklch(54.6% 0.215 262.9)"
+  signal-stack: "oklch(54.1% 0.281 293.0)"
+  signal-momentum: "oklch(66.6% 0.179 58.3)"
+  chart-stars: "#15803D"
+  chart-commits: "#2563EB"
+  chart-border: "#E2E8F0"
+  chart-border-dark: "#334155"
+  chart-grid: "#E2E8F0"
+  chart-grid-dark: "#1E293B"
+  chart-hover-line: "#94A3B8"
+  chart-hover-line-dark: "#64748B"
+  chart-muted: "#64748B"
+  chart-muted-dark: "#94A3B8"
+  chart-surface: "#FFFFFF"
+  chart-surface-dark: "#020617"
+  chart-text: "#0F172A"
+  chart-text-dark: "#E2E8F0"
+  side-ad-blue-bg: "#EFF6FF"
+  side-ad-blue-border: "#DBEAFE"
+  side-ad-green-bg: "#F0FDF4"
+  side-ad-green-border: "#BBF7D0"
+  side-ad-purple-bg: "#FAF5FF"
+  side-ad-purple-border: "#E9D5FF"
+  side-ad-orange-bg: "#FFF7ED"
+  side-ad-orange-border: "#FED7AA"
+  side-ad-sky-bg: "#F0F9FF"
+  side-ad-sky-border: "#BAE6FD"
+  side-ad-dark-bg: "rgb(17 24 39 / 0.8)"
+  side-ad-dark-border: "rgb(31 41 55)"
 typography:
   headline-display:
     fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
@@ -193,6 +222,9 @@ The default palette uses practical SaaS neutrals with one confident primary colo
 - **Accent (#2563EB):** Secondary action/link color. Use it for navigation emphasis and informational affordances, not the main conversion path.
 - **Neutral/Surface (#F8FAFC / #FFFFFF / #F1F5F9):** Light surfaces for pages, cards, forms, dashboards, and marketing sections.
 - **Semantic colors:** Green for success, amber for warning, red for destructive or error states.
+- **Catalog signals:** Use blue for GitHub/source metadata, violet for detected stack and package-manager signals, amber for popularity, freshness, and momentum metrics, and green for recommendations, generated insights, selected controls, and primary actions.
+- **Chart colors:** Repository history charts use primary green for stars, accent blue for commit activity, and slate surface/grid tokens for the surrounding plot chrome.
+- **Side-ad tones:** Side-rail ad cards may use the blue, green, purple, orange, or sky tone pairs when ads need lightweight categorization. In dark mode, all ad tones collapse to the shared dark side-ad surface for readability.
 
 If your generated project needs a different brand, start by changing `primary`, `primary-hover`, `primary-soft`, and `accent`, then review button, badge, and link components.
 
