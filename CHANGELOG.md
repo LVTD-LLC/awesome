@@ -60,6 +60,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
 - Awesome: added a recently-starred sort for personal GitHub starred repository search.
 - Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.
+- Awesome: added time-horizon controls to repository detail history charts, including 7-day, 30-day, 90-day, 1-year, all-time, and custom date ranges.
 - Awesome: show a GitHub-star badge next to the liked heart when a repository is in the signed-in user's imported starred repos.
 - Awesome: added a multi-select repository file filter for AI/project instruction files such as `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
