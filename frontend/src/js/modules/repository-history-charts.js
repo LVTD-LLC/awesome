@@ -22,7 +22,6 @@ const INACTIVE_BUTTON_CLASSES = [
   "dark:ring-gray-700",
   "dark:hover:bg-gray-900",
 ];
-const rangeStateBySource = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
   if (window.d3) {
@@ -66,7 +65,7 @@ function initRangeControls(root, charts) {
       return;
     }
 
-    rangeStateBySource.set(sourceId, { type: "all" });
+    setControlRange(control, { type: "all" });
 
     const buttons = [...control.querySelectorAll("[data-chart-range-value]")];
     const startInput = control.querySelector("[data-chart-custom-start]");
@@ -74,22 +73,22 @@ function initRangeControls(root, charts) {
 
     buttons.forEach((button) => {
       button.addEventListener("click", () => {
-        rangeStateBySource.set(sourceId, rangeFromButtonValue(button.dataset.chartRangeValue));
+        setControlRange(control, rangeFromButtonValue(button.dataset.chartRangeValue));
         clearCustomInputs(startInput, endInput);
-        updateRangeControls(control, rangeStateBySource.get(sourceId));
+        updateRangeControls(control, controlRange(control));
         renderChartsForSource(charts, sourceId);
       });
     });
 
     [startInput, endInput].forEach((input) => {
       input?.addEventListener("change", () => {
-        rangeStateBySource.set(sourceId, customRangeFromInputs(startInput, endInput));
-        updateRangeControls(control, rangeStateBySource.get(sourceId));
+        setControlRange(control, customRangeFromInputs(startInput, endInput));
+        updateRangeControls(control, controlRange(control));
         renderChartsForSource(charts, sourceId);
       });
     });
 
-    updateRangeControls(control, rangeStateBySource.get(sourceId));
+    updateRangeControls(control, controlRange(control));
   });
 }
 
@@ -306,7 +305,49 @@ function utcDaysBefore(date, days) {
 
 function chartRange(chart) {
   const sourceId = chart.dataset.historySource;
-  return sourceId ? rangeStateBySource.get(sourceId) : null;
+  const control = sourceId ? rangeControlForSource(sourceId) : null;
+  return control ? controlRange(control) : null;
+}
+
+function rangeControlForSource(sourceId) {
+  return [...document.querySelectorAll(RANGE_CONTROLS_SELECTOR)].find((control) => control.dataset.historySource === sourceId);
+}
+
+function setControlRange(control, range) {
+  control.dataset.chartRangeType = range?.type || "all";
+  delete control.dataset.chartRangeDays;
+  delete control.dataset.chartRangeStart;
+  delete control.dataset.chartRangeEnd;
+
+  if (range?.type === "days") {
+    control.dataset.chartRangeDays = String(range.days);
+  } else if (range?.type === "custom") {
+    control.dataset.chartRangeStart = range.startLabel || "";
+    control.dataset.chartRangeEnd = range.endLabel || "";
+  }
+}
+
+function controlRange(control) {
+  if (control.dataset.chartRangeType === "days") {
+    return rangeFromButtonValue(control.dataset.chartRangeDays);
+  }
+
+  if (control.dataset.chartRangeType === "custom") {
+    const startLabel = control.dataset.chartRangeStart || "";
+    const endLabel = control.dataset.chartRangeEnd || "";
+    if (!startLabel && !endLabel) {
+      return { type: "all" };
+    }
+    return {
+      type: "custom",
+      startDate: dateFromInputValue(startLabel),
+      startLabel,
+      endDate: dateFromInputValue(endLabel, { endOfDay: true }),
+      endLabel,
+    };
+  }
+
+  return { type: "all" };
 }
 
 function rangeFromButtonValue(value) {
