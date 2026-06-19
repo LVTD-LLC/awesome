@@ -4001,6 +4001,8 @@ def test_repository_search_filters_and_sorts():
         first_commit_at=timezone.now() - timedelta(days=500),
         github_pushed_at=timezone.now(),
         uses_ai_for_development=True,
+        detected_stacks=["django"],
+        package_managers=["dotnet"],
         ai_development_signals=[
             {
                 "path": "AGENTS.md",
@@ -4037,12 +4039,27 @@ def test_repository_search_filters_and_sorts():
         slug="awesome-django",
         source_url="https://github.com/wsvincent/awesome-django",
     )
+    duplicate_name_list = AwesomeList.objects.create(
+        name="awesome-django",
+        slug="duplicate-name",
+        source_url="https://github.com/example/duplicate-name",
+    )
     AwesomeListItem.objects.create(awesome_list=awesome, repository=recent)
+    AwesomeListItem.objects.create(awesome_list=duplicate_name_list, repository=recent)
 
     qs = repository_search_queryset({"q": "django", "updated_days": "30", "sort": "recent"})
     assert list(qs) == [recent]
 
     qs = repository_search_queryset({"list": "Awesome Django"})
+    assert list(qs) == [recent]
+
+    qs = repository_search_queryset({"list": "awesome-django"})
+    assert list(qs) == [recent]
+
+    qs = repository_search_queryset({"framework": "Django"})
+    assert list(qs) == [recent]
+
+    qs = repository_search_queryset({"package_manager": ".NET SDK"})
     assert list(qs) == [recent]
 
     qs = repository_search_queryset({"min_stars": "80"})

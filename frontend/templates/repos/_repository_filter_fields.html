@@ -222,7 +222,7 @@
                                    class="{{ control_class }}" />
                             <datalist id="{{ filter_id_prefix }}-framework-options">
                                 {% for stack in stack_options %}
-                                    <option value="{{ stack.name }}">
+                                    <option value="{{ stack.label }}">
                                         {{ stack.label }}
                                         {% if stack.count %}({{ stack.count }}){% endif %}
                                     </option>
@@ -242,7 +242,7 @@
                                    class="{{ control_class }}" />
                             <datalist id="{{ filter_id_prefix }}-package-manager-options">
                                 {% for manager in package_manager_options %}
-                                    <option value="{{ manager.name }}">
+                                    <option value="{{ manager.label }}">
                                         {{ manager.label }}
                                         {% if manager.count %}({{ manager.count }}){% endif %}
                                     </option>
@@ -267,6 +267,7 @@
                                     <option value="{{ file_path }}">{{ file_path }}</option>
                                 {% endfor %}
                             </datalist>
+                            <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">Use commas to require multiple files.</p>
                         </div>
                     </fieldset>
                     <fieldset class="space-y-4 border-t border-gray-200 pt-5 dark:border-gray-800 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">

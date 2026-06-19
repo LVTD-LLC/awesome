@@ -39,7 +39,12 @@ from apps.repos.models import (
     RepositorySnapshot,
     UserStarredRepository,
 )
-from apps.repos.stack_detection import MAX_STACK_FILE_BYTES, detect_repository_stack
+from apps.repos.stack_detection import (
+    MAX_STACK_FILE_BYTES,
+    PACKAGE_MANAGER_LABELS,
+    STACK_LABELS,
+    detect_repository_stack,
+)
 from apps.repos.tags import (
     normalize_repository_tag,
     repository_tagging_configured,
@@ -2329,6 +2334,20 @@ def repository_param_values(params, name: str) -> list[str]:
     return [str(value) for value in values]
 
 
+def _repository_taxonomy_slug(value: str, labels: Mapping[str, str]) -> str:
+    normalized_value = normalize_repository_tag(value)
+    if not normalized_value:
+        return ""
+    if normalized_value in labels:
+        return normalized_value
+
+    value_key = value.strip().casefold()
+    for slug, label in labels.items():
+        if value_key == label.casefold() or normalized_value == normalize_repository_tag(label):
+            return slug
+    return normalized_value
+
+
 def repository_has_file_filters(params) -> list[str]:
     selected = []
     seen = set()
@@ -2436,7 +2455,7 @@ def _apply_repository_taxonomy_filters(qs, params, *, allow_list_filter: bool):
         qs = qs.filter(
             models.Q(awesome_items__awesome_list__slug=list_value)
             | models.Q(awesome_items__awesome_list__name__iexact=list_value)
-        )
+        ).distinct()
 
     topic = normalize_repository_tag(params.get("topic") or "")
     if topic:
@@ -2444,10 +2463,16 @@ def _apply_repository_taxonomy_filters(qs, params, *, allow_list_filter: bool):
     generated_tag = normalize_repository_tag(params.get("generated_tag") or "")
     if generated_tag:
         qs = qs.filter(generated_tags__contains=[generated_tag])
-    stack = normalize_repository_tag(params.get("framework") or params.get("stack") or "")
+    stack = _repository_taxonomy_slug(
+        params.get("framework") or params.get("stack") or "",
+        STACK_LABELS,
+    )
     if stack:
         qs = qs.filter(detected_stacks__contains=[stack])
-    package_manager = normalize_repository_tag(params.get("package_manager") or "")
+    package_manager = _repository_taxonomy_slug(
+        params.get("package_manager") or "",
+        PACKAGE_MANAGER_LABELS,
+    )
     if package_manager:
         qs = qs.filter(package_managers__contains=[package_manager])
     for file_path in repository_has_file_filters(params):
