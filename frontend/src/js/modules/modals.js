@@ -20,7 +20,12 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+const activeModals = [];
+let documentKeydownListenerReady = false;
+
 export function initModals(root = document) {
+  initDocumentKeydownListener();
+
   MODAL_CONFIGS.forEach((config) => {
     const modal = root.querySelector(config.modalSelector);
     if (!modal || modal.dataset.modalReady === "true") {
@@ -30,6 +35,7 @@ export function initModals(root = document) {
     modal.dataset.modalReady = "true";
     const dialog = modal.querySelector("[role='dialog']") || modal;
     let previousFocus = null;
+    let modalController = null;
 
     const focusableElements = () =>
       Array.from(modal.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
@@ -51,19 +57,30 @@ export function initModals(root = document) {
     };
 
     const open = () => {
+      if (modal.getAttribute("aria-hidden") === "false") {
+        focusInitialElement();
+        return;
+      }
+
       previousFocus = document.activeElement;
       modal.classList.remove("hidden");
       modal.classList.add("flex");
       modal.setAttribute("aria-hidden", "false");
-      document.body.classList.add("overflow-hidden");
+      activeModals.push(modalController);
+      syncBodyScrollLock();
       requestAnimationFrame(focusInitialElement);
     };
 
     const close = () => {
+      if (modal.getAttribute("aria-hidden") !== "false") {
+        return;
+      }
+
       modal.classList.add("hidden");
       modal.classList.remove("flex");
       modal.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("overflow-hidden");
+      removeActiveModal(modalController);
+      syncBodyScrollLock();
 
       if (previousFocus && typeof previousFocus.focus === "function" && document.contains(previousFocus)) {
         previousFocus.focus();
@@ -98,6 +115,8 @@ export function initModals(root = document) {
       }
     };
 
+    modalController = { close, trapFocus };
+
     root
       .querySelectorAll(config.openSelector)
       .forEach((button) => button.addEventListener("click", open));
@@ -109,11 +128,37 @@ export function initModals(root = document) {
         close();
       }
     });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && modal.getAttribute("aria-hidden") === "false") {
-        close();
-      }
-      trapFocus(event);
-    });
   });
+}
+
+function initDocumentKeydownListener() {
+  if (documentKeydownListenerReady) {
+    return;
+  }
+
+  documentKeydownListenerReady = true;
+  document.addEventListener("keydown", (event) => {
+    const activeModal = activeModals[activeModals.length - 1];
+    if (!activeModal) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      activeModal.close();
+      return;
+    }
+
+    activeModal.trapFocus(event);
+  });
+}
+
+function removeActiveModal(modalController) {
+  const index = activeModals.lastIndexOf(modalController);
+  if (index !== -1) {
+    activeModals.splice(index, 1);
+  }
+}
+
+function syncBodyScrollLock() {
+  document.body.classList.toggle("overflow-hidden", activeModals.length > 0);
 }
