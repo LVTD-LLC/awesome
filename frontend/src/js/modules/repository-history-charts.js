@@ -22,7 +22,6 @@ const INACTIVE_BUTTON_CLASSES = [
   "dark:ring-gray-700",
   "dark:hover:bg-gray-900",
 ];
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const rangeStateBySource = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -291,7 +290,7 @@ function rangeDateBounds(data, range) {
     if (!latestDate) {
       return [null, null];
     }
-    return [new Date(latestDate.getTime() - range.days * DAY_IN_MS), latestDate];
+    return [utcDaysBefore(latestDate, range.days), latestDate];
   }
 
   if (range.type === "custom") {
@@ -299,6 +298,12 @@ function rangeDateBounds(data, range) {
   }
 
   return [null, null];
+}
+
+function utcDaysBefore(date, days) {
+  const result = new Date(date.getTime());
+  result.setUTCDate(result.getUTCDate() - days);
+  return result;
 }
 
 function chartRange(chart) {
@@ -342,12 +347,12 @@ function dateFromInputValue(value, { endOfDay = false } = {}) {
   }
 
   const [, year, month, day] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   if (!Number.isFinite(date.getTime())) {
     return null;
   }
   if (endOfDay) {
-    date.setHours(23, 59, 59, 999);
+    date.setUTCHours(23, 59, 59, 999);
   }
   return date;
 }

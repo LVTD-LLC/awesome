@@ -6705,6 +6705,7 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b"Stars history" in response.content
     assert b"Commits history" in response.content
     assert b"Time horizon" in response.content
+    assert f"repository-history-range-heading-{repo.pk}".encode() in response.content
     assert b"data-chart-range-presets" in response.content
     assert b'data-chart-range-value="7"' in response.content
     assert b'data-chart-range-value="30"' in response.content

@@ -285,14 +285,14 @@
                                  data-history-source="repository-history-data">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                     <div>
-                                        <h4 id="repository-history-range-heading"
+                                        <h4 id="repository-history-range-heading-{{ repository.pk }}"
                                             class="text-sm font-bold text-gray-950 dark:text-white">Time horizon</h4>
                                         <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400"
                                            data-chart-range-summary>All tracked data</p>
                                     </div>
                                     <div class="flex flex-wrap gap-2"
                                          role="group"
-                                         aria-labelledby="repository-history-range-heading"
+                                         aria-labelledby="repository-history-range-heading-{{ repository.pk }}"
                                          data-chart-range-presets>
                                         <button type="button"
                                                 class="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-gray-700 ring-1 ring-gray-200 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-900"
