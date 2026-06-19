@@ -6704,6 +6704,15 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b'href="/?topic=django"' in response.content
     assert b"Stars history" in response.content
     assert b"Commits history" in response.content
+    assert b"Time horizon" in response.content
+    assert b"data-chart-range-presets" in response.content
+    assert b'data-chart-range-value="7"' in response.content
+    assert b'data-chart-range-value="30"' in response.content
+    assert b'data-chart-range-value="90"' in response.content
+    assert b'data-chart-range-value="365"' in response.content
+    assert b'data-chart-range-value="all"' in response.content
+    assert b"data-chart-custom-start" in response.content
+    assert b"data-chart-custom-end" in response.content
     assert b"/static/vendors/js/d3.min.js" in response.content
     assert b"/static/js/modules/repository-history-charts.js" in response.content
     assert b"repository-history-data" in response.content

@@ -9,6 +9,21 @@ const CHART_THEME_TOKENS = {
   surface: "--awesome-chart-surface",
   text: "--awesome-chart-text",
 };
+const RANGE_CONTROLS_SELECTOR = "[data-repository-history-range-controls]";
+const ACTIVE_BUTTON_CLASSES = ["bg-green-700", "text-white", "dark:bg-green-500", "dark:text-gray-950"];
+const INACTIVE_BUTTON_CLASSES = [
+  "bg-white",
+  "text-gray-700",
+  "ring-1",
+  "ring-gray-200",
+  "hover:bg-gray-100",
+  "dark:bg-gray-950",
+  "dark:text-gray-300",
+  "dark:ring-gray-700",
+  "dark:hover:bg-gray-900",
+];
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const rangeStateBySource = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
   if (window.d3) {
@@ -25,6 +40,8 @@ export function initRepositoryHistoryCharts(root = document) {
     return;
   }
 
+  initRangeControls(root, charts);
+
   charts.forEach((chart) => {
     const data = historyData(chart.dataset.historySource);
     const renderer = () => renderChart(chart, data);
@@ -39,6 +56,50 @@ export function initRepositoryHistoryCharts(root = document) {
   });
 
   observeThemeChanges(() => charts.forEach((chart) => renderChart(chart, historyData(chart.dataset.historySource))));
+}
+
+function initRangeControls(root, charts) {
+  const controls = [...root.querySelectorAll(RANGE_CONTROLS_SELECTOR)];
+
+  controls.forEach((control) => {
+    const sourceId = control.dataset.historySource;
+    if (!sourceId) {
+      return;
+    }
+
+    if (!rangeStateBySource.has(sourceId)) {
+      rangeStateBySource.set(sourceId, { type: "all" });
+    }
+
+    const buttons = [...control.querySelectorAll("[data-chart-range-value]")];
+    const startInput = control.querySelector("[data-chart-custom-start]");
+    const endInput = control.querySelector("[data-chart-custom-end]");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        rangeStateBySource.set(sourceId, rangeFromButtonValue(button.dataset.chartRangeValue));
+        clearCustomInputs(startInput, endInput);
+        updateRangeControls(control, rangeStateBySource.get(sourceId));
+        renderChartsForSource(charts, sourceId);
+      });
+    });
+
+    [startInput, endInput].forEach((input) => {
+      input?.addEventListener("change", () => {
+        rangeStateBySource.set(sourceId, customRangeFromInputs(startInput, endInput));
+        updateRangeControls(control, rangeStateBySource.get(sourceId));
+        renderChartsForSource(charts, sourceId);
+      });
+    });
+
+    updateRangeControls(control, rangeStateBySource.get(sourceId));
+  });
+}
+
+function renderChartsForSource(charts, sourceId) {
+  charts
+    .filter((chart) => chart.dataset.historySource === sourceId)
+    .forEach((chart) => renderChart(chart, historyData(chart.dataset.historySource)));
 }
 
 function historyData(sourceId) {
@@ -63,18 +124,21 @@ function renderChart(chart, rawData) {
     return;
   }
 
-  const data = rawData
+  const allData = rawData
     .map((point) => ({
       date: new Date(point.captured_at),
       value: point[metric] == null ? null : Number(point[metric]),
     }))
     .filter((point) => Number.isFinite(point.date.getTime()) && Number.isFinite(point.value))
     .sort((left, right) => left.date - right.date);
+  const range = chartRange(chart);
+  const data = filterHistoryDataByRange(allData, range);
 
   plot.innerHTML = "";
   plot.classList.add("relative");
   if (!data.length) {
-    plot.append(emptyState("No tracked data yet."));
+    const message = allData.length && range?.type !== "all" ? "No tracked data in this time range." : "No tracked data yet.";
+    plot.append(emptyState(message));
     return;
   }
 
@@ -202,6 +266,144 @@ function attachTooltip({ content, data, height, label, margin, plot, theme, widt
         .style("left", `${tooltipLeft}px`)
         .style("top", `${tooltipTop}px`);
     });
+}
+
+function filterHistoryDataByRange(data, range) {
+  if (!range || range.type === "all" || !data.length) {
+    return data;
+  }
+
+  const [startDate, endDate] = rangeDateBounds(data, range);
+  if (startDate && endDate && startDate > endDate) {
+    return [];
+  }
+
+  return data.filter((point) => {
+    const afterStart = !startDate || point.date >= startDate;
+    const beforeEnd = !endDate || point.date <= endDate;
+    return afterStart && beforeEnd;
+  });
+}
+
+function rangeDateBounds(data, range) {
+  if (range.type === "days") {
+    const latestDate = data[data.length - 1]?.date;
+    if (!latestDate) {
+      return [null, null];
+    }
+    return [new Date(latestDate.getTime() - range.days * DAY_IN_MS), latestDate];
+  }
+
+  if (range.type === "custom") {
+    return [range.startDate, range.endDate];
+  }
+
+  return [null, null];
+}
+
+function chartRange(chart) {
+  const sourceId = chart.dataset.historySource;
+  return sourceId ? rangeStateBySource.get(sourceId) : null;
+}
+
+function rangeFromButtonValue(value) {
+  if (value === "all") {
+    return { type: "all" };
+  }
+
+  const days = Number(value);
+  if (Number.isFinite(days) && days > 0) {
+    return { type: "days", days };
+  }
+
+  return { type: "all" };
+}
+
+function customRangeFromInputs(startInput, endInput) {
+  const startValue = startInput?.value || "";
+  const endValue = endInput?.value || "";
+  if (!startValue && !endValue) {
+    return { type: "all" };
+  }
+
+  return {
+    type: "custom",
+    startDate: dateFromInputValue(startValue),
+    startLabel: startValue,
+    endDate: dateFromInputValue(endValue, { endOfDay: true }),
+    endLabel: endValue,
+  };
+}
+
+function dateFromInputValue(value, { endOfDay = false } = {}) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (!Number.isFinite(date.getTime())) {
+    return null;
+  }
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+}
+
+function clearCustomInputs(...inputs) {
+  inputs.forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+}
+
+function updateRangeControls(control, range) {
+  const activeValue = rangeButtonValue(range);
+  control.querySelectorAll("[data-chart-range-value]").forEach((button) => {
+    setRangeButtonActive(button, button.dataset.chartRangeValue === activeValue);
+  });
+
+  const summary = control.querySelector("[data-chart-range-summary]");
+  if (summary) {
+    summary.textContent = rangeSummary(range);
+  }
+}
+
+function rangeButtonValue(range) {
+  if (range?.type === "days") {
+    return String(range.days);
+  }
+  if (range?.type === "all") {
+    return "all";
+  }
+  return "";
+}
+
+function setRangeButtonActive(button, active) {
+  button.setAttribute("aria-pressed", active ? "true" : "false");
+  ACTIVE_BUTTON_CLASSES.forEach((className) => button.classList.toggle(className, active));
+  INACTIVE_BUTTON_CLASSES.forEach((className) => button.classList.toggle(className, !active));
+}
+
+function rangeSummary(range) {
+  if (range?.type === "days") {
+    return `Last ${range.days} days`;
+  }
+  if (range?.type === "custom") {
+    if (range.startLabel && range.endLabel) {
+      return `Custom: ${range.startLabel} to ${range.endLabel}`;
+    }
+    if (range.startLabel) {
+      return `Custom: since ${range.startLabel}`;
+    }
+    if (range.endLabel) {
+      return `Custom: through ${range.endLabel}`;
+    }
+  }
+  return "All tracked data";
 }
 
 function chartTheme(metric) {
