@@ -4042,6 +4042,9 @@ def test_repository_search_filters_and_sorts():
     qs = repository_search_queryset({"q": "django", "updated_days": "30", "sort": "recent"})
     assert list(qs) == [recent]
 
+    qs = repository_search_queryset({"list": "Awesome Django"})
+    assert list(qs) == [recent]
+
     qs = repository_search_queryset({"min_stars": "80"})
     assert list(qs) == [old]
 

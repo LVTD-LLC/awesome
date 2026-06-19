@@ -65,6 +65,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.
 - Awesome: colorized repository and awesome-list catalog signals with a consistent palette for source metadata, detected stacks, generated insights, momentum, and issue states.
 - Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
 - Awesome: moved public generated repository report archives and RSS feeds from `/newsletters/` to `/updates/`, with permanent redirects from old report URLs.

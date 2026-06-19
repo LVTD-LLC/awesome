@@ -2431,9 +2431,12 @@ def _apply_repository_taxonomy_filters(qs, params, *, allow_list_filter: bool):
     if language:
         qs = qs.filter(language__iexact=language)
 
-    list_slug = (params.get("list") or "").strip() if allow_list_filter else ""
-    if list_slug:
-        qs = qs.filter(awesome_items__awesome_list__slug=list_slug)
+    list_value = (params.get("list") or "").strip() if allow_list_filter else ""
+    if list_value:
+        qs = qs.filter(
+            models.Q(awesome_items__awesome_list__slug=list_value)
+            | models.Q(awesome_items__awesome_list__name__iexact=list_value)
+        )
 
     topic = normalize_repository_tag(params.get("topic") or "")
     if topic:
