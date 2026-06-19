@@ -66,9 +66,7 @@ function initRangeControls(root, charts) {
       return;
     }
 
-    if (!rangeStateBySource.has(sourceId)) {
-      rangeStateBySource.set(sourceId, { type: "all" });
-    }
+    rangeStateBySource.set(sourceId, { type: "all" });
 
     const buttons = [...control.querySelectorAll("[data-chart-range-value]")];
     const startInput = control.querySelector("[data-chart-custom-start]");
@@ -286,11 +284,11 @@ function filterHistoryDataByRange(data, range) {
 
 function rangeDateBounds(data, range) {
   if (range.type === "days") {
-    const latestDate = data[data.length - 1]?.date;
-    if (!latestDate) {
+    if (!data.length) {
       return [null, null];
     }
-    return [utcDaysBefore(latestDate, range.days), latestDate];
+    const now = new Date();
+    return [utcDaysBefore(now, range.days), now];
   }
 
   if (range.type === "custom") {
