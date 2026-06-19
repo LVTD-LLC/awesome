@@ -91,8 +91,12 @@
     @apply ring-2 ring-green-500/30 ring-offset-2 ring-offset-white dark:ring-green-400/30 dark:ring-offset-gray-950;
   }
 
+  .filter-help-trigger {
+    @apply inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-white text-[11px] font-black leading-none text-gray-500 shadow-sm shadow-gray-950/5 transition hover:border-green-300 hover:bg-green-50 hover:text-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400 dark:hover:border-green-700 dark:hover:bg-green-950/40 dark:hover:text-green-200 dark:focus-visible:ring-offset-gray-950;
+  }
+
   .filter-help-tooltip {
-    @apply pointer-events-none fixed inset-x-4 bottom-4 z-30 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium leading-5 text-gray-600 opacity-0 shadow-lg transition sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:right-auto sm:top-full sm:mt-2 sm:w-72 sm:max-w-[calc(100vw-2rem)] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300;
+    @apply pointer-events-none fixed inset-x-4 bottom-4 z-30 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium leading-5 text-gray-600 opacity-0 shadow-xl shadow-gray-950/10 transition sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:right-auto sm:top-full sm:mt-2 sm:w-72 sm:max-w-[calc(100vw-2rem)] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:shadow-black/30;
   }
 
   .catalog-stat-card {

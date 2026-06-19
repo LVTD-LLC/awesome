@@ -45,33 +45,41 @@
                 {% if show_list_filter %}
                     <div>
                         <label for="{{ filter_id_prefix }}-list" class="{{ label_class }}">Awesome list</label>
-                        <select id="{{ filter_id_prefix }}-list"
-                                name="list"
-                                class="{{ control_class }}">
-                            <option value="">Any list</option>
+                        <input id="{{ filter_id_prefix }}-list"
+                               type="text"
+                               name="list"
+                               value="{{ request.GET.list }}"
+                               list="{{ filter_id_prefix }}-list-options"
+                               placeholder="Any list"
+                               autocomplete="off"
+                               class="{{ control_class }}" />
+                        <datalist id="{{ filter_id_prefix }}-list-options">
                             {% for awesome_list in awesome_lists %}
-                                <option value="{{ awesome_list.slug }}"
-                                        {% if request.GET.list == awesome_list.slug %}selected{% endif %}>
+                                <option value="{{ awesome_list.name }}">
                                     {{ awesome_list.name }}
                                     {% if awesome_list.repo_count %}({{ awesome_list.repo_count }}){% endif %}
                                 </option>
                             {% endfor %}
-                        </select>
+                        </datalist>
                     </div>
                 {% endif %}
                 <div>
                     <label for="{{ filter_id_prefix }}-language" class="{{ label_class }}">Language</label>
-                    <select id="{{ filter_id_prefix }}-language"
-                            name="language"
-                            class="{{ control_class }}">
-                        <option value="">Any language</option>
+                    <input id="{{ filter_id_prefix }}-language"
+                           type="text"
+                           name="language"
+                           value="{{ request.GET.language }}"
+                           list="{{ filter_id_prefix }}-language-options"
+                           placeholder="Any language"
+                           autocomplete="off"
+                           class="{{ control_class }}" />
+                    <datalist id="{{ filter_id_prefix }}-language-options">
                         {% for language in languages %}
-                            <option value="{{ language }}"
-                                    {% if request.GET.language == language %}selected{% endif %}>
+                            <option value="{{ language }}">
                                 {{ language }}
                             </option>
                         {% endfor %}
-                    </select>
+                    </datalist>
                 </div>
                 <div>
                     <label for="{{ filter_id_prefix }}-updated-days" class="{{ label_class }}">Freshness</label>
@@ -166,82 +174,137 @@
                         <legend class="text-sm font-bold text-gray-950 dark:text-white">Ecosystem</legend>
                         <div>
                             <label for="{{ filter_id_prefix }}-topic" class="{{ label_class }}">GitHub topic</label>
-                            <select id="{{ filter_id_prefix }}-topic"
-                                    name="topic"
-                                    class="{{ control_class }}">
-                                <option value="">Any GitHub topic</option>
+                            <input id="{{ filter_id_prefix }}-topic"
+                                   type="text"
+                                   name="topic"
+                                   value="{{ request.GET.topic }}"
+                                   list="{{ filter_id_prefix }}-topic-options"
+                                   placeholder="Any GitHub topic"
+                                   autocomplete="off"
+                                   class="{{ control_class }}" />
+                            <datalist id="{{ filter_id_prefix }}-topic-options">
                                 {% for topic in topic_options %}
                                     <option value="{{ topic.name }}"
-                                            {% if request.GET.topic == topic.name %}selected{% endif %}>
+                                            label="{{ topic.name }}{% if topic.count %} ({{ topic.count }}){% endif %}">
                                         {{ topic.name }}
                                         {% if topic.count %}({{ topic.count }}){% endif %}
                                     </option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label for="{{ filter_id_prefix }}-generated-tag" class="{{ label_class }}">Generated tag</label>
-                            <select id="{{ filter_id_prefix }}-generated-tag"
-                                    name="generated_tag"
-                                    class="{{ control_class }}">
-                                <option value="">Any generated tag</option>
+                            <input id="{{ filter_id_prefix }}-generated-tag"
+                                   type="text"
+                                   name="generated_tag"
+                                   value="{{ request.GET.generated_tag }}"
+                                   list="{{ filter_id_prefix }}-generated-tag-options"
+                                   placeholder="Any generated tag"
+                                   autocomplete="off"
+                                   class="{{ control_class }}" />
+                            <datalist id="{{ filter_id_prefix }}-generated-tag-options">
                                 {% for tag in generated_tag_options %}
                                     <option value="{{ tag.name }}"
-                                            {% if request.GET.generated_tag == tag.name %}selected{% endif %}>
+                                            label="{{ tag.name }}{% if tag.count %} ({{ tag.count }}){% endif %}">
                                         {{ tag.name }}
                                         {% if tag.count %}({{ tag.count }}){% endif %}
                                     </option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label for="{{ filter_id_prefix }}-framework" class="{{ label_class }}">Framework or stack</label>
-                            <select id="{{ filter_id_prefix }}-framework"
-                                    name="framework"
-                                    class="{{ control_class }}">
-                                <option value="">Any detected framework</option>
+                            <input id="{{ filter_id_prefix }}-framework"
+                                   type="text"
+                                   name="framework"
+                                   value="{% if request.GET.framework %}{{ request.GET.framework }}{% else %}{{ request.GET.stack }}{% endif %}"
+                                   list="{{ filter_id_prefix }}-framework-options"
+                                   placeholder="Any detected framework"
+                                   autocomplete="off"
+                                   class="{{ control_class }}" />
+                            <datalist id="{{ filter_id_prefix }}-framework-options">
                                 {% for stack in stack_options %}
-                                    <option value="{{ stack.name }}"
-                                            {% if request.GET.framework == stack.name or request.GET.stack == stack.name %}selected{% endif %}>
+                                    <option value="{{ stack.label }}"
+                                            label="{{ stack.label }}{% if stack.count %} ({{ stack.count }}){% endif %}">
                                         {{ stack.label }}
                                         {% if stack.count %}({{ stack.count }}){% endif %}
                                     </option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label for="{{ filter_id_prefix }}-package-manager"
                                    class="{{ label_class }}">Package manager</label>
-                            <select id="{{ filter_id_prefix }}-package-manager"
-                                    name="package_manager"
-                                    class="{{ control_class }}">
-                                <option value="">Any package manager</option>
+                            <input id="{{ filter_id_prefix }}-package-manager"
+                                   type="text"
+                                   name="package_manager"
+                                   value="{{ request.GET.package_manager }}"
+                                   list="{{ filter_id_prefix }}-package-manager-options"
+                                   placeholder="Any package manager"
+                                   autocomplete="off"
+                                   class="{{ control_class }}" />
+                            <datalist id="{{ filter_id_prefix }}-package-manager-options">
                                 {% for manager in package_manager_options %}
-                                    <option value="{{ manager.name }}"
-                                            {% if request.GET.package_manager == manager.name %}selected{% endif %}>
+                                    <option value="{{ manager.label }}"
+                                            label="{{ manager.label }}{% if manager.count %} ({{ manager.count }}){% endif %}">
                                         {{ manager.label }}
                                         {% if manager.count %}({{ manager.count }}){% endif %}
                                     </option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                     </fieldset>
                     <fieldset class="space-y-4 border-t border-gray-200 pt-5 dark:border-gray-800 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
                         <legend class="text-sm font-bold text-gray-950 dark:text-white">Files</legend>
-                        <div>
-                            <div class="{{ label_class }}">Has file</div>
-                            <div class="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                        <div x-data="{
+                            selected: [{% for file_path in selected_has_file_filters %}'{{ file_path|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            pending: '',
+                            addPending() {
+                                const files = this.pending.split(',').map((file) => file.trim()).filter(Boolean);
+                                files.forEach((file) => {
+                                    if (!this.selected.includes(file)) {
+                                        this.selected.push(file);
+                                    }
+                                });
+                                this.pending = '';
+                            },
+                            removeFile(file) {
+                                this.selected = this.selected.filter((item) => item !== file);
+                            },
+                        }">
+                            <label for="{{ filter_id_prefix }}-has-file" class="{{ label_class }}">Has file</label>
+                            <template x-for="file in selected" :key="file">
+                                <input type="hidden" name="has_file" :value="file" />
+                            </template>
+                            <input id="{{ filter_id_prefix }}-has-file"
+                                   type="text"
+                                   name="has_file"
+                                   value="{{ selected_has_file_filters|join:', ' }}"
+                                   list="{{ filter_id_prefix }}-has-file-options"
+                                   placeholder="Any tracked file"
+                                   autocomplete="off"
+                                   class="{{ control_class }} font-mono text-xs sm:text-sm"
+                                   x-model="pending"
+                                   x-on:change="addPending()"
+                                   x-on:blur="addPending()"
+                                   x-on:keydown.enter.prevent="addPending()" />
+                            <datalist id="{{ filter_id_prefix }}-has-file-options">
                                 {% for file_path in has_file_filter_options %}
-                                    <label class="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition hover:border-green-300 hover:text-green-800 has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-800 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-green-800 dark:hover:text-green-200 dark:has-[:checked]:border-green-700 dark:has-[:checked]:bg-green-950/40 dark:has-[:checked]:text-green-200">
-                                        <input type="checkbox"
-                                               name="has_file"
-                                               value="{{ file_path }}"
-                                               class="h-4 w-4 rounded border-gray-300 text-green-700 focus:ring-green-500 dark:border-gray-700 dark:bg-gray-900"
-                                               {% if file_path in selected_has_file_filters %}checked{% endif %} />
-                                        <span class="min-w-0 break-all font-mono text-xs">{{ file_path }}</span>
-                                    </label>
+                                    <option value="{{ file_path }}">{{ file_path }}</option>
                                 {% endfor %}
+                            </datalist>
+                            <div x-cloak class="mt-2 flex flex-wrap gap-2" x-show="selected.length">
+                                <template x-for="file in selected" :key="file">
+                                    <span class="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 font-mono text-xs font-medium text-green-900 dark:border-green-900/70 dark:bg-green-950/40 dark:text-green-100">
+                                        <span x-text="file"></span>
+                                        <button type="button"
+                                                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-green-700 transition hover:bg-green-100 hover:text-green-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-green-300 dark:hover:bg-green-900 dark:hover:text-green-100"
+                                                x-bind:aria-label="`Remove ${file} file filter`"
+                                                x-on:click="removeFile(file)">x</button>
+                                    </span>
+                                </template>
                             </div>
+                            <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">Choose a suggestion or use commas to require multiple files.</p>
                         </div>
                     </fieldset>
                     <fieldset class="space-y-4 border-t border-gray-200 pt-5 dark:border-gray-800 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
@@ -337,16 +400,10 @@
                                        class="{{ label_class }}">Commit velocity</label>
                                 <span class="group/help relative inline-flex">
                                     <button type="button"
-                                            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:border-gray-400 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-100"
+                                            class="filter-help-trigger"
                                             aria-label="What does Commit velocity mean?"
                                             aria-describedby="{{ filter_id_prefix }}-commit-velocity-help">
-                                        <svg class="h-3.5 w-3.5"
-                                             viewBox="0 0 20 20"
-                                             fill="none"
-                                             aria-hidden="true">
-                                            <path d="M7.75 7.25a2.25 2.25 0 1 1 3.54 1.84c-.78.55-1.29 1.05-1.29 1.91" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M10 14.25h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-                                        </svg>
+                                        <span aria-hidden="true">i</span>
                                     </button>
                                     <span id="{{ filter_id_prefix }}-commit-velocity-help"
                                           role="tooltip"
@@ -369,16 +426,10 @@
                                        class="{{ label_class }}">Star growth</label>
                                 <span class="group/help relative inline-flex">
                                     <button type="button"
-                                            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:border-gray-400 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-100"
+                                            class="filter-help-trigger"
                                             aria-label="What does Star growth mean?"
                                             aria-describedby="{{ filter_id_prefix }}-star-growth-help">
-                                        <svg class="h-3.5 w-3.5"
-                                             viewBox="0 0 20 20"
-                                             fill="none"
-                                             aria-hidden="true">
-                                            <path d="M7.75 7.25a2.25 2.25 0 1 1 3.54 1.84c-.78.55-1.29 1.05-1.29 1.91" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M10 14.25h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-                                        </svg>
+                                        <span aria-hidden="true">i</span>
                                     </button>
                                     <span id="{{ filter_id_prefix }}-star-growth-help"
                                           role="tooltip"
