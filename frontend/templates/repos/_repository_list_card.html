@@ -8,7 +8,7 @@
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                         <a href="{{ repo.get_absolute_url }}"
-                           class="block truncate text-lg font-bold tracking-tight text-gray-950 transition-colors hover:text-green-700 focus:outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-green-500 dark:text-white dark:hover:text-green-300"
+                           class="inline-flex min-h-11 max-w-full items-center truncate rounded-md text-lg font-bold tracking-tight text-gray-950 transition-colors hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-white dark:hover:text-green-300"
                            data-shortcut-list-target>{{ repo.full_name }}</a>
                         <p class="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
                             {{ repo.description|default:"No description." }}
@@ -16,10 +16,10 @@
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
                         {% if repo.is_archived %}
-                            <span class="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100">Archived</span>
+                            <span class="repo-chip repo-chip-momentum text-xs font-semibold">Archived</span>
                         {% endif %}
                         {% if repo.uses_ai_for_development %}
-                            <span class="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">AI dev</span>
+                            <span class="repo-chip repo-chip-insight text-xs font-semibold">AI dev</span>
                         {% endif %}
                     </div>
                 </div>
@@ -32,15 +32,15 @@
                                 <div class="flex min-w-0 flex-wrap gap-1.5 text-gray-700 dark:text-gray-300">
                                     {% if repo.language %}
                                         <a href="{{ repo_search_url }}?language={{ repo.language|urlencode }}"
-                                           class="rounded-full bg-gray-100 px-2.5 py-1 font-medium transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:bg-gray-900 dark:hover:bg-gray-800">{{ repo.language }}</a>
+                                           class="repo-chip repo-chip-source">{{ repo.language }}</a>
                                     {% endif %}
                                     {% for signal in repo.stack_signals|slice:":4" %}
                                         <a href="{{ repo_search_url }}?stack={{ signal.slug|urlencode }}"
-                                           class="rounded-full bg-purple-50 px-2.5 py-1 font-medium text-purple-800 transition hover:bg-purple-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 dark:bg-purple-950 dark:text-purple-100 dark:hover:bg-purple-900">{{ signal.label }}</a>
+                                           class="repo-chip repo-chip-stack">{{ signal.label }}</a>
                                     {% endfor %}
                                     {% for manager in repo.package_managers|slice:":3" %}
                                         <a href="{{ repo_search_url }}?package_manager={{ manager|urlencode }}"
-                                           class="rounded-full bg-gray-100 px-2.5 py-1 font-medium transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:bg-gray-900 dark:hover:bg-gray-800">{{ manager|package_manager_label }}</a>
+                                           class="repo-chip repo-chip-stack">{{ manager|package_manager_label }}</a>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -51,7 +51,7 @@
                                 <div class="flex min-w-0 flex-wrap gap-1.5">
                                     {% for topic in repo.topics|slice:":6" %}
                                         <a href="{{ repo_search_url }}?topic={{ topic|urlencode }}"
-                                           class="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-950 dark:text-blue-100 dark:hover:bg-blue-900">#{{ topic }}</a>
+                                           class="repo-chip repo-chip-source">#{{ topic }}</a>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -62,7 +62,7 @@
                                 <div class="flex min-w-0 flex-wrap gap-1.5">
                                     {% for tag in repo.generated_tags|slice:":5" %}
                                         <a href="{{ repo_search_url }}?generated_tag={{ tag|urlencode }}"
-                                           class="rounded-full bg-green-50 px-2.5 py-1 font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-green-950 dark:text-green-100 dark:hover:bg-green-900">{{ tag }}</a>
+                                           class="repo-chip repo-chip-insight">{{ tag }}</a>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -126,7 +126,7 @@
                         {% include "repos/_repository_starred_badge.html" with repository=repo %}
                     </div>
                     <div class="text-right">
-                        <div class="text-xl font-black tracking-tight text-gray-950 dark:text-white">
+                        <div class="text-xl font-black tracking-tight text-amber-700 dark:text-amber-300">
                             {{ repo.stars|intcomma }}
                         </div>
                         <div class="text-xs font-medium text-gray-500 dark:text-gray-400">stars</div>
@@ -134,15 +134,15 @@
                 </div>
 
                 <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                    <div>
-                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Forks</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-900 dark:text-gray-100">
+                    <div class="repo-metric repo-metric-source">
+                        <dt class="repo-metric-label">Forks</dt>
+                        <dd class="repo-metric-value">
                             {{ repo.forks|intcomma }}
                         </dd>
                     </div>
-                    <div>
-                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Commits</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-900 dark:text-gray-100">
+                    <div class="repo-metric repo-metric-stack">
+                        <dt class="repo-metric-label">Commits</dt>
+                        <dd class="repo-metric-value">
                             {% if repo.commit_count != None %}
                                 {{ repo.commit_count|intcomma }} commit{{ repo.commit_count|pluralize }}
                             {% else %}
@@ -197,12 +197,12 @@
                         <a href="{{ repo.homepage_url }}"
                            target="_blank"
                            rel="noopener"
-                           class="text-blue-700 hover:underline dark:text-blue-300">Website</a>
+                           class="touch-inline-link text-blue-700 hover:underline dark:text-blue-300">Website</a>
                     {% endif %}
                     <a href="{{ repo.url }}"
                        target="_blank"
                        rel="noopener"
-                       class="text-green-700 hover:underline dark:text-green-300">GitHub</a>
+                       class="touch-inline-link text-green-700 hover:underline dark:text-green-300">GitHub</a>
                 </div>
             </div>
         </div>

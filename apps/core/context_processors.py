@@ -31,6 +31,14 @@ def posthog_api_key(request):
     return {"posthog_api_key": settings.POSTHOG_API_KEY}
 
 
+def analytics_settings(request):
+    external_marketing_assets_enabled = not settings.DEBUG
+    return {
+        "external_marketing_assets_enabled": external_marketing_assets_enabled,
+        "plausible_enabled": external_marketing_assets_enabled,
+    }
+
+
 def chatwoot_settings(request):
     return {
         "chatwoot_base_url": settings.CHATWOOT_BASE_URL.rstrip("/"),

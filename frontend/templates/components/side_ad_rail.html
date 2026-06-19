@@ -1,7 +1,6 @@
 {% if side == "left" or side == "right" %}
-    <aside class="hidden xl:block {{ rail_class }}"
-           aria-label="{{ position }} sponsor placements"
-           data-ad-rail="{{ side }}">
+    <div class="hidden xl:block {{ rail_class }}"
+         data-ad-rail="{{ side }}">
         <div class="sticky {{ sticky_class|default:'top-6' }} grid {{ rail_height_class|default:'h-[calc(100vh-3rem) ]' }} grid-rows-5 gap-4">
             {% if side == "left" %}
                 {% include "components/side_ad_slot.html" with slot_id="global-left-1" position="Left rail 1" href="https://builtwithdjango.com/?ref=awesome_repos&utm_source=awesome_repos&utm_medium=side_ad&utm_campaign=awesome_repos_rail&utm_content=built_with_django" logo_url="https://builtwithdjango.com/static/vendors/images/logo.ee701a5f0ffc.png" eyebrow="Django" headline="Built with Django" body="Learn Django through guides, tools, projects, jobs, and founder stories." cta="Explore" tone_class="side-ad-card-blue" only %}
@@ -21,7 +20,7 @@
                 {% endif %}
             {% endif %}
         </div>
-    </aside>
+    </div>
     {% if side == "right" %}
         {% include "components/sponsor_modal.html" %}
     {% endif %}

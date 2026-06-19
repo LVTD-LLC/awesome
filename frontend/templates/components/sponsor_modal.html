@@ -1,12 +1,12 @@
 <div class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
      data-sponsor-modal
      aria-hidden="true">
-    <div class="relative max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-[#242424] p-6 text-gray-100 shadow-2xl sm:p-8"
+    <div class="relative max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-gray-950 p-6 text-gray-100 shadow-2xl sm:p-8"
          role="dialog"
          aria-modal="true"
          aria-labelledby="sponsor-modal-heading">
         <button type="button"
-                class="absolute right-5 top-5 rounded-full p-2 text-gray-300 transition hover:bg-white/10 hover:text-white"
+                class="absolute right-5 top-5 rounded-full p-2 text-gray-300 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                 data-sponsor-modal-close
                 aria-label="Close sponsor modal">
             <svg class="h-5 w-5"
@@ -90,7 +90,7 @@
               class="mt-6">
             {% csrf_token %}
             <button type="submit"
-                    class="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-gray-950 shadow-sm transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#242424]"
+                    class="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-gray-950 shadow-sm transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                     {% if not sponsor_checkout_url %}disabled{% endif %}>
                 Get started ($1,000)
                 <svg class="h-4 w-4"
@@ -105,29 +105,3 @@
         </form>
     </div>
 </div>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const modal = document.querySelector("[data-sponsor-modal]");
-    if (!modal) return;
-    const openButtons = document.querySelectorAll("[data-sponsor-modal-open]");
-    const closeButtons = modal.querySelectorAll("[data-sponsor-modal-close]");
-    const open = () => {
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
-      modal.setAttribute("aria-hidden", "false");
-    };
-    const close = () => {
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-      modal.setAttribute("aria-hidden", "true");
-    };
-    openButtons.forEach((button) => button.addEventListener("click", open));
-    closeButtons.forEach((button) => button.addEventListener("click", close));
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) close();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !modal.classList.contains("hidden")) close();
-    });
-  });
-</script>

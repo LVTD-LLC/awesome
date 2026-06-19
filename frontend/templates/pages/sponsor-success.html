@@ -2,7 +2,7 @@
 {% block content %}
     <div class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:p-8">
-            <p class="app-label-caps text-green-600 dark:text-green-400">Payment received</p>
+            <p class="app-label-caps text-green-700 dark:text-green-400">Payment received</p>
             <h1 class="mt-3 text-3xl font-black tracking-tight text-gray-950 dark:text-white">Send us your ad details</h1>
             <p class="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-300">
                 Add the small logo, startup name, and short description you want shown in the Awesome sponsor slot.
@@ -20,7 +20,7 @@
                            type="file"
                            name="{{ form.logo.html_name }}"
                            accept="image/*"
-                           class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-green-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-green-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                           class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-green-700 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-green-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                     {% if form.logo.errors %}
                         <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.logo.errors|striptags }}</p>
                     {% endif %}
@@ -45,7 +45,7 @@
                     {% endif %}
                 </div>
                 <button type="submit"
-                        class="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-black text-white transition hover:bg-green-700 dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400">
+                        class="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 text-sm font-black text-white transition hover:bg-green-800 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400">
                     Save ad details
                 </button>
             </form>

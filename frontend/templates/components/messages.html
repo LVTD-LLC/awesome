@@ -12,7 +12,7 @@
                             {% if message.tags == 'error' %}
                                 text-red-600
                             {% else %}
-                                text-green-600
+                                text-green-700
                             {% endif %}
                             " stroke-width="2" stroke="currentColor" fill="transparent" r="10" cx="12" cy="12" data-timer-circle />
                         </svg>
@@ -23,7 +23,7 @@
                     <div class="flex-shrink-0 ml-3">
                         <button data-message-dismiss
                                 type="button"
-                                class="inline-flex justify-center items-center h-5 w-5 rounded-md {% if message.tags == 'error' %}text-red-600 hover:text-red-800{% else %}text-green-600 hover:text-green-800{% endif %} focus:outline-none focus:ring-2 focus:ring-offset-2 {% if message.tags == 'error' %}focus:ring-red-500{% else %}focus:ring-green-500{% endif %}">
+                                class="-m-3 inline-flex h-11 w-11 items-center justify-center rounded-md {% if message.tags == 'error' %}text-red-600 hover:text-red-800{% else %}text-green-700 hover:text-green-800{% endif %} focus:outline-none focus:ring-2 focus:ring-offset-2 {% if message.tags == 'error' %}focus:ring-red-500{% else %}focus:ring-green-500{% endif %}">
                             <span class="sr-only">Dismiss</span>
                             <svg class="w-4 h-4"
                                  xmlns="http://www.w3.org/2000/svg"

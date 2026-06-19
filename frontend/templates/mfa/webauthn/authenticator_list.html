@@ -9,7 +9,7 @@
             </p>
         </div>
         <a href="{% url 'mfa_index' %}"
-           class="text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">Back to passkeys</a>
+           class="text-sm font-medium text-green-700 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">Back to passkeys</a>
     </div>
     {% if authenticators %}
         <div class="mt-8 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
@@ -45,6 +45,6 @@
     {% endif %}
     <div class="mt-6">
         <a href="{% url 'mfa_add_webauthn' %}"
-           class="inline-flex justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">Add passkey</a>
+           class="inline-flex justify-center rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">Add passkey</a>
     </div>
 {% endblock mfa_content %}

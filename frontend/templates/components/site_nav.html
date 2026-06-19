@@ -4,7 +4,7 @@
         <div class="mx-auto w-full max-w-[104rem] px-4 sm:px-6 lg:px-8">
             <div class="flex min-h-20 items-center gap-3">
                 <a href="{% url 'repos:search' %}"
-                   class="group flex shrink-0 items-center gap-3 rounded-xl pr-2 text-gray-950 transition hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white dark:hover:text-green-300 dark:focus-visible:ring-offset-gray-950"
+                   class="group flex min-h-11 shrink-0 items-center gap-3 rounded-xl pr-2 text-gray-950 transition hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white dark:hover:text-green-300 dark:focus-visible:ring-offset-gray-950"
                    aria-label="Awesome home">
                     <span class="flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white shadow-sm transition group-hover:border-green-200 group-hover:bg-green-50 dark:border-gray-800 dark:bg-gray-900 dark:group-hover:border-green-900 dark:group-hover:bg-green-950">
                         <img src="{% static 'brand/awesome-repos-mark.svg' %}"
@@ -49,7 +49,7 @@
                        data-shortcut-key="r"
                        data-shortcut-label="Repositories"
                        {% if current_namespace == "repos" and current_name == "search" or current_namespace == "repos" and current_name == "repo_detail" %}aria-current="page"{% endif %}
-                       class="rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "search" or current_namespace == "repos" and current_name == "repo_detail" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
+                       class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "search" or current_namespace == "repos" and current_name == "repo_detail" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
                         <span class="shortcut-hint">
                             Repos
                             <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">R</kbd>
@@ -60,7 +60,7 @@
                        data-shortcut-key="l"
                        data-shortcut-label="Awesome lists"
                        {% if current_namespace == "repos" and current_name == "list" or current_namespace == "repos" and current_name == "list_detail" or current_namespace == "repos" and current_name == "request_list" %}aria-current="page"{% endif %}
-                       class="rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "list" or current_namespace == "repos" and current_name == "list_detail" or current_namespace == "repos" and current_name == "request_list" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
+                       class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "list" or current_namespace == "repos" and current_name == "list_detail" or current_namespace == "repos" and current_name == "request_list" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
                         <span class="shortcut-hint">
                             Lists
                             <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">L</kbd>
@@ -72,7 +72,7 @@
                            data-shortcut-key="s"
                            data-shortcut-label="Starred repositories"
                            {% if current_namespace == "repos" and current_name == "starred" %}aria-current="page"{% endif %}
-                           class="rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "starred" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
+                           class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "starred" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
                             <span class="shortcut-hint">
                                 Starred
                                 <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">S</kbd>
@@ -83,7 +83,7 @@
                            data-shortcut-key="f"
                            data-shortcut-label="Liked repositories"
                            {% if current_namespace == "repos" and current_name == "liked" %}aria-current="page"{% endif %}
-                           class="rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "liked" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
+                           class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 {% if current_namespace == "repos" and current_name == "liked" %}bg-gray-950 text-white shadow-sm dark:bg-white dark:text-gray-950{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white{% endif %}">
                             <span class="shortcut-hint">
                                 Liked
                                 <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">F</kbd>
@@ -95,7 +95,7 @@
                            data-shortcut-link
                            data-shortcut-key="a"
                            data-shortcut-label="Admin"
-                           class="rounded-full px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-green-300 dark:hover:bg-green-950 dark:focus-visible:ring-offset-gray-950">
+                           class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-green-300 dark:hover:bg-green-950 dark:focus-visible:ring-offset-gray-950">
                             <span class="shortcut-hint">
                                 Admin
                                 <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">A</kbd>
@@ -185,7 +185,7 @@
                             </a>
                         {% else %}
                             <a href="{% url 'account_login' %}"
-                               class="inline-flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-950">
+                               class="inline-flex min-h-11 items-center justify-center rounded-full bg-green-700 px-4 text-sm font-semibold text-white transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-950">
                                 Sign in
                             </a>
                         {% endif %}
@@ -314,7 +314,7 @@
                                 </form>
                             {% else %}
                                 <a href="{% url 'account_login' %}"
-                                   class="inline-flex min-h-11 items-center justify-center rounded-full bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400">
+                                   class="inline-flex min-h-11 items-center justify-center rounded-full bg-green-700 px-4 text-sm font-semibold text-white transition hover:bg-green-800 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400">
                                     Sign in
                                 </a>
                             {% endif %}

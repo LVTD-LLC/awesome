@@ -7,7 +7,7 @@
     <section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div class="grid gap-6 border-b border-gray-200 pb-8 dark:border-gray-800 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">Your library</p>
+                <p class="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Your library</p>
                 <h1 class="mt-2 text-4xl font-black tracking-tight text-gray-950 dark:text-white sm:text-5xl">Liked repositories</h1>
                 <p class="mt-4 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
                     Revisit the repos you saved while searching awesome lists.
@@ -41,7 +41,7 @@
                                 {% if request.GET.sort == "awesome" %}selected{% endif %}>Most list mentions</option>
                         <option value="name" {% if request.GET.sort == "name" %}selected{% endif %}>Name</option>
                     </select>
-                    <button class="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-bold text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-900">
+                    <button class="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-700 px-5 text-sm font-bold text-white transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-900">
                         Search
                     </button>
                 </form>
@@ -101,7 +101,7 @@
                         Like repositories from search results or list pages, then come back here to compare them.
                     </p>
                     <a href="{% url 'repos:search' %}"
-                       class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-bold text-white transition hover:bg-green-700 dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400">Search repos</a>
+                       class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 text-sm font-bold text-white transition hover:bg-green-800 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400">Search repos</a>
                 </div>
             {% endfor %}
         </div>

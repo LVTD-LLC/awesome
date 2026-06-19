@@ -1,12 +1,12 @@
 <div class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
      data-highlighted-repo-modal
      aria-hidden="true">
-    <div class="relative max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-[#242424] p-6 text-gray-100 shadow-2xl sm:p-8"
+    <div class="relative max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-gray-950 p-6 text-gray-100 shadow-2xl sm:p-8"
          role="dialog"
          aria-modal="true"
          aria-labelledby="highlighted-repo-modal-heading">
         <button type="button"
-                class="absolute right-5 top-5 rounded-full p-2 text-gray-300 transition hover:bg-white/10 hover:text-white"
+                class="absolute right-5 top-5 rounded-full p-2 text-gray-300 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                 data-highlighted-repo-modal-close
                 aria-label="Close highlighted repo modal">
             <span aria-hidden="true" class="text-2xl leading-none">×</span>
@@ -49,38 +49,10 @@
               class="mt-6">
             {% csrf_token %}
             <button type="submit"
-                    class="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-gray-950 shadow-sm transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#242424]"
+                    class="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-gray-950 shadow-sm transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                     {% if not highlighted_repo_checkout_url %}disabled{% endif %}>
                 Get highlighted ($500 / 7 days) ↗
             </button>
         </form>
     </div>
 </div>
-<script>
-  (() => {
-    const modal = document.querySelector("[data-highlighted-repo-modal]");
-    if (!modal) return;
-    const openButtons = document.querySelectorAll("[data-highlighted-repo-modal-open]");
-    const closeButtons = modal.querySelectorAll("[data-highlighted-repo-modal-close]");
-    const open = () => {
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
-      modal.setAttribute("aria-hidden", "false");
-      document.body.classList.add("overflow-hidden");
-    };
-    const close = () => {
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-      modal.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("overflow-hidden");
-    };
-    openButtons.forEach((button) => button.addEventListener("click", open));
-    closeButtons.forEach((button) => button.addEventListener("click", close));
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) close();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && modal.getAttribute("aria-hidden") === "false") close();
-    });
-  })();
-</script>

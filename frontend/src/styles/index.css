@@ -4,6 +4,40 @@
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/typography";
 
+@layer base {
+  :root {
+    --awesome-chart-stars: #15803d;
+    --awesome-chart-commits: #2563eb;
+    --awesome-chart-border: #e2e8f0;
+    --awesome-chart-grid: #e2e8f0;
+    --awesome-chart-hover-line: #94a3b8;
+    --awesome-chart-muted: #64748b;
+    --awesome-chart-surface: #ffffff;
+    --awesome-chart-text: #0f172a;
+    --awesome-side-ad-blue-bg: #eff6ff;
+    --awesome-side-ad-blue-border: #dbeafe;
+    --awesome-side-ad-green-bg: #f0fdf4;
+    --awesome-side-ad-green-border: #bbf7d0;
+    --awesome-side-ad-purple-bg: #faf5ff;
+    --awesome-side-ad-purple-border: #e9d5ff;
+    --awesome-side-ad-orange-bg: #fff7ed;
+    --awesome-side-ad-orange-border: #fed7aa;
+    --awesome-side-ad-sky-bg: #f0f9ff;
+    --awesome-side-ad-sky-border: #bae6fd;
+    --awesome-side-ad-dark-bg: rgb(17 24 39 / 0.8);
+    --awesome-side-ad-dark-border: rgb(31 41 55);
+  }
+
+  .dark {
+    --awesome-chart-border: #334155;
+    --awesome-chart-grid: #1e293b;
+    --awesome-chart-hover-line: #64748b;
+    --awesome-chart-muted: #94a3b8;
+    --awesome-chart-surface: #020617;
+    --awesome-chart-text: #e2e8f0;
+  }
+}
+
 @layer components {
   .app-focus {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950;
@@ -18,7 +52,7 @@
   }
 
   .app-button-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-500 dark:text-gray-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-950;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400 dark:focus-visible:ring-offset-gray-950;
   }
 
   .app-button-secondary {
@@ -57,40 +91,200 @@
     @apply ring-2 ring-green-500/30 ring-offset-2 ring-offset-white dark:ring-green-400/30 dark:ring-offset-gray-950;
   }
 
+  .filter-help-tooltip {
+    @apply pointer-events-none fixed inset-x-4 bottom-4 z-30 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium leading-5 text-gray-600 opacity-0 shadow-lg transition sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:right-auto sm:top-full sm:mt-2 sm:w-72 sm:max-w-[calc(100vw-2rem)] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300;
+  }
+
+  .catalog-stat-card {
+    @apply rounded-2xl border p-4;
+  }
+
+  .catalog-stat-card-primary {
+    @apply border-green-200 bg-green-50/70 dark:border-green-900/60 dark:bg-green-950/25;
+  }
+
+  .catalog-stat-card-source {
+    @apply border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/25;
+  }
+
+  .catalog-stat-card-momentum {
+    @apply border-amber-200 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/25;
+  }
+
+  .catalog-stat-card-stack {
+    @apply border-violet-200 bg-violet-50/70 dark:border-violet-900/60 dark:bg-violet-950/25;
+  }
+
+  .catalog-stat-label {
+    @apply text-sm font-medium;
+  }
+
+  .catalog-stat-value {
+    @apply mt-1 text-2xl font-black tracking-tight;
+  }
+
+  .catalog-stat-card-primary .catalog-stat-label,
+  .catalog-stat-card-primary .catalog-stat-value {
+    @apply text-green-900 dark:text-green-100;
+  }
+
+  .catalog-stat-card-source .catalog-stat-label,
+  .catalog-stat-card-source .catalog-stat-value {
+    @apply text-blue-900 dark:text-blue-100;
+  }
+
+  .catalog-stat-card-momentum .catalog-stat-label,
+  .catalog-stat-card-momentum .catalog-stat-value {
+    @apply text-amber-950 dark:text-amber-100;
+  }
+
+  .catalog-stat-card-stack .catalog-stat-label,
+  .catalog-stat-card-stack .catalog-stat-value {
+    @apply text-violet-950 dark:text-violet-100;
+  }
+
+  .active-filter-chip {
+    @apply inline-flex min-h-11 max-w-full min-w-0 items-center gap-2 break-all rounded-full border border-green-200 bg-green-50 px-3 py-2 text-left font-medium leading-5 text-green-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:border-green-900/70 dark:bg-green-950/40 dark:text-green-100;
+  }
+
+  a.active-filter-chip:hover {
+    @apply border-green-300 bg-green-100 dark:border-green-700 dark:bg-green-950/70;
+  }
+
+  .repo-chip {
+    @apply inline-flex min-h-8 max-w-full min-w-0 items-center break-all rounded-full border px-2.5 py-1 text-left font-medium leading-5 transition focus:outline-none focus-visible:ring-2;
+  }
+
+  a.repo-chip,
+  button.repo-chip {
+    @apply min-h-11 min-w-11 justify-center px-3 py-2;
+  }
+
+  .touch-inline-link {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-1 font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500;
+  }
+
+  .repo-chip-source {
+    @apply border-blue-200 bg-blue-50 text-blue-800 focus-visible:ring-blue-500 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-100;
+  }
+
+  a.repo-chip-source:hover {
+    @apply bg-blue-100 dark:bg-blue-900/60;
+  }
+
+  .repo-chip-stack {
+    @apply border-violet-200 bg-violet-50 text-violet-800 focus-visible:ring-violet-500 dark:border-violet-900/70 dark:bg-violet-950/40 dark:text-violet-100;
+  }
+
+  a.repo-chip-stack:hover {
+    @apply bg-violet-100 dark:bg-violet-900/60;
+  }
+
+  .repo-chip-insight {
+    @apply border-green-200 bg-green-50 text-green-800 focus-visible:ring-green-500 dark:border-green-900/70 dark:bg-green-950/40 dark:text-green-100;
+  }
+
+  a.repo-chip-insight:hover {
+    @apply bg-green-100 dark:bg-green-900/60;
+  }
+
+  .repo-chip-momentum {
+    @apply border-amber-200 bg-amber-50 text-amber-900 focus-visible:ring-amber-500 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-100;
+  }
+
+  a.repo-chip-momentum:hover {
+    @apply bg-amber-100 dark:bg-amber-900/60;
+  }
+
+  .repo-chip-neutral {
+    @apply border-gray-200 bg-gray-100 text-gray-700 focus-visible:ring-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200;
+  }
+
+  a.repo-chip-neutral:hover {
+    @apply bg-gray-200 dark:bg-gray-800;
+  }
+
+  .repo-chip-risk {
+    @apply border-red-200 bg-red-50 text-red-800 focus-visible:ring-red-500 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-100;
+  }
+
+  a.repo-chip-risk:hover {
+    @apply bg-red-100 dark:bg-red-900/60;
+  }
+
+  .repo-metric {
+    @apply rounded-xl border p-3;
+  }
+
+  .repo-metric-stars {
+    @apply border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100;
+  }
+
+  .repo-metric-momentum {
+    @apply border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100;
+  }
+
+  .repo-metric-source {
+    @apply border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100;
+  }
+
+  .repo-metric-catalog {
+    @apply border-green-200 bg-green-50 text-green-950 dark:border-green-900/60 dark:bg-green-950/25 dark:text-green-100;
+  }
+
+  .repo-metric-stack {
+    @apply border-violet-200 bg-violet-50 text-violet-950 dark:border-violet-900/60 dark:bg-violet-950/25 dark:text-violet-100;
+  }
+
+  .repo-metric-risk {
+    @apply border-red-200 bg-red-50 text-red-950 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-100;
+  }
+
+  .repo-metric-label {
+    @apply text-xs font-medium opacity-75;
+  }
+
+  .repo-metric-value {
+    @apply text-lg font-bold;
+  }
+
   .side-ad-card {
-    border-color: #dbeafe;
-    background-color: #eff6ff;
+    --side-ad-card-bg: var(--awesome-side-ad-blue-bg);
+    --side-ad-card-border: var(--awesome-side-ad-blue-border);
+
+    border-color: var(--side-ad-card-border);
+    background-color: var(--side-ad-card-bg);
   }
 
   .side-ad-card-blue {
-    border-color: #dbeafe;
-    background-color: #eff6ff;
+    --side-ad-card-bg: var(--awesome-side-ad-blue-bg);
+    --side-ad-card-border: var(--awesome-side-ad-blue-border);
   }
 
   .side-ad-card-green {
-    border-color: #bbf7d0;
-    background-color: #f0fdf4;
+    --side-ad-card-bg: var(--awesome-side-ad-green-bg);
+    --side-ad-card-border: var(--awesome-side-ad-green-border);
   }
 
   .side-ad-card-purple {
-    border-color: #e9d5ff;
-    background-color: #faf5ff;
+    --side-ad-card-bg: var(--awesome-side-ad-purple-bg);
+    --side-ad-card-border: var(--awesome-side-ad-purple-border);
   }
 
   .side-ad-card-orange {
-    border-color: #fed7aa;
-    background-color: #fff7ed;
+    --side-ad-card-bg: var(--awesome-side-ad-orange-bg);
+    --side-ad-card-border: var(--awesome-side-ad-orange-border);
   }
 
   .side-ad-card-sky {
-    border-color: #bae6fd;
-    background-color: #f0f9ff;
+    --side-ad-card-bg: var(--awesome-side-ad-sky-bg);
+    --side-ad-card-border: var(--awesome-side-ad-sky-border);
   }
 
   .dark .side-ad-card,
   .dark [data-ad-rail] [data-ad-slot].side-ad-card {
-    border-color: rgb(31 41 55);
-    background-color: rgb(17 24 39 / 0.8);
+    --side-ad-card-bg: var(--awesome-side-ad-dark-bg);
+    --side-ad-card-border: var(--awesome-side-ad-dark-border);
   }
 
   .side-ad-eyebrow,
@@ -136,4 +330,16 @@
   padding: 0 !important;
   border-radius: 0 !important;
   font-weight: 500 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

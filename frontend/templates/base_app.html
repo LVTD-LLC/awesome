@@ -28,10 +28,12 @@
       })
             </script>
         {% endif %}
-        <script defer
-                data-domain="awesome.lvtd.dev"
-                src="https://plausible-v2.cr.lvtd.dev/js/script.outbound-links.js"></script>
-        <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+        {% if plausible_enabled %}
+            <script defer
+                    data-domain="awesome.lvtd.dev"
+                    src="https://plausible-v2.cr.lvtd.dev/js/script.outbound-links.js"></script>
+            <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+        {% endif %}
         <script>
     // Set theme early to avoid a flash of incorrect theme.
     (function () {
@@ -72,8 +74,8 @@
         {% endblock default_messages %}
         <div class="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
             {% include "components/site_nav.html" %}
-            <div class="mx-auto w-full gap-y-6 px-4 pb-8 pt-6 sm:px-6 lg:px-8 {% if ads_removed %}max-w-7xl{% else %}grid max-w-none grid-cols-1 xl:grid-cols-[11.25rem_minmax(0,1fr)_minmax(0,64rem)_minmax(0,1fr)_11.25rem] xl:gap-x-6 2xl:grid-cols-[14.5rem_minmax(0,1fr)_minmax(0,64rem)_minmax(0,1fr)_14.5rem]{% endif %}"
-                 data-page-ad-shell>
+            <main class="mx-auto w-full gap-y-6 px-4 pb-8 pt-6 sm:px-6 lg:px-8 {% if ads_removed %}max-w-7xl{% else %}grid max-w-none grid-cols-1 xl:grid-cols-[11.25rem_minmax(0,1fr)_minmax(0,64rem)_minmax(0,1fr)_11.25rem] xl:gap-x-6 2xl:grid-cols-[14.5rem_minmax(0,1fr)_minmax(0,64rem)_minmax(0,1fr)_14.5rem]{% endif %}"
+                  data-page-ad-shell>
                 {% if not ads_removed %}
                     {% include "components/side_ad_rail.html" with side="left" position="Left" rail_class="xl:col-start-1 xl:row-start-1" sticky_class="top-24" rail_height_class="h-[calc(100vh-7rem)]" only %}
                 {% endif %}
@@ -85,12 +87,15 @@
                 {% if not ads_removed %}
                     {% include "components/side_ad_rail.html" with side="right" position="Right" rail_class="xl:col-start-5 xl:row-start-1" sticky_class="top-24" rail_height_class="h-[calc(100vh-7rem)]" csrf_token=csrf_token only %}
                 {% endif %}
-            </div>
+            </main>
             <footer class="bg-white dark:bg-gray-950">
                 <div class="px-6 py-12 mx-auto max-w-[104rem] md:flex md:items-center md:justify-between lg:px-8">
                     <div class="mt-8 md:mt-0">
                         <p class="text-xs leading-5 text-center text-gray-500 dark:text-gray-400">
-                            &copy; {% now "Y" %} <a href="https://lvtd.dev?ref={{ request.get_host }}">LVTD, LLC</a>. All rights reserved.
+                            &copy; {% now "Y" %}
+                            <a href="https://lvtd.dev?ref={{ request.get_host }}"
+                               class="touch-inline-link text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">LVTD, LLC</a>.
+                            All rights reserved.
                         </p>
                     </div>
                 </div>
