@@ -8,14 +8,24 @@
             <h2 id="{{ heading_id }}"
                 class="mt-2 text-xl font-black tracking-tight text-gray-950 dark:text-white">{{ card_title }}</h2>
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                Get generated {{ repository.full_name }} development summaries by email, or follow the weekly and monthly RSS feeds.
+                {% if has_published_newsletter_issues %}
+                    Get generated {{ repository.full_name }} development summaries by email, or follow published updates by RSS.
+                {% else %}
+                    Get generated {{ repository.full_name }} development summaries by email.
+                {% endif %}
             </p>
-            <div class="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
-                <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
-                   href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}">Weekly RSS</a>
-                <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
-                   href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='monthly' %}">Monthly RSS</a>
-            </div>
+            {% if has_weekly_newsletter_issues or has_monthly_newsletter_issues %}
+                <div class="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+                    {% if has_weekly_newsletter_issues %}
+                        <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
+                           href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}">Weekly RSS</a>
+                    {% endif %}
+                    {% if has_monthly_newsletter_issues %}
+                        <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
+                           href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='monthly' %}">Monthly RSS</a>
+                    {% endif %}
+                </div>
+            {% endif %}
         </div>
         {% if user.is_authenticated %}
             <form method="post"
@@ -59,7 +69,13 @@
             </form>
         {% else %}
             <div class="flex flex-col items-start gap-3 rounded-xl border border-green-200 bg-white p-4 dark:border-green-900 dark:bg-gray-950">
-                <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Sign in to subscribe by email. RSS feeds are public.</p>
+                <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    {% if has_published_newsletter_issues %}
+                        Sign in to subscribe by email. RSS feeds are public.
+                    {% else %}
+                        Sign in to subscribe by email.
+                    {% endif %}
+                </p>
                 <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}"
                    class="app-button-primary">Sign in to subscribe</a>
             </div>

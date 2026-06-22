@@ -391,7 +391,21 @@ def _safe_repository_next_url(request, repository: Repository) -> str:
 
 
 def _repository_newsletter_subscription_context(request, repository: Repository) -> dict:
-    context = {"newsletter_subscription": None, "newsletter_form": None}
+    published_issue_counts = {
+        item["cadence"]: item["count"]
+        for item in repository.newsletter_issues.filter(published_at__isnull=False)
+        .values("cadence")
+        .annotate(count=Count("id"))
+    }
+    context = {
+        "newsletter_subscription": None,
+        "newsletter_form": None,
+        "has_published_newsletter_issues": any(published_issue_counts.values()),
+        "has_weekly_newsletter_issues": bool(published_issue_counts.get(NewsletterCadence.WEEKLY)),
+        "has_monthly_newsletter_issues": bool(
+            published_issue_counts.get(NewsletterCadence.MONTHLY)
+        ),
+    }
     if not request.user.is_authenticated:
         return context
 

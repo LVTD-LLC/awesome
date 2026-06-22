@@ -54,8 +54,14 @@
                         <div class="flex flex-wrap gap-2 lg:justify-end">
                             <a class="app-button-primary"
                                href="{% url 'repos:newsletter_issue_list' owner=repository.owner name=repository.name %}">View updates</a>
-                            <a class="app-button-secondary"
-                               href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}">RSS</a>
+                            {% if repository.weekly_update_count %}
+                                <a class="app-button-secondary"
+                                   href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}">Weekly RSS</a>
+                            {% endif %}
+                            {% if repository.monthly_update_count %}
+                                <a class="app-button-secondary"
+                                   href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='monthly' %}">Monthly RSS</a>
+                            {% endif %}
                         </div>
                     </div>
                     {% if repository.latest_update_published_at %}
