@@ -71,6 +71,12 @@ class NewsletterPeriod:
     end: date
 
 
+@dataclass(frozen=True, slots=True)
+class NewsletterSubscriptionUpdate:
+    subscription: NewsletterSubscription
+    tracking_started: bool
+
+
 class CommitSummaryOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -184,16 +190,17 @@ def disable_repository_newsletter_tracking(repository: Repository) -> Repository
 
 
 @transaction.atomic
-def upsert_newsletter_subscription(
+def upsert_newsletter_subscription_with_status(
     *,
     user,
     repository: Repository,
     email: str,
     cadence: str,
-) -> NewsletterSubscription:
+) -> NewsletterSubscriptionUpdate:
     if cadence not in NewsletterCadence.values:
         raise ValueError("Unsupported newsletter cadence.")
     repository = Repository.objects.select_for_update().get(pk=repository.pk)
+    tracking_started = not repository.newsletter_tracking_enabled
     enable_repository_newsletter_tracking(repository)
     normalized_email = email.strip().lower()
     subscription = (
@@ -227,7 +234,25 @@ def upsert_newsletter_subscription(
         subscription.cadence = cadence
         subscription.unsubscribed_at = None
         subscription.save(update_fields=["email", "cadence", "unsubscribed_at", "updated_at"])
-    return subscription
+    return NewsletterSubscriptionUpdate(
+        subscription=subscription,
+        tracking_started=tracking_started,
+    )
+
+
+def upsert_newsletter_subscription(
+    *,
+    user,
+    repository: Repository,
+    email: str,
+    cadence: str,
+) -> NewsletterSubscription:
+    return upsert_newsletter_subscription_with_status(
+        user=user,
+        repository=repository,
+        email=email,
+        cadence=cadence,
+    ).subscription
 
 
 def unsubscribe_newsletter(subscription: NewsletterSubscription) -> NewsletterSubscription:

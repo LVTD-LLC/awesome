@@ -200,6 +200,24 @@ def test_regular_user_can_subscribe_to_newsletter(auth_client, repository, monke
         )
     ]
 
+    queued.clear()
+    response = auth_client.post(
+        reverse(
+            "repos:repo_newsletter_subscribe",
+            kwargs={"owner": repository.owner, "name": repository.name},
+        ),
+        data={
+            "email": "reader@example.com",
+            "cadence": NewsletterCadence.MONTHLY,
+            "next": "/updates/",
+        },
+    )
+
+    assert response.status_code == 302
+    subscription.refresh_from_db()
+    assert subscription.cadence == NewsletterCadence.MONTHLY
+    assert queued == []
+
 
 @pytest.mark.django_db
 def test_superuser_can_subscribe_from_repository_detail(

@@ -37,7 +37,7 @@ from apps.repos.models import (
 from apps.repos.newsletters import (
     disable_repository_newsletter_tracking,
     unsubscribe_newsletter,
-    upsert_newsletter_subscription,
+    upsert_newsletter_subscription_with_status,
 )
 from apps.repos.search_services import (
     awesome_list_search_queryset,
@@ -341,19 +341,21 @@ def upsert_repository_newsletter_subscription(request, owner: str, name: str):
         messages.error(request, "Choose a valid delivery email and cadence.")
         return redirect(next_url)
 
-    subscription = upsert_newsletter_subscription(
+    subscription_update = upsert_newsletter_subscription_with_status(
         user=request.user,
         repository=repository,
         email=form.cleaned_data["email"],
         cadence=form.cleaned_data["cadence"],
     )
-    transaction.on_commit(
-        lambda: async_task(
-            "apps.repos.tasks.poll_tracked_repository_commits_task",
-            repository.id,
-            group=NEWSLETTER_COMMIT_POLL_TASK_GROUP,
+    subscription = subscription_update.subscription
+    if subscription_update.tracking_started:
+        transaction.on_commit(
+            lambda: async_task(
+                "apps.repos.tasks.poll_tracked_repository_commits_task",
+                repository.id,
+                group=NEWSLETTER_COMMIT_POLL_TASK_GROUP,
+            )
         )
-    )
     messages.success(
         request,
         (
