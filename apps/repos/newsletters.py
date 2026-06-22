@@ -669,11 +669,18 @@ def build_issue_generation_text(
     period: NewsletterPeriod,
     commits: list[RepositoryCommit],
 ) -> str:
+    included_commit_count = min(len(commits), settings.NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS)
     sections = [
         f"Repository: {repository.full_name}",
         f"Cadence: {cadence}",
         f"Period: {period.start.isoformat()} to {period.end.isoformat()}",
-        "Commits:",
+        f"Total commits in period: {len(commits)}",
+        f"Commit summaries included below: {included_commit_count}",
+        (
+            "If total commits exceeds included summaries, write the post as a highlight "
+            "report from available commit summaries rather than claiming to cover every commit."
+        ),
+        "Included commits:",
     ]
     for commit in commits[: settings.NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS]:
         summary = commit.summary or commit.message
@@ -701,9 +708,14 @@ def generate_issue_content(text: str) -> NewsletterIssueOutput:
     result = _newsletter_agent(
         NewsletterIssueOutput,
         instructions=(
-            "Write a concise public repository change newsletter in Markdown. Include a short "
-            "opening summary and grouped bullets for meaningful changes. Mention commit SHAs "
-            "or URLs only when they add useful traceability. Do not invent changes."
+            "Write a public, developer-facing repository development update in Markdown. "
+            "Use a clear SEO-friendly title that includes the repository name, cadence, "
+            "and date range. Start with a concise summary that explains who should care. "
+            "Group meaningful changes under descriptive H2/H3 headings, keep bullets "
+            "scannable, and include commit links when they add traceability. Avoid keyword "
+            "stuffing, duplicated boilerplate, and invented claims. If the input is a "
+            "bounded sample of a larger commit period, describe the post as highlights "
+            "from the available summaries instead of exhaustive coverage."
         ),
     ).run_sync("Create a repository newsletter issue from these commit summaries.\n\n" + text)
     return result.output

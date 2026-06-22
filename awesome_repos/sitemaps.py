@@ -3,10 +3,11 @@ from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.contrib import sitemaps
+from django.db.models import Max, Q
 from django.urls import reverse
 
 from apps.blog.models import BlogPost
-from apps.repos.models import AwesomeList, Repository
+from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
 
 
 class ConfiguredDomainSitemap(sitemaps.Sitemap):
@@ -32,6 +33,7 @@ class StaticViewSitemap(ConfiguredDomainSitemap):
     def items(self):
         return [
             "repos:search",
+            "repos:updates_index",
             "repos:list",
             "repos:request_list",
             "blog:post_list",
@@ -87,9 +89,53 @@ class BlogPostSitemap(ConfiguredDomainSitemap):
         return item.updated_at
 
 
+class RepositoryUpdatesSitemap(ConfiguredDomainSitemap):
+    changefreq = "weekly"
+    priority = 0.6
+
+    def items(self):
+        published_issues = Q(newsletter_issues__published_at__isnull=False)
+        return (
+            Repository.objects.filter(published_issues, is_disabled=False)
+            .exclude(is_awesome_list_candidate=True)
+            .annotate(latest_update_published_at=Max("newsletter_issues__published_at"))
+            .order_by("id")
+        )
+
+    def location(self, item):
+        return reverse(
+            "repos:newsletter_issue_list",
+            kwargs={"owner": item.owner, "name": item.name},
+        )
+
+    def lastmod(self, item):
+        return item.latest_update_published_at or item.updated_at
+
+
+class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
+    changefreq = "monthly"
+    priority = 0.55
+
+    def items(self):
+        return (
+            RepositoryNewsletterIssue.objects.filter(
+                published_at__isnull=False,
+                repository__is_disabled=False,
+                repository__is_awesome_list_candidate=False,
+            )
+            .select_related("repository")
+            .order_by("id")
+        )
+
+    def lastmod(self, item):
+        return item.published_at or item.updated_at
+
+
 sitemaps = {
     "static": StaticViewSitemap,
     "repositories": RepositorySitemap,
     "awesome_lists": AwesomeListSitemap,
     "blog_posts": BlogPostSitemap,
+    "repository_updates": RepositoryUpdatesSitemap,
+    "repository_update_issues": RepositoryNewsletterIssueSitemap,
 }

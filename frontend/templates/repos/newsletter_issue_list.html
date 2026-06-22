@@ -1,46 +1,89 @@
 {% extends "base_landing.html" %}
+{% load humanize %}
 {% block meta %}
     {% with meta_title=repository.full_name|add:" updates · Awesome" %}
         {% include "components/seo_meta.html" with title=meta_title description=newsletter_list_meta_description canonical_path=request.path og_type="article" %}
     {% endwith %}
 {% endblock meta %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="{{ repository.full_name }} weekly updates"
+          href="{{ site_url }}{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}" />
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="{{ repository.full_name }} monthly updates"
+          href="{{ site_url }}{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='monthly' %}" />
+{% endblock extra_head %}
 {% block content %}
-    <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        <a href="{{ repository.get_absolute_url }}"
-           class="touch-inline-link text-sm text-green-700 hover:underline">← Back to {{ repository.full_name }}</a>
-        <div class="mt-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap gap-3 text-sm font-semibold">
+            <a href="{% url 'repos:updates_index' %}"
+               class="touch-inline-link text-green-700 hover:underline dark:text-green-300">← All updates</a>
+            <a href="{{ repository.get_absolute_url }}"
+               class="touch-inline-link text-green-700 hover:underline dark:text-green-300">Repository profile</a>
+        </div>
+        <div class="mt-6 border-b border-gray-200 pb-8 dark:border-gray-800">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h1 class="text-4xl font-bold">{{ repository.full_name }} updates</h1>
-                    <p class="mt-3 text-gray-600 dark:text-gray-300">Generated weekly and monthly change reports from tracked commits.</p>
-                </div>
-                <div class="flex gap-3 text-sm font-semibold">
-                    <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
-                       href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='weekly' %}">Weekly RSS</a>
-                    <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
-                       href="{% url 'repos:newsletter_feed' owner=repository.owner name=repository.name cadence='monthly' %}">Monthly RSS</a>
-                </div>
-            </div>
-            <div class="mt-8 space-y-4">
-                {% for issue in issues %}
-                    <article class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
-                        <div class="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
-                            {{ issue.get_cadence_display }} · {{ issue.period_start|date:"M d, Y" }} – {{ issue.period_end|date:"M d, Y" }}
-                        </div>
-                        <h2 class="mt-2 text-2xl font-bold">
-                            <a class="inline-flex min-h-11 max-w-full items-center rounded-md hover:text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                               href="{{ issue.get_absolute_url }}">{{ issue.title }}</a>
-                        </h2>
-                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                            {{ issue.commit_count }} commit{{ issue.commit_count|pluralize }} · Published {{ issue.published_at|date:"M d, Y" }}
-                        </p>
-                    </article>
-                {% empty %}
-                    <p class="rounded-2xl border border-gray-200 p-5 text-gray-600 dark:border-gray-800 dark:text-gray-300">
-                        No repository updates have been published yet.
+                    <p class="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">Repository updates</p>
+                    <h1 class="mt-2 text-4xl font-black tracking-tight text-gray-950 dark:text-white">
+                        {{ repository.full_name }} updates
+                    </h1>
+                    <p class="mt-3 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300">
+                        Generated weekly and monthly development reports from tracked commits, with email subscriptions and public RSS feeds.
                     </p>
-                {% endfor %}
+                </div>
             </div>
+        </div>
+        <div class="mt-8">
+            {% include "repos/_newsletter_subscription_card.html" with newsletter_card_heading_id="repository-updates-subscribe-heading" newsletter_card_title="Follow this repository" %}
+        </div>
+        <div class="mt-8 space-y-4">
+            {% for issue in issues %}
+                <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-green-200 hover:bg-green-50/50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-green-900 dark:hover:bg-green-950/20">
+                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                        <div class="min-w-0">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
+                                {{ issue.get_cadence_display }} · {{ issue.period_start|date:"M d, Y" }} - {{ issue.period_end|date:"M d, Y" }}
+                            </div>
+                            <h2 class="mt-2 text-2xl font-black tracking-tight text-gray-950 dark:text-white">
+                                <a class="inline-flex min-h-11 max-w-full items-center rounded-md hover:text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                                   href="{{ issue.get_absolute_url }}">{{ issue.title }}</a>
+                            </h2>
+                            <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                Summarizes {{ issue.commit_count|intcomma }} commit{{ issue.commit_count|pluralize }} from {{ issue.period_start|date:"M d, Y" }} to {{ issue.period_end|date:"M d, Y" }}.
+                            </p>
+                        </div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Published {{ issue.published_at|date:"M d, Y" }}</p>
+                    </div>
+                </article>
+            {% empty %}
+                <p class="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
+                    No repository updates have been published yet.
+                </p>
+            {% endfor %}
         </div>
     </section>
 {% endblock content %}
+{% block schema %}
+    <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "{{ repository.full_name|escapejs }} development updates",
+    "description": "{{ newsletter_list_meta_description|escapejs }}",
+    "url": "{{ site_url }}{% url 'repos:newsletter_issue_list' owner=repository.owner name=repository.name %}",
+    "about": {
+      "@type": "SoftwareSourceCode",
+      "name": "{{ repository.full_name|escapejs }}",
+      "codeRepository": "{{ repository.url|escapejs }}"
+    },
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Awesome",
+      "url": "{{ site_url }}/"
+    }
+  }
+    </script>
+{% endblock schema %}
