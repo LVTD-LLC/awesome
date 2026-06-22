@@ -162,6 +162,8 @@ def test_repository_detail_shows_newsletter_controls_to_regular_users(auth_clien
     assert response.status_code == 200
     assert b"Follow repository updates" in response.content
     assert b"Delivery email" in response.content
+    assert b"Weekly RSS" not in response.content
+    assert b"Monthly RSS" not in response.content
 
 
 @pytest.mark.django_db
@@ -650,9 +652,14 @@ def test_public_repository_update_pages_and_rss_render(client, repository):
     assert b"Django weekly update" in list_response.content
     assert b"Repository updates" in list_response.content
     assert b"Sign in to subscribe" in list_response.content
+    assert b"Weekly RSS" in list_response.content
+    assert b"Monthly RSS" not in list_response.content
+    assert b"django/django monthly updates" not in list_response.content
     assert detail_response.status_code == 200
     assert b"Added tracking." in detail_response.content
     assert b"Follow future updates" in detail_response.content
+    assert b"Weekly RSS" in detail_response.content
+    assert b"Monthly RSS" not in detail_response.content
     assert feed_response.status_code == 200
     assert b"Django weekly update" in feed_response.content
 
@@ -714,6 +721,8 @@ def test_public_repository_updates_index_lists_published_archives(client, reposi
     assert b"django/archived" not in response.content
     assert b"django/unpublished" not in response.content
     assert b"/repos/django/django/updates/" in response.content
+    assert b"Weekly RSS" in response.content
+    assert b"Monthly RSS" not in response.content
 
 
 @pytest.mark.django_db

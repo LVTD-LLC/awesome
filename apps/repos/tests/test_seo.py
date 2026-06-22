@@ -114,7 +114,7 @@ def test_repository_update_list_has_repository_specific_seo_description(client):
         '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />' in content
     )
     assert '"@type": "CollectionPage"' in content
-    assert "weekly updates" in content
+    assert "weekly updates" not in content
 
 
 @override_settings(SITE_URL="https://testserver")
