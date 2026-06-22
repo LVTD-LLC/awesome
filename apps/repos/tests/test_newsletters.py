@@ -220,6 +220,48 @@ def test_regular_user_can_subscribe_to_newsletter(auth_client, repository, monke
 
 
 @pytest.mark.django_db
+@override_settings(NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER=1)
+def test_subscription_cap_blocks_new_repository_tracking(
+    auth_client,
+    user,
+    repository,
+    monkeypatch,
+):
+    NewsletterSubscription.objects.create(
+        user=user,
+        repository=repository,
+        email="reader@example.com",
+        cadence=NewsletterCadence.WEEKLY,
+    )
+    new_repository = Repository.objects.create(
+        full_name="django/channels",
+        owner="django",
+        name="channels",
+        url="https://github.com/django/channels",
+    )
+    queued = []
+    monkeypatch.setattr("apps.repos.views.transaction.on_commit", lambda callback: callback())
+    monkeypatch.setattr(
+        "apps.repos.views.async_task",
+        lambda func_path, *args, **kwargs: queued.append((func_path, args, kwargs)) or "task-1",
+    )
+
+    response = auth_client.post(
+        reverse(
+            "repos:repo_newsletter_subscribe",
+            kwargs={"owner": new_repository.owner, "name": new_repository.name},
+        ),
+        data={"email": "reader@example.com", "cadence": NewsletterCadence.WEEKLY},
+    )
+
+    assert response.status_code == 302
+    assert NewsletterSubscription.objects.filter(repository=new_repository).exists() is False
+    new_repository.refresh_from_db()
+    assert new_repository.newsletter_tracking_enabled is False
+    assert queued == []
+
+
+@pytest.mark.django_db
 def test_superuser_can_subscribe_from_repository_detail(
     client,
     django_user_model,

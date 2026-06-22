@@ -77,6 +77,10 @@ class NewsletterSubscriptionUpdate:
     tracking_started: bool
 
 
+class NewsletterSubscriptionLimitExceeded(ValueError):
+    pass
+
+
 class CommitSummaryOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -200,14 +204,23 @@ def upsert_newsletter_subscription_with_status(
     if cadence not in NewsletterCadence.values:
         raise ValueError("Unsupported newsletter cadence.")
     repository = Repository.objects.select_for_update().get(pk=repository.pk)
-    tracking_started = not repository.newsletter_tracking_enabled
-    enable_repository_newsletter_tracking(repository)
     normalized_email = email.strip().lower()
     subscription = (
         NewsletterSubscription.objects.select_for_update()
         .filter(user=user, repository=repository, is_active=True)
         .first()
     )
+    max_active_subscriptions = settings.NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER
+    if subscription is None and max_active_subscriptions > 0:
+        active_subscription_count = (
+            NewsletterSubscription.objects.select_for_update()
+            .filter(user=user, is_active=True)
+            .count()
+        )
+        if active_subscription_count >= max_active_subscriptions:
+            raise NewsletterSubscriptionLimitExceeded("User newsletter subscription limit reached.")
+    tracking_started = not repository.newsletter_tracking_enabled
+    enable_repository_newsletter_tracking(repository)
     if subscription is None:
         try:
             with transaction.atomic():

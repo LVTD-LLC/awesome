@@ -1,5 +1,6 @@
 from urllib.parse import quote, urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -35,6 +36,7 @@ from apps.repos.models import (
     RepositorySnapshot,
 )
 from apps.repos.newsletters import (
+    NewsletterSubscriptionLimitExceeded,
     disable_repository_newsletter_tracking,
     unsubscribe_newsletter,
     upsert_newsletter_subscription_with_status,
@@ -341,12 +343,23 @@ def upsert_repository_newsletter_subscription(request, owner: str, name: str):
         messages.error(request, "Choose a valid delivery email and cadence.")
         return redirect(next_url)
 
-    subscription_update = upsert_newsletter_subscription_with_status(
-        user=request.user,
-        repository=repository,
-        email=form.cleaned_data["email"],
-        cadence=form.cleaned_data["cadence"],
-    )
+    try:
+        subscription_update = upsert_newsletter_subscription_with_status(
+            user=request.user,
+            repository=repository,
+            email=form.cleaned_data["email"],
+            cadence=form.cleaned_data["cadence"],
+        )
+    except NewsletterSubscriptionLimitExceeded:
+        messages.error(
+            request,
+            (
+                "You can follow up to "
+                f"{settings.NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER} "
+                "repository update newsletters."
+            ),
+        )
+        return redirect(next_url)
     subscription = subscription_update.subscription
     if subscription_update.tracking_started:
         transaction.on_commit(
