@@ -1095,7 +1095,7 @@ class RepositoryUpdatesIndexView(ListView):
     def get_queryset(self):
         published_issues = Q(newsletter_issues__published_at__isnull=False)
         return (
-            Repository.objects.filter(published_issues, is_disabled=False)
+            Repository.objects.filter(published_issues, is_archived=False, is_disabled=False)
             .exclude(is_awesome_list_candidate=True)
             .annotate(
                 update_issue_count=Count(
@@ -1135,7 +1135,7 @@ class RepositoryUpdatesIndexView(ListView):
         context = super().get_context_data(**kwargs)
         page_obj = context.get("page_obj")
         context["updates_repository_count"] = (
-            page_obj.paginator.count if page_obj is not None else len(context["repositories"])
+            page_obj.paginator.count if page_obj is not None else 0
         )
         context["updates_meta_description"] = (
             "Browse generated weekly and monthly development updates for open-source "

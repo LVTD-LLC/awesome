@@ -625,6 +625,13 @@ def test_public_repository_updates_index_lists_published_archives(client, reposi
         name="unpublished",
         url="https://github.com/django/unpublished",
     )
+    archived_repository = Repository.objects.create(
+        full_name="django/archived",
+        owner="django",
+        name="archived",
+        url="https://github.com/django/archived",
+        is_archived=True,
+    )
     RepositoryNewsletterIssue.objects.create(
         repository=repository,
         cadence=NewsletterCadence.WEEKLY,
@@ -646,12 +653,23 @@ def test_public_repository_updates_index_lists_published_archives(client, reposi
         title="Unpublished update",
         commit_count=1,
     )
+    RepositoryNewsletterIssue.objects.create(
+        repository=archived_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Archived weekly update",
+        commit_count=1,
+        published_at=datetime(2026, 6, 1, 4, tzinfo=UTC),
+    )
 
     response = client.get(reverse("repos:updates_index"))
 
     assert response.status_code == 200
     assert b"Open-source development updates" in response.content
     assert b"django/django" in response.content
+    assert b"django/archived" not in response.content
     assert b"django/unpublished" not in response.content
     assert b"/repos/django/django/updates/" in response.content
 
