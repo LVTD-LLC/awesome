@@ -77,7 +77,7 @@
                     <a class="touch-inline-link text-green-700 hover:underline dark:text-green-300"
                        href="?page={{ page_obj.previous_page_number }}">Previous</a>
                 {% else %}
-                    <span></span>
+                    <span class="touch-inline-link opacity-0" aria-hidden="true">Previous</span>
                 {% endif %}
                 <span class="text-gray-500 dark:text-gray-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
                 {% if page_obj.has_next %}

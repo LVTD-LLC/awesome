@@ -107,8 +107,7 @@ def test_repository_update_list_has_repository_specific_seo_description(client):
     assert "<title>django/django updates · Awesome</title>" in content
     assert (
         '<meta name="description" content="django/django development updates with generated '
-        'weekly and monthly commit summaries, RSS feeds, and email subscriptions." />'
-        in content
+        'weekly and monthly commit summaries, RSS feeds, and email subscriptions." />' in content
     )
     assert (
         '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />' in content
