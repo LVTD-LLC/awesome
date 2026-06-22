@@ -23,6 +23,16 @@ def current_state(request):
     return {"current_state": ProfileStates.STRANGER}
 
 
+def navigation_state(request):
+    resolver_match = getattr(request, "resolver_match", None)
+    current_namespace = resolver_match.namespace if resolver_match else ""
+    current_name = resolver_match.url_name if resolver_match else ""
+    return {
+        "nav_updates_active": current_namespace == "repos"
+        and current_name in {"updates_index", "newsletter_issue_list", "newsletter_issue_detail"},
+    }
+
+
 def mfa_recovery_codes_settings(request):
     return {"mfa_recovery_codes_show_once": mfa_app_settings.RECOVERY_CODES_SHOW_ONCE}
 

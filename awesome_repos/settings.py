@@ -175,6 +175,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.current_state",
+                "apps.core.context_processors.navigation_state",
                 "apps.core.context_processors.mfa_recovery_codes_settings",
                 "apps.core.context_processors.posthog_api_key",
                 "apps.core.context_processors.analytics_settings",

@@ -66,7 +66,7 @@
                             <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">L</kbd>
                         </span>
                     </a>
-                    {% if current_namespace == "repos" and current_name == "updates_index" or current_namespace == "repos" and current_name == "newsletter_issue_list" or current_namespace == "repos" and current_name == "newsletter_issue_detail" %}
+                    {% if nav_updates_active %}
                         <a href="{% url 'repos:updates_index' %}"
                            data-shortcut-link
                            data-shortcut-key="u"
@@ -279,7 +279,7 @@
                                 Lists
                             </a>
                             <a href="{% url 'repos:updates_index' %}"
-                               class="rounded-xl px-3 py-3 text-sm font-semibold {% if current_namespace == "repos" and current_name == "updates_index" or current_namespace == "repos" and current_name == "newsletter_issue_list" or current_namespace == "repos" and current_name == "newsletter_issue_detail" %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
+                               class="rounded-xl px-3 py-3 text-sm font-semibold {% if nav_updates_active %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
                                 Updates
                             </a>
                             {% if user.is_authenticated %}
