@@ -56,7 +56,8 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: added a liked repositories page for authenticated users.
 - Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
 - Awesome: store repository website links from GitHub metadata or description URLs and show them on repository pages.
-- Awesome: added experimental superuser-only repository newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
+- Awesome: added repository update newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
+- Awesome: added a public repository updates hub, signed-in user email subscriptions, settings subscription management links, and sitemap entries for published update archives and posts.
 - Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
 - Awesome: added a recently-starred sort for personal GitHub starred repository search.
 - Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.

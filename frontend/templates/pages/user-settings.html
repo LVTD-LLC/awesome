@@ -9,7 +9,7 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tight text-gray-950 dark:text-white">Settings</h1>
                 <p class="app-text-muted mt-3 max-w-2xl text-base leading-7">
-                    Manage the GitHub data Awesome uses for your account today, with space for repository update emails as they become available.
+                    Manage the GitHub data Awesome uses for your account and the repository update emails you follow.
                 </p>
             </div>
             <a href="{% url 'repos:search' %}" class="app-button-secondary shrink-0">Browse repositories</a>
@@ -123,11 +123,11 @@
                                 <h2 id="repo-updates-heading"
                                     class="text-xl font-bold text-gray-950 dark:text-white">Repository updates</h2>
                                 <p class="app-text-muted mt-2 max-w-2xl text-sm leading-6">
-                                    Future watch and newsletter preferences will live here. For now, liked repositories and starred imports are the signals Awesome can already use.
+                                    Follow generated weekly or monthly development summaries for repositories you care about.
                                 </p>
                             </div>
-                            <span class="inline-flex w-fit rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-                                Planned
+                            <span class="inline-flex w-fit rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-200">
+                                Live
                             </span>
                         </div>
                     </div>
@@ -143,20 +143,41 @@
                         </div>
                         <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Digest cadence</h3>
-                                <p class="app-text-muted mt-1 text-sm">Weekly and monthly summaries are planned for watched repositories.</p>
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Update directory</h3>
+                                <p class="app-text-muted mt-1 text-sm">Browse repositories that already publish generated update archives.</p>
                             </div>
-                            <span class="inline-flex w-fit rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                                Coming later
-                            </span>
+                            <a href="{% url 'repos:updates_index' %}"
+                               class="app-button-secondary shrink-0">Browse updates</a>
                         </div>
                         <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Per-repo subscriptions</h3>
-                                <p class="app-text-muted mt-1 text-sm">Repository pages will expose watch controls when digest delivery is ready.</p>
+                                <p class="app-text-muted mt-1 text-sm">
+                                    {{ newsletter_subscriptions|length|intcomma }} active email subscription{{ newsletter_subscriptions|length|pluralize }}.
+                                </p>
                             </div>
                             <a href="{% url 'repos:search' %}" class="app-button-secondary shrink-0">Find repos</a>
                         </div>
+                        {% for subscription in newsletter_subscriptions %}
+                            <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <h3 class="break-words text-sm font-semibold text-gray-950 dark:text-white">
+                                        {{ subscription.repository.full_name }}
+                                    </h3>
+                                    <p class="app-text-muted mt-1 text-sm">{{ subscription.get_cadence_display }} updates to {{ subscription.email }}</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{% url 'repos:newsletter_issue_list' owner=subscription.repository.owner name=subscription.repository.name %}"
+                                       class="app-button-secondary shrink-0">Updates</a>
+                                    <a href="{{ subscription.unsubscribe_url }}"
+                                       class="app-button-secondary shrink-0">Manage</a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="p-5">
+                                <p class="app-text-muted text-sm">No repository update emails yet.</p>
+                            </div>
+                        {% endfor %}
                     </div>
                 </section>
             </div>

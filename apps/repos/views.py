@@ -1,5 +1,6 @@
 from urllib.parse import quote, urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -35,9 +36,10 @@ from apps.repos.models import (
     RepositorySnapshot,
 )
 from apps.repos.newsletters import (
+    NewsletterSubscriptionLimitExceeded,
     disable_repository_newsletter_tracking,
     unsubscribe_newsletter,
-    upsert_newsletter_subscription,
+    upsert_newsletter_subscription_with_status,
 )
 from apps.repos.search_services import (
     awesome_list_search_queryset,
@@ -334,26 +336,39 @@ def queue_repository_rescan(request, owner: str, name: str):
 @login_required(login_url="account_login")
 @require_POST
 def upsert_repository_newsletter_subscription(request, owner: str, name: str):
-    _require_superuser(request)
     repository = get_object_or_404(Repository, full_name=f"{owner}/{name}")
+    next_url = _safe_repository_next_url(request, repository)
     form = NewsletterSubscriptionForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Choose a valid delivery email and cadence.")
-        return redirect(repository.get_absolute_url())
+        return redirect(next_url)
 
-    subscription = upsert_newsletter_subscription(
-        user=request.user,
-        repository=repository,
-        email=form.cleaned_data["email"],
-        cadence=form.cleaned_data["cadence"],
-    )
-    transaction.on_commit(
-        lambda: async_task(
-            "apps.repos.tasks.poll_tracked_repository_commits_task",
-            repository.id,
-            group=NEWSLETTER_COMMIT_POLL_TASK_GROUP,
+    try:
+        subscription_update = upsert_newsletter_subscription_with_status(
+            user=request.user,
+            repository=repository,
+            email=form.cleaned_data["email"],
+            cadence=form.cleaned_data["cadence"],
         )
-    )
+    except NewsletterSubscriptionLimitExceeded:
+        messages.error(
+            request,
+            (
+                "You can follow up to "
+                f"{settings.NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER} "
+                "repository update newsletters."
+            ),
+        )
+        return redirect(next_url)
+    subscription = subscription_update.subscription
+    if subscription_update.tracking_started:
+        transaction.on_commit(
+            lambda: async_task(
+                "apps.repos.tasks.poll_tracked_repository_commits_task",
+                repository.id,
+                group=NEWSLETTER_COMMIT_POLL_TASK_GROUP,
+            )
+        )
     messages.success(
         request,
         (
@@ -361,7 +376,42 @@ def upsert_repository_newsletter_subscription(request, owner: str, name: str):
             f"{subscription.get_cadence_display().lower()} updates to {subscription.email}."
         ),
     )
-    return redirect(repository.get_absolute_url())
+    return redirect(next_url)
+
+
+def _safe_repository_next_url(request, repository: Repository) -> str:
+    next_url = request.POST.get("next") or repository.get_absolute_url()
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return repository.get_absolute_url()
+    return next_url
+
+
+def _repository_newsletter_subscription_context(request, repository: Repository) -> dict:
+    context = {"newsletter_subscription": None, "newsletter_form": None}
+    if not request.user.is_authenticated:
+        return context
+
+    subscription = (
+        NewsletterSubscription.objects.filter(
+            user=request.user,
+            repository=repository,
+            is_active=True,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    context["newsletter_subscription"] = subscription
+    context["newsletter_form"] = NewsletterSubscriptionForm(
+        initial={
+            "email": subscription.email if subscription else request.user.email,
+            "cadence": subscription.cadence if subscription else NewsletterCadence.WEEKLY,
+        }
+    )
+    return context
 
 
 @login_required(login_url="account_login")
@@ -1046,23 +1096,64 @@ class RepositoryDetailView(DetailView):
             published_at__isnull=False,
         )[:5]
         context["hide_side_ad_rails"] = False
-        if self.request.user.is_superuser:
-            subscription = (
-                NewsletterSubscription.objects.filter(
-                    user=self.request.user,
-                    repository=self.object,
-                    is_active=True,
-                )
-                .order_by("-created_at")
-                .first()
+        context.update(_repository_newsletter_subscription_context(self.request, self.object))
+        return context
+
+
+class RepositoryUpdatesIndexView(ListView):
+    template_name = "repos/newsletter_updates_index.html"
+    context_object_name = "repositories"
+    paginate_by = 30
+
+    def get_queryset(self):
+        published_issues = Q(newsletter_issues__published_at__isnull=False)
+        return (
+            Repository.objects.filter(published_issues, is_archived=False, is_disabled=False)
+            .exclude(is_awesome_list_candidate=True)
+            .annotate(
+                update_issue_count=Count(
+                    "newsletter_issues",
+                    filter=published_issues,
+                    distinct=True,
+                ),
+                weekly_update_count=Count(
+                    "newsletter_issues",
+                    filter=Q(
+                        newsletter_issues__published_at__isnull=False,
+                        newsletter_issues__cadence=NewsletterCadence.WEEKLY,
+                    ),
+                    distinct=True,
+                ),
+                monthly_update_count=Count(
+                    "newsletter_issues",
+                    filter=Q(
+                        newsletter_issues__published_at__isnull=False,
+                        newsletter_issues__cadence=NewsletterCadence.MONTHLY,
+                    ),
+                    distinct=True,
+                ),
+                update_commit_count=Sum(
+                    "newsletter_issues__commit_count",
+                    filter=published_issues,
+                ),
+                latest_update_published_at=Max(
+                    "newsletter_issues__published_at",
+                    filter=published_issues,
+                ),
             )
-            context["newsletter_subscription"] = subscription
-            context["newsletter_form"] = NewsletterSubscriptionForm(
-                initial={
-                    "email": subscription.email if subscription else self.request.user.email,
-                    "cadence": subscription.cadence if subscription else NewsletterCadence.WEEKLY,
-                }
-            )
+            .order_by("-latest_update_published_at", "full_name")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        page_obj = context.get("page_obj")
+        context["updates_repository_count"] = (
+            page_obj.paginator.count if page_obj is not None else 0
+        )
+        context["updates_meta_description"] = (
+            "Browse generated weekly and monthly development updates for open-source "
+            "repositories, with RSS feeds and email subscriptions."
+        )
         return context
 
 
@@ -1085,9 +1176,10 @@ class RepositoryNewsletterIssueListView(ListView):
         context = super().get_context_data(**kwargs)
         context["repository"] = self.repository
         context["newsletter_list_meta_description"] = (
-            f"{self.repository.full_name} repository updates archive with generated "
-            "weekly and monthly change reports plus RSS feeds from tracked commits."
+            f"{self.repository.full_name} development updates with generated weekly "
+            "and monthly commit summaries, RSS feeds, and email subscriptions."
         )
+        context.update(_repository_newsletter_subscription_context(self.request, self.repository))
         return context
 
 
@@ -1111,11 +1203,14 @@ class RepositoryNewsletterIssueDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         issue = self.object
         context["newsletter_issue_meta_description"] = (
-            f"{issue.repository.full_name} {issue.get_cadence_display().lower()} update: "
-            f"{issue.title} covering {issue.commit_count} commit"
-            f"{'' if issue.commit_count == 1 else 's'} from "
-            f"{issue.period_start:%Y-%m-%d} to {issue.period_end:%Y-%m-%d}."
+            f"Read the {issue.repository.full_name} "
+            f"{issue.get_cadence_display().lower()} development update for "
+            f"{issue.period_start:%Y-%m-%d} to {issue.period_end:%Y-%m-%d}, "
+            f"summarizing {issue.commit_count} commit"
+            f"{'' if issue.commit_count == 1 else 's'}."
         )
+        context["repository"] = issue.repository
+        context.update(_repository_newsletter_subscription_context(self.request, issue.repository))
         return context
 
 

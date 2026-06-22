@@ -71,6 +71,16 @@ class NewsletterPeriod:
     end: date
 
 
+@dataclass(frozen=True, slots=True)
+class NewsletterSubscriptionUpdate:
+    subscription: NewsletterSubscription
+    tracking_started: bool
+
+
+class NewsletterSubscriptionLimitExceeded(ValueError):
+    pass
+
+
 class CommitSummaryOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -184,23 +194,33 @@ def disable_repository_newsletter_tracking(repository: Repository) -> Repository
 
 
 @transaction.atomic
-def upsert_newsletter_subscription(
+def upsert_newsletter_subscription_with_status(
     *,
     user,
     repository: Repository,
     email: str,
     cadence: str,
-) -> NewsletterSubscription:
+) -> NewsletterSubscriptionUpdate:
     if cadence not in NewsletterCadence.values:
         raise ValueError("Unsupported newsletter cadence.")
     repository = Repository.objects.select_for_update().get(pk=repository.pk)
-    enable_repository_newsletter_tracking(repository)
     normalized_email = email.strip().lower()
     subscription = (
         NewsletterSubscription.objects.select_for_update()
         .filter(user=user, repository=repository, is_active=True)
         .first()
     )
+    max_active_subscriptions = settings.NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER
+    if subscription is None and max_active_subscriptions > 0:
+        active_subscription_count = (
+            NewsletterSubscription.objects.select_for_update()
+            .filter(user=user, is_active=True)
+            .count()
+        )
+        if active_subscription_count >= max_active_subscriptions:
+            raise NewsletterSubscriptionLimitExceeded("User newsletter subscription limit reached.")
+    tracking_started = not repository.newsletter_tracking_enabled
+    enable_repository_newsletter_tracking(repository)
     if subscription is None:
         try:
             with transaction.atomic():
@@ -227,7 +247,25 @@ def upsert_newsletter_subscription(
         subscription.cadence = cadence
         subscription.unsubscribed_at = None
         subscription.save(update_fields=["email", "cadence", "unsubscribed_at", "updated_at"])
-    return subscription
+    return NewsletterSubscriptionUpdate(
+        subscription=subscription,
+        tracking_started=tracking_started,
+    )
+
+
+def upsert_newsletter_subscription(
+    *,
+    user,
+    repository: Repository,
+    email: str,
+    cadence: str,
+) -> NewsletterSubscription:
+    return upsert_newsletter_subscription_with_status(
+        user=user,
+        repository=repository,
+        email=email,
+        cadence=cadence,
+    ).subscription
 
 
 def unsubscribe_newsletter(subscription: NewsletterSubscription) -> NewsletterSubscription:
@@ -669,11 +707,18 @@ def build_issue_generation_text(
     period: NewsletterPeriod,
     commits: list[RepositoryCommit],
 ) -> str:
+    included_commit_count = min(len(commits), settings.NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS)
     sections = [
         f"Repository: {repository.full_name}",
         f"Cadence: {cadence}",
         f"Period: {period.start.isoformat()} to {period.end.isoformat()}",
-        "Commits:",
+        f"Total commits in period: {len(commits)}",
+        f"Commit summaries included below: {included_commit_count}",
+        (
+            "If total commits exceeds included summaries, write the post as a highlight "
+            "report from available commit summaries rather than claiming to cover every commit."
+        ),
+        "Included commits:",
     ]
     for commit in commits[: settings.NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS]:
         summary = commit.summary or commit.message
@@ -701,9 +746,14 @@ def generate_issue_content(text: str) -> NewsletterIssueOutput:
     result = _newsletter_agent(
         NewsletterIssueOutput,
         instructions=(
-            "Write a concise public repository change newsletter in Markdown. Include a short "
-            "opening summary and grouped bullets for meaningful changes. Mention commit SHAs "
-            "or URLs only when they add useful traceability. Do not invent changes."
+            "Write a public, developer-facing repository development update in Markdown. "
+            "Use a clear SEO-friendly title that includes the repository name, cadence, "
+            "and date range. Start with a concise summary that explains who should care. "
+            "Group meaningful changes under descriptive H2/H3 headings, keep bullets "
+            "scannable, and include commit links when they add traceability. Avoid keyword "
+            "stuffing, duplicated boilerplate, and invented claims. If the input is a "
+            "bounded sample of a larger commit period, describe the post as highlights "
+            "from the available summaries instead of exhaustive coverage."
         ),
     ).run_sync("Create a repository newsletter issue from these commit summaries.\n\n" + text)
     return result.output

@@ -175,6 +175,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.current_state",
+                "apps.core.context_processors.navigation_state",
                 "apps.core.context_processors.mfa_recovery_codes_settings",
                 "apps.core.context_processors.posthog_api_key",
                 "apps.core.context_processors.analytics_settings",
@@ -661,6 +662,10 @@ NEWSLETTER_AI_MODEL_LABEL = env("NEWSLETTER_AI_MODEL_LABEL", default="newsletter
 NEWSLETTER_OPENROUTER_MODEL = env(
     "NEWSLETTER_OPENROUTER_MODEL",
     default="deepseek/deepseek-v4-flash",
+)
+NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER = env.int(
+    "NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER",
+    default=50,
 )
 NEWSLETTER_COMMIT_POLL_LIMIT = env.int("NEWSLETTER_COMMIT_POLL_LIMIT", default=25)
 NEWSLETTER_COMMIT_SUMMARY_LIMIT = env.int("NEWSLETTER_COMMIT_SUMMARY_LIMIT", default=100)

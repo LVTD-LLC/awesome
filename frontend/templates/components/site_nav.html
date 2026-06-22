@@ -66,6 +66,30 @@
                             <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">L</kbd>
                         </span>
                     </a>
+                    {% if nav_updates_active %}
+                        <a href="{% url 'repos:updates_index' %}"
+                           data-shortcut-link
+                           data-shortcut-key="u"
+                           data-shortcut-label="Repository updates"
+                           aria-current="page"
+                           class="inline-flex min-h-11 items-center rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-white dark:text-gray-950 dark:focus-visible:ring-offset-gray-950">
+                            <span class="shortcut-hint">
+                                Updates
+                                <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">U</kbd>
+                            </span>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'repos:updates_index' %}"
+                           data-shortcut-link
+                           data-shortcut-key="u"
+                           data-shortcut-label="Repository updates"
+                           class="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white dark:focus-visible:ring-offset-gray-950">
+                            <span class="shortcut-hint">
+                                Updates
+                                <kbd class="shortcut-kbd hidden xl:inline-flex" aria-hidden="true">U</kbd>
+                            </span>
+                        </a>
+                    {% endif %}
                     {% if user.is_authenticated %}
                         <a href="{% url 'repos:starred' %}"
                            data-shortcut-link
@@ -253,6 +277,10 @@
                             <a href="{% url 'repos:list' %}"
                                class="rounded-xl px-3 py-3 text-sm font-semibold {% if current_namespace == "repos" and current_name == "list" or current_namespace == "repos" and current_name == "list_detail" or current_namespace == "repos" and current_name == "request_list" %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
                                 Lists
+                            </a>
+                            <a href="{% url 'repos:updates_index' %}"
+                               class="rounded-xl px-3 py-3 text-sm font-semibold {% if nav_updates_active %}bg-gray-950 text-white dark:bg-white dark:text-gray-950{% else %}text-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900{% endif %}">
+                                Updates
                             </a>
                             {% if user.is_authenticated %}
                                 <a href="{% url 'repos:starred' %}"
