@@ -96,9 +96,18 @@ class RepositoryUpdatesSitemap(ConfiguredDomainSitemap):
     def items(self):
         published_issues = Q(newsletter_issues__published_at__isnull=False)
         return (
-            Repository.objects.filter(published_issues, is_disabled=False)
+            Repository.objects.filter(published_issues, is_archived=False, is_disabled=False)
             .exclude(is_awesome_list_candidate=True)
-            .annotate(latest_update_published_at=Max("newsletter_issues__published_at"))
+            .annotate(
+                latest_update_published_at=Max(
+                    "newsletter_issues__published_at",
+                    filter=published_issues,
+                ),
+                latest_update_modified_at=Max(
+                    "newsletter_issues__updated_at",
+                    filter=published_issues,
+                ),
+            )
             .order_by("id")
         )
 
@@ -109,7 +118,17 @@ class RepositoryUpdatesSitemap(ConfiguredDomainSitemap):
         )
 
     def lastmod(self, item):
-        return item.latest_update_published_at or item.updated_at
+        return max(
+            (
+                value
+                for value in (
+                    item.latest_update_published_at,
+                    item.latest_update_modified_at,
+                )
+                if value is not None
+            ),
+            default=item.updated_at,
+        )
 
 
 class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
@@ -120,6 +139,7 @@ class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
         return (
             RepositoryNewsletterIssue.objects.filter(
                 published_at__isnull=False,
+                repository__is_archived=False,
                 repository__is_disabled=False,
                 repository__is_awesome_list_candidate=False,
             )
@@ -128,7 +148,7 @@ class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
         )
 
     def lastmod(self, item):
-        return item.published_at or item.updated_at
+        return max(item.published_at, item.updated_at)
 
 
 sitemaps = {

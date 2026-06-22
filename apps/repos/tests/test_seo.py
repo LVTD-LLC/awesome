@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from django.test import override_settings
@@ -11,6 +11,7 @@ from apps.repos.models import (
     Repository,
     RepositoryNewsletterIssue,
 )
+from awesome_repos.sitemaps import RepositoryNewsletterIssueSitemap
 
 pytestmark = pytest.mark.django_db
 
@@ -183,6 +184,7 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         description="Archived Django Channels repository.",
         is_archived=True,
     )
+    archived_repository = Repository.objects.get(full_name="django/channels")
     disabled_repository = Repository.objects.create(
         full_name="django/disabled",
         owner="django",
@@ -207,6 +209,18 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         content_markdown="## Changes\n- Added tracking.",
         content_html="<h2>Changes</h2><ul><li>Added tracking.</li></ul>",
         commit_count=3,
+        published_at=timezone.now() - timedelta(days=1),
+    )
+    archived_issue = RepositoryNewsletterIssue.objects.create(
+        repository=archived_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Archived weekly update",
+        content_markdown="## Changes\n- Hidden.",
+        content_html="<h2>Changes</h2><ul><li>Hidden.</li></ul>",
+        commit_count=1,
         published_at=timezone.now(),
     )
     RepositoryNewsletterIssue.objects.create(
@@ -235,4 +249,7 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
     assert "<loc>https://awesome.example/lists/awesome-django/</loc>" in content
     assert "<loc>https://awesome.example/repos/django/django/updates/</loc>" in content
     assert f"<loc>https://awesome.example{issue.get_absolute_url()}</loc>" in content
+    assert "<loc>https://awesome.example/repos/django/channels/updates/</loc>" not in content
+    assert f"<loc>https://awesome.example{archived_issue.get_absolute_url()}</loc>" not in content
     assert "<loc>https://awesome.example/repos/django/disabled/updates/</loc>" not in content
+    assert RepositoryNewsletterIssueSitemap().lastmod(issue) == issue.updated_at
