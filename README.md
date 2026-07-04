@@ -56,7 +56,6 @@ workflow, and local development basics instead of production deployment recipes.
 - `apps/core/` - shared application views, auth-adjacent flows, profiles, forms, and
   common tests.
 - `apps/pages/` - static pages and simple marketing pages.
-- `.agents/skills/` - repo-local agent skills for private operational workflows.
 - `frontend/templates/` - Django templates.
 - `frontend/src/styles/` - Tailwind CSS source.
 - `frontend/src/js/` - small browser modules copied into Django static assets.
@@ -118,10 +117,9 @@ agents can use the same repository and awesome-list search surface as the API.
 The MCP server is read-only and does not require authentication. Settings
 includes a copyable setup prompt users can paste into AI agents.
 
-AI agents that need to add or update blog posts should read the repo-local
-`awesome-blog-api` skill at `.agents/skills/awesome-blog-api/SKILL.md`. Blog
-posts are checked-in Markdown files under `apps/blog/posts` and are published as
-part of deployment.
+Blog posts are checked-in Markdown files under `apps/blog/posts` and are
+published as part of deployment. See `apps/blog/README.md` for the frontmatter
+schema and validation workflow.
 
 ### Catalog operations
 
