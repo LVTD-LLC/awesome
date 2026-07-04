@@ -6,7 +6,7 @@ from django.contrib import sitemaps
 from django.db.models import Max, Q
 from django.urls import reverse
 
-from apps.blog.models import BlogPost
+from apps.blog.services import list_blog_posts
 from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
 
 
@@ -83,7 +83,7 @@ class BlogPostSitemap(ConfiguredDomainSitemap):
     priority = 0.7
 
     def items(self):
-        return BlogPost.objects.published().order_by("id")
+        return list_blog_posts()
 
     def lastmod(self, item):
         return item.updated_at

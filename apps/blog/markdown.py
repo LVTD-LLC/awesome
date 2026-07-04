@@ -58,7 +58,7 @@ def _filter_attribute(tag: str, attr: str, value: str) -> str | None:
 
 
 def render_blog_markdown(markdown_text: str) -> str:
-    rendered = md.Markdown(extensions=["tables"]).convert(markdown_text or "")
+    rendered = md.Markdown(extensions=["fenced_code", "tables"]).convert(markdown_text or "")
     return nh3.clean(
         rendered,
         tags=SAFE_TAGS,

@@ -1,28 +1,56 @@
 {% extends "base_landing.html" %}
 {% block meta %}
-    {% include "components/seo_meta.html" with title=post.display_title|add:" · Awesome" description=post.seo_description canonical_path=post.get_absolute_url og_type="article" %}
+    <title>{{ post.display_title }}</title>
+    <meta name="description" content="{{ post.seo_description|truncatechars:160 }}" />
+    {% if post.metadata_keywords %}<meta name="keywords" content="{{ post.metadata_keywords|join:', ' }}" />{% endif %}
+    <meta name="robots" content="{{ post.robots }}" />
+    <link rel="canonical" href="{{ canonical_url }}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Awesome" />
+    <meta property="og:title" content="{{ post.display_title }}" />
+    <meta property="og:url" content="{{ canonical_url }}" />
+    <meta property="og:description" content="{{ post.seo_description|truncatechars:160 }}" />
+    <meta property="og:image" content="{{ post.image_url }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    {% if post.image_alt %}<meta property="og:image:alt" content="{{ post.image_alt }}" />{% endif %}
+    <meta property="og:locale" content="en_US" />
+    <meta property="article:published_time" content="{{ post.published_at|date:'c' }}" />
+    <meta property="article:modified_time" content="{{ post.updated_at|date:'c' }}" />
+    {% for topic in post.metadata_keywords %}<meta property="article:tag" content="{{ topic }}" />{% endfor %}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="@rasulkireev" />
+    <meta name="twitter:site" content="@rasulkireev" />
+    <meta name="twitter:title" content="{{ post.display_title }}" />
+    <meta name="twitter:description" content="{{ post.seo_description|truncatechars:160 }}" />
+    <meta name="twitter:image" content="{{ post.image_url }}" />
+    {% if post.image_alt %}<meta name="twitter:image:alt" content="{{ post.image_alt }}" />{% endif %}
 {% endblock meta %}
 {% block content %}
     <article class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <a href="{% url 'blog:post_list' %}"
            class="text-sm font-semibold text-green-700 hover:underline dark:text-green-300">← All posts</a>
         <header class="mt-6 border-b border-gray-200 pb-8 dark:border-gray-800">
-            <div class="flex flex-wrap gap-2">
-                {% for category in post.categories.all %}
-                    <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 dark:bg-green-950 dark:text-green-300">{{ category.name }}</span>
-                {% endfor %}
+            {% if post.categories %}
+                <div class="flex flex-wrap gap-2">
+                    {% for category in post.categories %}
+                        <span class="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 dark:bg-green-950 dark:text-green-300">{{ category }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                <time datetime="{{ post.published_at|date:'Y-m-d' }}">{{ post.published_at|date:"M d, Y" }}</time>
+                <span>{{ post.reading_time_minutes }} min read</span>
+                <span>{{ post.author }}</span>
             </div>
             <h1 class="mt-4 text-4xl font-bold text-gray-950 dark:text-white">{{ post.title }}</h1>
-            {% if post.excerpt %}
-                <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">{{ post.excerpt }}</p>
-            {% endif %}
-            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Published {{ post.published_at|date:"M d, Y" }}</p>
+            <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">{{ post.description }}</p>
         </header>
-        <div class="prose prose-gray mt-8 max-w-none dark:prose-invert">{{ post.content_html|safe }}</div>
-        {% if post.tags.exists %}
+        <div class="prose prose-gray mt-8 max-w-none dark:prose-invert">{{ post.html|safe }}</div>
+        {% if post.tags %}
             <footer class="mt-10 flex flex-wrap gap-2 border-t border-gray-200 pt-6 dark:border-gray-800">
-                {% for tag in post.tags.all %}
-                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ tag.name }}</span>
+                {% for tag in post.tags %}
+                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ tag }}</span>
                 {% endfor %}
             </footer>
         {% endif %}
@@ -30,19 +58,6 @@
 {% endblock content %}
 {% block schema %}
     <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BlogPosting",
-  "headline": "{{ post.title|escapejs }}",
-  "description": "{{ post.seo_description|escapejs }}",
-  "datePublished": "{{ post.published_at|date:'c' }}",
-  "dateModified": "{{ post.updated_at|date:'c' }}",
-  "url": "{{ site_url }}{{ post.get_absolute_url }}",
-  "publisher": {
-    "@type": "Organization",
-    "name": "LVTD LLC",
-    "url": "https://lvtd.dev"
-  }
-}
+        {{ schema_json|safe }}
     </script>
 {% endblock schema %}
