@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from django.apps import apps as django_apps
 from django.core.checks import run_checks
 from django.test import override_settings
 from django.urls import reverse
@@ -104,6 +105,7 @@ def test_blog_post_renders_markdown_and_frontmatter_metadata(client, blog_posts_
         'property="og:image" content="https://awesome.example/static/brand/awesome-repos-social.png"'
         in content
     )
+    assert 'property="og:image:type"' not in content
     assert "Awesome repository discovery preview" in content
     assert '"@type": "BlogPosting"' in content
     assert '"datePublished": "2026-07-03T00:00:00+00:00"' in content
@@ -160,6 +162,35 @@ def test_blog_index_skips_invalid_markdown_files(client, blog_posts_dir):
     assert "Invalid body" not in content
 
 
+def test_blog_scans_skip_symlinks_outside_posts_dir(blog_posts_dir):
+    write_post(
+        blog_posts_dir,
+        "valid-post",
+        {
+            "title": "Valid post",
+            "description": "Valid description.",
+            "published_at": "2026-07-03",
+        },
+        "Valid body.",
+    )
+    outside_dir = blog_posts_dir.parent / "outside"
+    outside_dir.mkdir()
+    outside_post = outside_dir / "outside-post.md"
+    outside_post.write_text(
+        "---\n"
+        "title: Outside\n"
+        "description: Outside description.\n"
+        "published_at: 2026-07-03\n"
+        "---\n\n"
+        "Body.\n",
+        encoding="utf-8",
+    )
+    (blog_posts_dir / "outside-post.md").symlink_to(outside_post)
+
+    assert [post.slug for post in list_blog_posts()] == ["valid-post"]
+    assert run_checks() == []
+
+
 def test_blog_post_404s_when_markdown_file_is_missing(client, blog_posts_dir):
     response = client.get(reverse("blog:post_detail", kwargs={"slug": "missing-post"}))
 
@@ -193,6 +224,19 @@ def test_blog_frontmatter_check_reports_missing_seo_fields(blog_posts_dir):
     assert len(errors) == 1
     assert errors[0].id == "blog.E001"
     assert "missing required frontmatter: description" in errors[0].msg
+
+
+def test_blog_frontmatter_check_respects_app_configs(blog_posts_dir):
+    (blog_posts_dir / "missing-description.md").write_text(
+        "---\ntitle: Missing description\npublished_at: 2026-07-03\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+
+    assert run_checks(app_configs=[django_apps.get_app_config("pages")]) == []
+
+    errors = run_checks(app_configs=[django_apps.get_app_config("blog")])
+    assert len(errors) == 1
+    assert errors[0].id == "blog.E001"
 
 
 @override_settings(SITE_URL="https://awesome.example")
@@ -234,3 +278,21 @@ def test_blog_post_schema_uses_checked_in_markdown_content(blog_posts_dir):
     assert schema["headline"] == "Schema post"
     assert schema["url"] == "https://awesome.example/blog/schema-post/"
     assert schema["articleBody"] == "The article body comes from markdown."
+
+
+def test_blog_post_reading_time_uses_rendered_plain_text(blog_posts_dir):
+    noisy_url = "https://example.com/" + "/".join(f"token-{index}" for index in range(350))
+    write_post(
+        blog_posts_dir,
+        "reading-time-post",
+        {
+            "title": "Reading time post",
+            "description": "Reading time description.",
+            "published_at": "2026-07-03",
+        },
+        f"[One visible word]({noisy_url})",
+    )
+
+    post = get_blog_post("reading-time-post")
+
+    assert post.reading_time_minutes == 1

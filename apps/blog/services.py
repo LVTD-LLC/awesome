@@ -138,8 +138,8 @@ def _absolute_public_url(value: str) -> str:
     return build_absolute_public_url(url)
 
 
-def _reading_time_minutes(content: str) -> int:
-    word_count = len(re.findall(r"\w+", content))
+def _reading_time_minutes(rendered_html: str) -> int:
+    word_count = len(re.findall(r"\w+", _plain_text_from_html(rendered_html)))
     return max(1, round(word_count / 220))
 
 
@@ -159,7 +159,10 @@ def _validate_source_path(source_path: Path, content_dir: Path) -> None:
 
 
 def _split_frontmatter(source_path: Path) -> tuple[dict, str]:
-    text = source_path.read_text(encoding="utf-8")
+    try:
+        text = source_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise BlogPostNotFound from exc
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         raise BlogPostValidationError(f"{source_path}: missing YAML frontmatter block.")
@@ -204,12 +207,14 @@ def load_blog_post(source_path: Path, content_dir: Path | None = None) -> BlogPo
         kwargs={"slug": slug},
     )
 
+    html = render_blog_markdown(content)
+
     return BlogPost(
         slug=slug,
         title=_coerce_string(metadata.get("title")),
         description=_coerce_string(metadata.get("description")),
         content=content,
-        html=render_blog_markdown(content),
+        html=html,
         published_at=published_at,
         updated_at=updated_at,
         author=_coerce_string(metadata.get("author")) or BLOG_DEFAULT_AUTHOR,
@@ -223,7 +228,7 @@ def load_blog_post(source_path: Path, content_dir: Path | None = None) -> BlogPo
         image_alt=_coerce_string(metadata.get("image_alt"))
         or "Awesome repository discovery preview",
         robots=_coerce_string(metadata.get("robots")) or "index, follow",
-        reading_time_minutes=_reading_time_minutes(content),
+        reading_time_minutes=_reading_time_minutes(html),
         source_path=source_path,
     )
 
@@ -237,7 +242,7 @@ def list_blog_posts() -> list[BlogPost]:
     for path in content_dir.glob("*.md"):
         try:
             posts.append(load_blog_post(path, content_dir=content_dir))
-        except BlogPostValidationError:
+        except (BlogPostNotFound, BlogPostValidationError):
             # The blog.E001 system check reports invalid posts before deploy.
             pass
     return sorted(posts, key=lambda post: (post.published_at, post.slug), reverse=True)
@@ -263,6 +268,8 @@ def iter_blog_post_validation_errors() -> list[BlogPostValidationError]:
             load_blog_post(source_path, content_dir=content_dir)
         except BlogPostValidationError as exc:
             errors.append(exc)
+        except BlogPostNotFound:
+            pass
     return errors
 
 
