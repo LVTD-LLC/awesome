@@ -135,13 +135,17 @@
             </dl>
         </header>
 
+        <div class="mt-6">
+            {% include "repos/_newsletter_subscription_card.html" with newsletter_card_heading_id="repository-detail-subscribe-heading" newsletter_card_title="Follow repository updates" %}
+        </div>
+
         {% if user.is_superuser %}
             <section class="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-900/70 dark:bg-green-950/20"
                      aria-labelledby="newsletter-admin-heading">
-                <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,auto)] lg:items-end">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h2 id="newsletter-admin-heading"
-                            class="text-lg font-bold text-gray-950 dark:text-white">Newsletter tracking</h2>
+                            class="text-lg font-bold text-gray-950 dark:text-white">Newsletter tracking admin</h2>
                         <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             {% if repository.newsletter_tracking_enabled %}
                                 Tracking since {{ repository.newsletter_tracking_started_at|date:"Y-m-d H:i"|default:"n/a" }}.
@@ -156,49 +160,17 @@
                             <p class="mt-2 text-sm font-medium text-red-700 dark:text-red-300">{{ repository.newsletter_tracking_last_error }}</p>
                         {% endif %}
                     </div>
-                    <form method="post"
-                          action="{% url 'repos:repo_newsletter_subscribe' owner=repository.owner name=repository.name %}"
-                          class="grid gap-3 sm:grid-cols-[minmax(220px,1fr)_160px_auto]">
-                        {% csrf_token %}
-                        <label class="sr-only" for="id_email">Delivery email</label>
-                        <input id="id_email"
-                               name="email"
-                               type="email"
-                               value="{{ newsletter_form.email.value|default_if_none:'' }}"
-                               class="min-h-11 rounded-xl border border-green-200 bg-white px-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-900 dark:bg-gray-950 dark:text-gray-100"
-                               placeholder="email@example.com"
-                               required>
-                        <label class="sr-only" for="id_cadence">Cadence</label>
-                        <select id="id_cadence"
-                                name="cadence"
-                                class="min-h-11 rounded-xl border border-green-200 bg-white px-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-900 dark:bg-gray-950 dark:text-gray-100">
-                            {% for value,label in newsletter_form.fields.cadence.choices %}
-                                <option value="{{ value }}"
-                                        {% if newsletter_form.cadence.value == value %}selected{% endif %}>
-                                    {{ label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <button type="submit" class="app-button-primary">
-                            {% if newsletter_subscription %}
-                                Update
-                            {% else %}
-                                Subscribe
-                            {% endif %}
-                        </button>
-                    </form>
+                    {% if repository.newsletter_tracking_enabled %}
+                        <form method="post"
+                              action="{% url 'repos:repo_newsletter_disable' owner=repository.owner name=repository.name %}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-900 dark:bg-gray-950 dark:text-red-300 dark:hover:bg-red-950">
+                                Stop tracking
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
-                {% if repository.newsletter_tracking_enabled %}
-                    <form method="post"
-                          action="{% url 'repos:repo_newsletter_disable' owner=repository.owner name=repository.name %}"
-                          class="mt-4">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="text-sm font-semibold text-red-700 hover:underline dark:text-red-300">
-                            Stop tracking
-                        </button>
-                    </form>
-                {% endif %}
             </section>
         {% endif %}
 

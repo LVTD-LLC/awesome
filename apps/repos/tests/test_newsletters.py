@@ -22,6 +22,7 @@ from apps.repos.models import (
 from apps.repos.newsletters import (
     NewsletterIssueOutput,
     NewsletterPeriod,
+    build_issue_generation_text,
     generate_repository_newsletter_issue,
     poll_repository_commits,
     render_newsletter_markdown,
@@ -155,25 +156,109 @@ def test_active_subscription_is_unique_per_user_and_repository(user, repository)
 
 
 @pytest.mark.django_db
-def test_repository_detail_hides_newsletter_controls_from_regular_users(auth_client, repository):
+def test_repository_detail_shows_newsletter_controls_to_regular_users(auth_client, repository):
     response = auth_client.get(repository.get_absolute_url())
 
     assert response.status_code == 200
-    assert b"Newsletter tracking" not in response.content
+    assert b"Follow repository updates" in response.content
+    assert b"Delivery email" in response.content
 
 
 @pytest.mark.django_db
-def test_regular_user_cannot_subscribe_to_newsletter(auth_client, repository):
+def test_regular_user_can_subscribe_to_newsletter(auth_client, repository, monkeypatch):
+    queued = []
+    monkeypatch.setattr("apps.repos.views.transaction.on_commit", lambda callback: callback())
+    monkeypatch.setattr(
+        "apps.repos.views.async_task",
+        lambda func_path, *args, **kwargs: queued.append((func_path, args, kwargs)) or "task-1",
+    )
+
     response = auth_client.post(
         reverse(
             "repos:repo_newsletter_subscribe",
             kwargs={"owner": repository.owner, "name": repository.name},
         ),
+        data={
+            "email": "reader@example.com",
+            "cadence": NewsletterCadence.WEEKLY,
+            "next": "/updates/",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == "/updates/"
+    subscription = NewsletterSubscription.objects.get()
+    repository.refresh_from_db()
+    assert subscription.email == "reader@example.com"
+    assert subscription.cadence == NewsletterCadence.WEEKLY
+    assert repository.newsletter_tracking_enabled is True
+    assert queued == [
+        (
+            "apps.repos.tasks.poll_tracked_repository_commits_task",
+            (repository.id,),
+            {"group": "Poll repository newsletter commits"},
+        )
+    ]
+
+    queued.clear()
+    response = auth_client.post(
+        reverse(
+            "repos:repo_newsletter_subscribe",
+            kwargs={"owner": repository.owner, "name": repository.name},
+        ),
+        data={
+            "email": "reader@example.com",
+            "cadence": NewsletterCadence.MONTHLY,
+            "next": "/updates/",
+        },
+    )
+
+    assert response.status_code == 302
+    subscription.refresh_from_db()
+    assert subscription.cadence == NewsletterCadence.MONTHLY
+    assert queued == []
+
+
+@pytest.mark.django_db
+@override_settings(NEWSLETTER_MAX_ACTIVE_SUBSCRIPTIONS_PER_USER=1)
+def test_subscription_cap_blocks_new_repository_tracking(
+    auth_client,
+    user,
+    repository,
+    monkeypatch,
+):
+    NewsletterSubscription.objects.create(
+        user=user,
+        repository=repository,
+        email="reader@example.com",
+        cadence=NewsletterCadence.WEEKLY,
+    )
+    new_repository = Repository.objects.create(
+        full_name="django/channels",
+        owner="django",
+        name="channels",
+        url="https://github.com/django/channels",
+    )
+    queued = []
+    monkeypatch.setattr("apps.repos.views.transaction.on_commit", lambda callback: callback())
+    monkeypatch.setattr(
+        "apps.repos.views.async_task",
+        lambda func_path, *args, **kwargs: queued.append((func_path, args, kwargs)) or "task-1",
+    )
+
+    response = auth_client.post(
+        reverse(
+            "repos:repo_newsletter_subscribe",
+            kwargs={"owner": new_repository.owner, "name": new_repository.name},
+        ),
         data={"email": "reader@example.com", "cadence": NewsletterCadence.WEEKLY},
     )
 
-    assert response.status_code == 403
-    assert NewsletterSubscription.objects.count() == 0
+    assert response.status_code == 302
+    assert NewsletterSubscription.objects.filter(repository=new_repository).exists() is False
+    new_repository.refresh_from_db()
+    assert new_repository.newsletter_tracking_enabled is False
+    assert queued == []
 
 
 @pytest.mark.django_db
@@ -372,6 +457,44 @@ def test_generate_repository_newsletter_issue_uses_calendar_period_and_sanitizes
 
 
 @pytest.mark.django_db
+@override_settings(NEWSLETTER_ISSUE_GENERATION_MAX_COMMITS=1)
+def test_issue_generation_text_marks_bounded_commit_summaries(repository):
+    commits = [
+        RepositoryCommit.objects.create(
+            repository=repository,
+            sha="abc123",
+            branch="main",
+            message="Add newsletter tracking",
+            summary="Added newsletter tracking.",
+            committed_at=datetime(2026, 5, 26, 12, tzinfo=UTC),
+            html_url="https://github.com/django/django/commit/abc123",
+        ),
+        RepositoryCommit.objects.create(
+            repository=repository,
+            sha="def456",
+            branch="main",
+            message="Improve update archive",
+            summary="Improved update archive.",
+            committed_at=datetime(2026, 5, 27, 12, tzinfo=UTC),
+            html_url="https://github.com/django/django/commit/def456",
+        ),
+    ]
+
+    text = build_issue_generation_text(
+        repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period=NewsletterPeriod(start=date(2026, 5, 25), end=date(2026, 5, 31)),
+        commits=commits,
+    )
+
+    assert "Total commits in period: 2" in text
+    assert "Commit summaries included below: 1" in text
+    assert "rather than claiming to cover every commit" in text
+    assert "abc123" in text
+    assert "def456" not in text
+
+
+@pytest.mark.django_db
 def test_generate_repository_newsletter_issue_skips_empty_period(repository, monkeypatch):
     monkeypatch.setattr("apps.repos.newsletters.newsletter_ai_configured", lambda: True)
 
@@ -525,13 +648,72 @@ def test_public_repository_update_pages_and_rss_render(client, repository):
 
     assert list_response.status_code == 200
     assert b"Django weekly update" in list_response.content
-    assert b"repository updates" in list_response.content
+    assert b"Repository updates" in list_response.content
+    assert b"Sign in to subscribe" in list_response.content
     assert detail_response.status_code == 200
     assert b"Added tracking." in detail_response.content
+    assert b"Follow future updates" in detail_response.content
     assert feed_response.status_code == 200
     assert b"Django weekly update" in feed_response.content
 
     assert issue.get_absolute_url() == "/repos/django/django/updates/weekly/2026-05-25/"
+
+
+@pytest.mark.django_db
+def test_public_repository_updates_index_lists_published_archives(client, repository):
+    unpublished_repository = Repository.objects.create(
+        full_name="django/unpublished",
+        owner="django",
+        name="unpublished",
+        url="https://github.com/django/unpublished",
+    )
+    archived_repository = Repository.objects.create(
+        full_name="django/archived",
+        owner="django",
+        name="archived",
+        url="https://github.com/django/archived",
+        is_archived=True,
+    )
+    RepositoryNewsletterIssue.objects.create(
+        repository=repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Django weekly update",
+        content_markdown="## Changes\n- Added tracking.",
+        content_html="<h2>Changes</h2><ul><li>Added tracking.</li></ul>",
+        commit_count=1,
+        published_at=datetime(2026, 6, 1, 4, tzinfo=UTC),
+    )
+    RepositoryNewsletterIssue.objects.create(
+        repository=unpublished_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Unpublished update",
+        commit_count=1,
+    )
+    RepositoryNewsletterIssue.objects.create(
+        repository=archived_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Archived weekly update",
+        commit_count=1,
+        published_at=datetime(2026, 6, 1, 4, tzinfo=UTC),
+    )
+
+    response = client.get(reverse("repos:updates_index"))
+
+    assert response.status_code == 200
+    assert b"Open-source development updates" in response.content
+    assert b"django/django" in response.content
+    assert b"django/archived" not in response.content
+    assert b"django/unpublished" not in response.content
+    assert b"/repos/django/django/updates/" in response.content
 
 
 @pytest.mark.django_db

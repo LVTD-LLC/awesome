@@ -41,7 +41,12 @@ from apps.core.payments import (
     verify_webhook_signature,
 )
 from apps.repos.forms import AwesomeListCreateForm
-from apps.repos.models import AwesomeList, RepositoryLike, UserStarredRepository
+from apps.repos.models import (
+    AwesomeList,
+    NewsletterSubscription,
+    RepositoryLike,
+    UserStarredRepository,
+)
 from apps.repos.services import (
     github_rate_limit_status,
     github_social_token_for_profile,
@@ -573,6 +578,11 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         context["github_starred_last_imported_at"] = profile.github_starred_repos_last_imported_at
         context["github_starred_last_error"] = profile.github_starred_repos_last_error
         context["liked_repository_count"] = RepositoryLike.objects.filter(user=user).count()
+        context["newsletter_subscriptions"] = (
+            NewsletterSubscription.objects.filter(user=user, is_active=True)
+            .select_related("repository")
+            .order_by("repository__full_name")
+        )
         context["remove_ads_enabled"] = profile.remove_ads
         context["remove_ads_checkout_configured"] = remove_ads_checkout_configured()
         mcp_endpoint_url = f"{settings.SITE_URL.rstrip('/')}/mcp"

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from django.test import override_settings
@@ -11,6 +11,7 @@ from apps.repos.models import (
     Repository,
     RepositoryNewsletterIssue,
 )
+from awesome_repos.sitemaps import RepositoryNewsletterIssueSitemap
 
 pytestmark = pytest.mark.django_db
 
@@ -106,13 +107,14 @@ def test_repository_update_list_has_repository_specific_seo_description(client):
     content = response_text(response)
     assert "<title>django/django updates · Awesome</title>" in content
     assert (
-        '<meta name="description" content="django/django repository updates archive '
-        'with generated weekly and monthly change reports plus RSS feeds from tracked commits." />'
-        in content
+        '<meta name="description" content="django/django development updates with generated '
+        'weekly and monthly commit summaries, RSS feeds, and email subscriptions." />' in content
     )
     assert (
         '<link rel="canonical" href="https://testserver/repos/django/django/updates/" />' in content
     )
+    assert '"@type": "CollectionPage"' in content
+    assert "weekly updates" in content
 
 
 @override_settings(SITE_URL="https://testserver")
@@ -143,13 +145,15 @@ def test_repository_update_detail_has_unique_seo_description(client):
     content = response_text(response)
     assert "<title>Django weekly update · Awesome</title>" in content
     assert (
-        '<meta name="description" content="django/django weekly update: Django weekly update '
-        'covering 3 commits from 2026-05-25 to 2026-05-31." />' in content
+        '<meta name="description" content="Read the django/django weekly development update '
+        'for 2026-05-25 to 2026-05-31, summarizing 3 commits." />' in content
     )
     assert (
         '<link rel="canonical" '
         'href="https://testserver/repos/django/django/updates/weekly/2026-05-25/" />' in content
     )
+    assert '"@type": "Article"' in content
+    assert '"about": {' in content
 
 
 @override_settings(SITE_URL="https://awesome.example")
@@ -165,7 +169,7 @@ def test_robots_txt_allows_crawling_and_advertises_sitemap(client):
 
 @override_settings(SITE_URL="https://awesome.example")
 def test_sitemap_includes_public_static_repository_and_list_pages(client):
-    Repository.objects.create(
+    repository = Repository.objects.create(
         full_name="django/django",
         owner="django",
         name="django",
@@ -180,7 +184,8 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         description="Archived Django Channels repository.",
         is_archived=True,
     )
-    Repository.objects.create(
+    archived_repository = Repository.objects.get(full_name="django/channels")
+    disabled_repository = Repository.objects.create(
         full_name="django/disabled",
         owner="django",
         name="disabled",
@@ -194,14 +199,57 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         source_url="https://github.com/wsvincent/awesome-django",
         description="Curated Django packages and resources.",
     )
+    issue = RepositoryNewsletterIssue.objects.create(
+        repository=repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Django weekly update",
+        content_markdown="## Changes\n- Added tracking.",
+        content_html="<h2>Changes</h2><ul><li>Added tracking.</li></ul>",
+        commit_count=3,
+        published_at=timezone.now() - timedelta(days=1),
+    )
+    archived_issue = RepositoryNewsletterIssue.objects.create(
+        repository=archived_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Archived weekly update",
+        content_markdown="## Changes\n- Hidden.",
+        content_html="<h2>Changes</h2><ul><li>Hidden.</li></ul>",
+        commit_count=1,
+        published_at=timezone.now(),
+    )
+    RepositoryNewsletterIssue.objects.create(
+        repository=disabled_repository,
+        cadence=NewsletterCadence.WEEKLY,
+        period_start=date(2026, 5, 25),
+        period_end=date(2026, 5, 31),
+        slug="2026-05-25",
+        title="Disabled weekly update",
+        content_markdown="## Changes\n- Hidden.",
+        content_html="<h2>Changes</h2><ul><li>Hidden.</li></ul>",
+        commit_count=1,
+        published_at=timezone.now(),
+    )
 
     response = client.get("/sitemap.xml")
 
     assert response.status_code == 200
     content = response_text(response)
     assert "<loc>https://awesome.example/</loc>" in content
+    assert "<loc>https://awesome.example/updates/</loc>" in content
     assert "<loc>https://awesome.example/lists/</loc>" in content
     assert "<loc>https://awesome.example/repos/django/django/</loc>" in content
     assert "<loc>https://awesome.example/repos/django/channels/</loc>" not in content
     assert "<loc>https://awesome.example/repos/django/disabled/</loc>" not in content
     assert "<loc>https://awesome.example/lists/awesome-django/</loc>" in content
+    assert "<loc>https://awesome.example/repos/django/django/updates/</loc>" in content
+    assert f"<loc>https://awesome.example{issue.get_absolute_url()}</loc>" in content
+    assert "<loc>https://awesome.example/repos/django/channels/updates/</loc>" not in content
+    assert f"<loc>https://awesome.example{archived_issue.get_absolute_url()}</loc>" not in content
+    assert "<loc>https://awesome.example/repos/django/disabled/updates/</loc>" not in content
+    assert RepositoryNewsletterIssueSitemap().lastmod(issue) == issue.updated_at
