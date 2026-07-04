@@ -6,3 +6,6 @@ class BlogConfig(AppConfig):
     name = "apps.blog"
     label = "blog"
     verbose_name = "Blog"
+
+    def ready(self):
+        from apps.blog import checks  # noqa: F401

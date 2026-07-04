@@ -20,6 +20,8 @@ with the app structure that Cookiecutter created.
   utilities, background tasks, and common tests.
 - `apps/pages/` - landing, pricing, legal, and other static or marketing pages.
 - `apps/api/` - Django Ninja API schemas, auth, services, and routers.
+- `apps/blog/` - Markdown-backed public blog posts, validation checks, services,
+  and templates.
 - `apps/core/agents/` - PydanticAI model helpers and agent code.
 - `awesome_repos/settings.py` - environment-driven Django
   settings.

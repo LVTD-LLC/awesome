@@ -66,6 +66,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: blog posts now publish from checked-in Markdown files in `apps/blog/posts`, with frontmatter-driven SEO metadata, JSON-LD, and sitemap entries.
 - Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.
 - Awesome: colorized repository and awesome-list catalog signals with a consistent palette for source metadata, detected stacks, generated insights, momentum, and issue states.
 - Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
@@ -131,13 +132,13 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Sentry setup now includes release metadata, configurable tracing/profiling/log settings, logging breadcrumbs/events, and the `before_send` hook by default.
 
 ### Added
-- Awesome: added a dedicated blog app with public blog pages, published-post sitemap entries, and hidden staff-only blog CRUD/review/publish API endpoints for agent workflows.
+- Awesome: added a dedicated blog app with public Markdown-backed blog pages and published-post sitemap entries.
 - Fly.io deployment support with `fly.toml`, web and worker process groups, migration release commands, and `DATABASE_URL` support.
 - HTMX, django-htmx middleware, Alpine.js, and frontend rules for Django-native interactivity.
 - `ALLOW_SIGNUPS` environment flag (default `True`) to pause new email/social registrations while keeping existing user logins available.
-- Superuser-only admin blog API for creating, listing, reading, updating, patching, deleting, reviewing, and publishing blog posts when the blog app is generated.
 
 ### Removed
+- Awesome: removed the database-backed blog models, admin screens, and hidden staff-only blog CRUD/review/publish API endpoints.
 - Awesome: removed shareable repository badge embed cards from repository detail pages.
 - Awesome: removed the feedback collection widget, API endpoint, admin feedback stats, and stored feedback model.
 - Stimulus, Webpack, `python-webpack-boilerplate`, manifest loading, and generated Webpack configuration.
