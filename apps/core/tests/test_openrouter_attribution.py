@@ -21,6 +21,17 @@ def test_openrouter_attribution_headers_use_site_settings():
 
 @override_settings(
     SITE_URL="https://awesome.example/",
+    OPENROUTER_APP_TITLE="",
+    OPENROUTER_APP_CATEGORIES="",
+)
+def test_openrouter_attribution_headers_skip_empty_optional_values():
+    assert openrouter_attribution_headers() == {
+        "HTTP-Referer": "https://awesome.example",
+    }
+
+
+@override_settings(
+    SITE_URL="https://awesome.example/",
     OPENROUTER_API_KEY="test-key",
     OPENROUTER_APP_TITLE="Awesome Search",
     OPENROUTER_APP_CATEGORIES="programming-app",
