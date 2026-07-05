@@ -4,7 +4,8 @@ from django.conf import settings
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
+
+from apps.core.agents.openrouter import build_openrouter_provider
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,10 +30,7 @@ def build_model(*, provider: str, label: str):
     if provider == "openrouter":
         return OpenAIChatModel(
             model_name,
-            provider=OpenAIProvider(
-                base_url=settings.OPENROUTER_BASE_URL,
-                api_key=settings.OPENROUTER_API_KEY,
-            ),
+            provider=build_openrouter_provider(),
         )
 
     if provider == "anthropic":

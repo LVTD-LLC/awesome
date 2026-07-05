@@ -8,8 +8,8 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.utils import timezone
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
-from pydantic_ai.providers.openai import OpenAIProvider
 
+from apps.core.agents.openrouter import build_openrouter_provider
 from apps.repos.models import (
     REPOSITORY_EMBEDDING_DIMENSIONS,
     Repository,
@@ -96,13 +96,9 @@ def get_current_repository_embedding(
 
 
 def _embedding_model() -> OpenAIEmbeddingModel:
-    provider = OpenAIProvider(
-        base_url=settings.OPENROUTER_BASE_URL,
-        api_key=settings.OPENROUTER_API_KEY,
-    )
     return OpenAIEmbeddingModel(
         settings.REPOSITORY_EMBEDDING_MODEL,
-        provider=provider,
+        provider=build_openrouter_provider(),
         settings={"dimensions": settings.REPOSITORY_EMBEDDING_DIMENSIONS},
     )
 
