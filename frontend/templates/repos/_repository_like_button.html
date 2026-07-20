@@ -2,6 +2,7 @@
     <form id="repo-like-{{ repository.pk }}"
           method="post"
           action="{% url 'repos:repo_like_toggle' owner=repository.owner name=repository.name %}"
+          {% if is_first_repository_like %}data-first-repository-like="true"{% endif %}
           {% if not disable_hx %} hx-post="{% url 'repos:repo_like_toggle' owner=repository.owner name=repository.name %}" hx-target="#repo-like-{{ repository.pk }}" hx-swap="outerHTML" {% endif %}
           class="inline-flex">
         {% csrf_token %}
@@ -21,6 +22,7 @@
                 {% endif %}
             {{ repository.full_name }}</span>
             <svg class="h-5 w-5"
+                 data-repository-like-heart
                  xmlns="http://www.w3.org/2000/svg"
                  fill="{% if repository.is_liked %}currentColor{% else %}none{% endif %}"
                  viewBox="0 0 24 24"

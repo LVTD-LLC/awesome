@@ -434,9 +434,13 @@ def toggle_repository_like(request, owner: str, name: str):
     )
     if created:
         repository.is_liked = True
+        is_first_repository_like = (
+            not RepositoryLike.objects.filter(user=request.user).exclude(pk=like.pk).exists()
+        )
     else:
         like.delete()
         repository.is_liked = False
+        is_first_repository_like = False
 
     queue_track_event(
         event_name="repository_liked" if created else "repository_unliked",
@@ -465,6 +469,7 @@ def toggle_repository_like(request, owner: str, name: str):
             {
                 "repository": repository,
                 "next_url": next_url,
+                "is_first_repository_like": is_first_repository_like,
             },
         )
 
@@ -1041,7 +1046,7 @@ class AwesomeListRequestView(FormView):
             return self.form_invalid(form)
         messages.success(
             self.request,
-            "Thanks, your awesome-list request has been submitted.",
+            "Request received. We’ll see if it belongs on the list.",
         )
         return super().form_valid(form)
 
