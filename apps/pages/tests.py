@@ -62,6 +62,17 @@ def test_side_ad_slot_default_sponsor_email():
     assert "mailto:rasul@lvtd.dev?subject=Sponsor%20Awesome" in content
 
 
+def test_404_uses_awesome_list_copy(client, settings):
+    settings.DEBUG = False
+
+    response = client.get("/this-page-is-not-in-the-catalog/")
+
+    assert response.status_code == 404
+    content = response.content.decode()
+    assert "This page didn’t make the awesome list." in content
+    assert "Try the catalog. It has better links." in content
+
+
 def mark_password_reauthenticated(client, username):
     session = client.session
     session["account_authentication_methods"] = [

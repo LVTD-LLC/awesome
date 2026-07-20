@@ -96,9 +96,9 @@
                 {% include "repos/_repository_list_card.html" with disable_like_hx=True %}
             {% empty %}
                 <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center dark:border-gray-700 dark:bg-gray-900">
-                    <h2 class="text-xl font-bold text-gray-950 dark:text-white">No liked repositories yet</h2>
+                    <h2 class="text-xl font-bold text-gray-950 dark:text-white">Your repo shortlist is wide open.</h2>
                     <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600 dark:text-gray-300">
-                        Like repositories from search results or list pages, then come back here to compare them.
+                        When a repo looks promising, tap the heart. It’ll wait for you here.
                     </p>
                     <a href="{% url 'repos:search' %}"
                        class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 text-sm font-bold text-white transition hover:bg-green-800 dark:bg-green-500 dark:text-green-950 dark:hover:bg-green-400">Search repos</a>

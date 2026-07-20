@@ -5462,6 +5462,7 @@ def test_authenticated_user_can_toggle_repository_like_with_htmx(auth_client, us
     assert RepositoryLike.objects.filter(user=user, repository=repo).exists()
     assert b'aria-pressed="true"' in response.content
     assert b'fill="currentColor"' in response.content
+    assert b'data-first-repository-like="true"' in response.content
 
     response = auth_client.post(url, {"next": "/"}, HTTP_HX_REQUEST="true")
 
@@ -5469,6 +5470,37 @@ def test_authenticated_user_can_toggle_repository_like_with_htmx(auth_client, us
     assert not RepositoryLike.objects.filter(user=user, repository=repo).exists()
     assert b'aria-pressed="false"' in response.content
     assert b'fill="none"' in response.content
+    assert b"data-first-repository-like" not in response.content
+
+
+@pytest.mark.django_db
+def test_later_repository_likes_do_not_repeat_first_like_flourish(auth_client, user):
+    first_repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+    )
+    second_repo = Repository.objects.create(
+        full_name="pallets/flask",
+        owner="pallets",
+        name="flask",
+        url="https://github.com/pallets/flask",
+    )
+    RepositoryLike.objects.create(user=user, repository=first_repo)
+
+    response = auth_client.post(
+        reverse(
+            "repos:repo_like_toggle",
+            kwargs={"owner": second_repo.owner, "name": second_repo.name},
+        ),
+        {"next": "/"},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert RepositoryLike.objects.filter(user=user, repository=second_repo).exists()
+    assert b'data-first-repository-like="true"' not in response.content
 
 
 @pytest.mark.django_db
@@ -6061,7 +6093,7 @@ def test_awesome_list_request_page_accepts_public_requests(client):
     list_request = AwesomeListRequest.objects.get()
     assert list_request.repo_full_name == "wsvincent/awesome-django"
     assert list_request.requester_email == "reader@example.com"
-    assert "has been submitted" in response.content.decode()
+    assert "Request received. We’ll see if it belongs on the list." in response.content.decode()
 
 
 @pytest.mark.django_db
