@@ -2,7 +2,6 @@ from datetime import datetime, time, timedelta
 
 from django.db.models import (
     Count,
-    FilteredRelation,
     IntegerField,
     OuterRef,
     Q,
@@ -29,10 +28,10 @@ def _percentage(value, total):
     return round((value / total) * 100)
 
 
-def _star_filter(band):
-    filters = Q(stars__gte=band["minimum"])
+def _star_filter(band, *, field="stars"):
+    filters = Q(**{f"{field}__gte": band["minimum"]})
     if band["maximum"] is not None:
-        filters &= Q(stars__lt=band["maximum"])
+        filters &= Q(**{f"{field}__lt": band["maximum"]})
     return filters
 
 
@@ -83,64 +82,58 @@ def repository_monitoring_context(*, now=None):
         current_tz,
     )
 
-    recent_snapshots = RepositorySnapshot.objects.filter(captured_at__gte=month_ago)
-    snapshot_totals = recent_snapshots.aggregate(
-        day=Count(
+    snapshot_aggregates = {
+        "day": Count(
             "repository_id",
             filter=Q(captured_at__gte=day_ago),
             distinct=True,
         ),
-        week=Count(
+        "week": Count(
             "repository_id",
             filter=Q(captured_at__gte=week_ago),
             distinct=True,
         ),
-        month=Count("repository_id", distinct=True),
-        month_runs=Count("id"),
-    )
+        "month": Count("repository_id", distinct=True),
+        "month_runs": Count("id"),
+    }
+    repository_aggregates = {
+        "total": Count("id"),
+        "added_day": Count("id", filter=Q(created_at__gte=day_ago)),
+        "added_week": Count("id", filter=Q(created_at__gte=week_ago)),
+        "added_month": Count("id", filter=Q(created_at__gte=month_ago)),
+    }
+    for index, band in enumerate(STAR_BANDS):
+        repository_aggregates[f"repositories_{index}"] = Count(
+            "id",
+            filter=_star_filter(band),
+        )
+        snapshot_star_filter = _star_filter(band, field="repository__stars")
+        snapshot_aggregates[f"analyzed_{index}"] = Count(
+            "repository_id",
+            filter=snapshot_star_filter,
+            distinct=True,
+        )
+        snapshot_aggregates[f"runs_{index}"] = Count(
+            "id",
+            filter=snapshot_star_filter,
+        )
+
+    recent_snapshots = RepositorySnapshot.objects.filter(captured_at__gte=month_ago)
+    snapshot_totals = recent_snapshots.aggregate(**snapshot_aggregates)
     latest_analysis_at = (
         RepositorySnapshot.objects.order_by("-captured_at")
         .values_list("captured_at", flat=True)
         .first()
     )
-    repository_totals = Repository.objects.aggregate(
-        total=Count("id"),
-        added_day=Count("id", filter=Q(created_at__gte=day_ago)),
-        added_week=Count("id", filter=Q(created_at__gte=week_ago)),
-        added_month=Count("id", filter=Q(created_at__gte=month_ago)),
-    )
-
-    distribution_aggregates = {}
-    for index, band in enumerate(STAR_BANDS):
-        star_filter = _star_filter(band)
-        distribution_aggregates[f"repositories_{index}"] = Count(
-            "id",
-            filter=star_filter,
-            distinct=True,
-        )
-        distribution_aggregates[f"analyzed_{index}"] = Count(
-            "id",
-            filter=star_filter & Q(recent_snapshots__isnull=False),
-            distinct=True,
-        )
-        distribution_aggregates[f"runs_{index}"] = Count(
-            "recent_snapshots",
-            filter=star_filter,
-        )
-    distribution_totals = Repository.objects.alias(
-        recent_snapshots=FilteredRelation(
-            "snapshots",
-            condition=Q(snapshots__captured_at__gte=month_ago),
-        )
-    ).aggregate(**distribution_aggregates)
+    repository_totals = Repository.objects.aggregate(**repository_aggregates)
 
     total_repositories = repository_totals["total"]
     analysis_runs_month = snapshot_totals["month_runs"]
     distribution = []
     for index, band in enumerate(STAR_BANDS):
-        repository_count = distribution_totals[f"repositories_{index}"]
-        analyzed_repository_count = distribution_totals[f"analyzed_{index}"]
-        analysis_run_count = distribution_totals[f"runs_{index}"]
+        repository_count = repository_totals[f"repositories_{index}"]
+        analyzed_repository_count = snapshot_totals[f"analyzed_{index}"]
+        analysis_run_count = snapshot_totals[f"runs_{index}"]
         catalog_share = _percentage(repository_count, total_repositories)
         analysis_share = _percentage(analysis_run_count, analysis_runs_month)
         distribution.append(
