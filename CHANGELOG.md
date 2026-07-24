@@ -16,6 +16,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ## [Unreleased]
 ### Added
+- Awesome admin panel now tracks 1/7/30-day repository analysis coverage, daily parser activity, star-band distribution, and recently added repositories.
 - Awesome: added OpenRouter app attribution headers for AI and embedding requests using `SITE_URL`.
 - Awesome: added a $4 one-time Remove Ads Stripe checkout from Settings, backed by a profile flag that hides side ads and highlighted repository placements after payment.
 - Awesome: added experimental keyboard shortcuts with inline key hints for site navigation, slash search focus, list browsing, pagination, and theme toggling.
