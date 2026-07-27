@@ -69,6 +69,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: refreshed side-rail ads for Rowset, Djass, and LVTD, and opened the former Cleanapp and OSIG placements to new sponsors.
 - Awesome: added restrained playful copy to rare empty and success states, a first-liked-repository flourish, and an open-source console easter egg.
 - Awesome: blog posts now publish from checked-in Markdown files in `apps/blog/posts`, with frontmatter-driven SEO metadata, JSON-LD, and sitemap entries.
 - Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.
