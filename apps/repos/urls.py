@@ -5,11 +5,11 @@ from apps.repos import views
 
 app_name = "repos"
 urlpatterns = [
-    path("", views.RepositorySearchView.as_view(), name="search"),
+    path("repos/", views.RepositorySearchView.as_view(), name="search"),
     path("updates/", views.RepositoryUpdatesIndexView.as_view(), name="updates_index"),
     path("starred/", views.UserStarredRepositorySearchView.as_view(), name="starred"),
     path(
-        "repos/",
+        "search/",
         RedirectView.as_view(pattern_name="repos:search", permanent=True),
         name="legacy_search",
     ),

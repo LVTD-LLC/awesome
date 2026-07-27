@@ -5427,11 +5427,11 @@ def test_search_page_renders(client):
     assert b"Stack" in content
     assert b"GitHub topics" in content
     assert b"Generated tags" in content
-    assert b'href="/?language=Python"' in content
-    assert b'href="/?topic=django"' in content
-    assert b'href="/?stack=django"' in content
-    assert b'href="/?package_manager=pip"' in content
-    assert b'href="/?generated_tag=web-framework"' in content
+    assert b'href="/repos/?language=Python"' in content
+    assert b'href="/repos/?topic=django"' in content
+    assert b'href="/repos/?stack=django"' in content
+    assert b'href="/repos/?package_manager=pip"' in content
+    assert b'href="/repos/?generated_tag=web-framework"' in content
     assert b"BSD-3-Clause" in content
     assert b"12 open" in content
     assert_option_label_with_count(content, "web-framework", 1)
@@ -5878,10 +5878,10 @@ def test_repository_pages_hide_starred_badge_when_authenticated_user_has_no_prof
 
 
 @pytest.mark.django_db
-def test_repository_search_is_root_page(client):
+def test_repository_search_has_dedicated_page(client):
     response = client.get(reverse("repos:search"))
 
-    assert reverse("repos:search") == "/"
+    assert reverse("repos:search") == "/repos/"
     assert response.status_code == 200
     assert b"Search awesome repositories" in response.content
     assert b"Browse awesome lists" in response.content
@@ -5889,11 +5889,11 @@ def test_repository_search_is_root_page(client):
 
 
 @pytest.mark.django_db
-def test_legacy_repos_page_redirects_to_root(client):
-    response = client.get("/repos/")
+def test_legacy_search_page_redirects_to_repository_search(client):
+    response = client.get("/search/")
 
     assert response.status_code == 301
-    assert response["Location"] == "/"
+    assert response["Location"] == "/repos/"
 
 
 @pytest.mark.django_db
@@ -6753,7 +6753,7 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b"Tracked growth" in response.content
     assert b"123,456" in response.content
     assert b"32,000" in response.content
-    assert b'href="/?topic=django"' in response.content
+    assert b'href="/repos/?topic=django"' in response.content
     assert b"Stars history" in response.content
     assert b"Commits history" in response.content
     assert b"Time horizon" in response.content

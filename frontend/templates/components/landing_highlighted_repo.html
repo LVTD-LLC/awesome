@@ -1,0 +1,50 @@
+{% if not ads_removed %}
+    <section class="rounded-3xl border border-green-900/10 bg-green-50/60 p-6 dark:border-white/10 dark:bg-gray-950 sm:p-8"
+             aria-labelledby="landing-highlighted-repo-heading">
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div class="min-w-0">
+                <p class="font-mono text-sm font-semibold uppercase tracking-wide text-green-800 dark:text-gray-300">
+                    Sponsored repository
+                </p>
+                {% if awesome_highlighted_repo %}
+                    <h2 id="landing-highlighted-repo-heading"
+                        class="mt-3 truncate text-balance text-2xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                        {{ awesome_highlighted_repo.repo_full_name }}
+                    </h2>
+                    <p class="mt-3 max-w-[56ch] text-pretty text-base leading-7 text-gray-600 dark:text-gray-300">
+                        {{ awesome_highlighted_repo.short_description }}
+                    </p>
+                    <p class="mt-4 text-base font-medium tabular-nums text-gray-500 dark:text-gray-400 sm:text-sm">
+                        Featured for 7 days
+                        {% if awesome_highlighted_repo.active_until %}
+                            <span aria-hidden="true">·</span>
+                            Active until {{ awesome_highlighted_repo.active_until|date:"M j" }}
+                        {% endif %}
+                    </p>
+                {% else %}
+                    <h2 id="landing-highlighted-repo-heading"
+                        class="mt-3 max-w-[35ch] text-balance text-2xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                        Put your repository in front of curious developers.
+                    </h2>
+                    <p class="mt-3 max-w-[56ch] text-pretty text-base leading-7 text-gray-600 dark:text-gray-300">
+                        Reserve this featured placement at the top of Awesome for seven days.
+                    </p>
+                {% endif %}
+            </div>
+            {% if awesome_highlighted_repo %}
+                <a href="{{ awesome_highlighted_repo.repo_url }}"
+                   target="_blank"
+                   rel="noopener sponsored"
+                   class="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full border border-gray-950/10 bg-white px-4 text-base font-semibold text-gray-950 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-white/10 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800 sm:text-sm">
+                    View repository <span aria-hidden="true">→</span>
+                </a>
+            {% else %}
+                <button type="button"
+                        data-highlighted-repo-modal-open
+                        class="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full border border-gray-950/10 bg-white px-4 text-base font-semibold text-gray-950 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-white/10 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800 sm:text-sm">
+                    Feature your repo
+                </button>
+            {% endif %}
+        </div>
+    </section>
+{% endif %}

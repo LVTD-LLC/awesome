@@ -33,7 +33,7 @@ def test_public_search_page_has_complete_seo_metadata(client):
         in content
     )
     assert '<meta name="robots" content="index, follow" />' in content
-    assert '<link rel="canonical" href="https://testserver/" />' in content
+    assert '<link rel="canonical" href="https://testserver/repos/" />' in content
     assert '<meta property="og:title" content="Search Awesome Repositories · Awesome" />' in content
     assert '<meta name="twitter:card" content="summary_large_image" />' in content
     assert '<meta name="keywords"' not in content

@@ -16,6 +16,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ## [Unreleased]
 ### Added
+- Awesome: added a repository discovery landing page with recent, 7-day star-growth, and 7-day commit-growth showcases.
 - Awesome: added OpenRouter app attribution headers for AI and embedding requests using `SITE_URL`.
 - Awesome: added a $4 one-time Remove Ads Stripe checkout from Settings, backed by a profile flag that hides side ads and highlighted repository placements after payment.
 - Awesome: added experimental keyboard shortcuts with inline key hints for site navigation, slash search focus, list browsing, pagination, and theme toggling.
@@ -68,6 +69,8 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: moved full repository search from the root landing page to `/repos/`.
+- Awesome: restored TrustMRR-style side sponsor rails on the landing page and moved the highlighted repository directly below the hero.
 - Awesome: added restrained playful copy to rare empty and success states, a first-liked-repository flourish, and an open-source console easter egg.
 - Awesome: blog posts now publish from checked-in Markdown files in `apps/blog/posts`, with frontmatter-driven SEO metadata, JSON-LD, and sitemap entries.
 - Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.

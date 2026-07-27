@@ -1,0 +1,48 @@
+{% load static %}
+<div class="pb-16">
+    <header class="mx-auto max-w-4xl px-2 pb-12 pt-14 text-center sm:pt-20">
+        <div class="inline-flex items-center gap-3 text-lg font-semibold text-gray-500 dark:text-gray-400">
+            <img src="{% static 'brand/awesome-repos-mark.svg' %}"
+                 alt=""
+                 width="34"
+                 height="34"
+                 class="size-8 shrink-0" />
+            <p>Awesome</p>
+        </div>
+        <h1 class="mx-auto mt-8 max-w-[24ch] text-balance text-4xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-6xl">
+            Find the repositories worth watching.
+        </h1>
+        <p class="mx-auto mt-6 max-w-[48ch] text-pretty text-lg leading-8 text-gray-600 dark:text-gray-300">
+            Explore GitHub projects recommended across curated awesome lists, then see which ones are gaining stars and shipping code right now.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-4 text-base font-semibold sm:gap-x-6 sm:text-sm">
+            <a href="{% url 'repos:search' %}"
+               class="text-green-700 hover:underline dark:text-green-300">Search all repos</a>
+            <a href="{% url 'repos:list' %}"
+               class="text-gray-600 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-300">Search awesome lists</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'repos:starred' %}"
+                   class="text-gray-600 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-300">Search your stars</a>
+            {% else %}
+                <a href="{% url 'account_login' %}"
+                   class="text-gray-600 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-300">Search your stars</a>
+            {% endif %}
+        </div>
+        <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            {% if user.is_authenticated %}
+                <a href="{% url 'settings' %}"
+                   class="inline-flex min-h-12 items-center justify-center rounded-full bg-gray-950 px-4 text-base font-semibold text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-100 sm:text-sm">Open your account</a>
+            {% else %}
+                <a href="{% url 'account_signup' %}"
+                   class="inline-flex min-h-12 items-center justify-center rounded-full bg-gray-950 px-4 text-base font-semibold text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-100 sm:text-sm">Join with GitHub</a>
+                <a href="{% url 'account_login' %}"
+                   class="inline-flex min-h-12 items-center justify-center rounded-full border border-gray-950/10 px-4 text-base font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-white/10 dark:text-white dark:hover:bg-gray-900 sm:text-sm">Sign in</a>
+            {% endif %}
+        </div>
+    </header>
+    {% include "components/landing_highlighted_repo.html" %}
+    {% url 'repos:search' as all_repos_url %}
+    {% include "pages/landing/_repo_row.html" with title="Recently added" description="Freshly indexed from curated lists." repositories=recent_repositories metric="recent" browse_url=all_repos_url only %}
+    {% include "pages/landing/_repo_row.html" with title="Most starred in the last 7 days" description="The largest observed star gains this week." repositories=most_starred_repositories metric="stars" browse_url=all_repos_url|add:"?sort=star_growth" only %}
+    {% include "pages/landing/_repo_row.html" with title="Most commits in the last 7 days" description="Repositories with the strongest observed commit activity." repositories=most_committed_repositories metric="commits" browse_url=all_repos_url|add:"?sort=velocity" only %}
+</div>

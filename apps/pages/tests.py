@@ -1,5 +1,6 @@
 import re
 import time
+from datetime import timedelta
 
 import pytest
 from allauth.account.models import EmailAddress
@@ -9,8 +10,13 @@ from allauth.socialaccount.models import SocialAccount
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
+
+from apps.core.models import HighlightedRepoPurchase
+from apps.repos.models import Repository, RepositorySnapshot
 
 pytestmark = pytest.mark.django_db
 
@@ -71,6 +77,89 @@ def test_404_uses_awesome_list_copy(client, settings):
     content = response.content.decode()
     assert "This page didn’t make the awesome list." in content
     assert "Try the catalog. It has better links." in content
+
+
+def test_landing_page_shows_repository_discovery_rows_and_side_ads(client):
+    recent_repo = Repository.objects.create(
+        full_name="example/recent",
+        owner="example",
+        name="recent",
+        url="https://github.com/example/recent",
+        description="A newly indexed repository.",
+        stars=12,
+    )
+    starred_repo = Repository.objects.create(
+        full_name="example/starred",
+        owner="example",
+        name="starred",
+        url="https://github.com/example/starred",
+        description="The fastest star growth.",
+        stars=150,
+        commit_count=20,
+    )
+    committed_repo = Repository.objects.create(
+        full_name="example/committed",
+        owner="example",
+        name="committed",
+        url="https://github.com/example/committed",
+        description="The fastest commit growth.",
+        stars=20,
+        commit_count=180,
+    )
+    baseline_at = timezone.now() - timedelta(days=6)
+    RepositorySnapshot.objects.create(
+        repository=starred_repo,
+        captured_at=baseline_at,
+        stars=100,
+        commit_count=20,
+    )
+    RepositorySnapshot.objects.create(
+        repository=committed_repo,
+        captured_at=baseline_at,
+        stars=20,
+        commit_count=100,
+    )
+
+    response = client.get(reverse("landing"))
+
+    assert response.status_code == 200
+    assert response.context["hide_side_ad_rails"] is False
+    assert response.context["most_starred_repositories"] == [starred_repo]
+    assert response.context["most_committed_repositories"] == [committed_repo]
+    content = response.content.decode()
+    assert "data-uidotsh-pick" not in content
+    assert "ui-picker.js" not in content
+    assert "Sponsored repository" in content
+    assert "Put your repository in front of curious developers." in content
+    assert "Most starred in the last 7 days" in content
+    assert "Most commits in the last 7 days" in content
+    assert reverse("repos:search") in content
+    assert reverse("repos:list") in content
+    assert reverse("account_signup") in content
+    assert_standard_ad_layout(content)
+    assert recent_repo in response.context["recent_repositories"]
+
+
+def test_landing_page_features_active_sponsored_repository(client):
+    cache.clear()
+    HighlightedRepoPurchase.objects.create(
+        stripe_checkout_session_id="cs_landing_highlight",
+        status=HighlightedRepoPurchase.Status.ACTIVE,
+        details_submitted_at=timezone.now(),
+        repo_full_name="example/featured",
+        repo_url="https://github.com/example/featured",
+        short_description="A featured repository for the landing page.",
+    )
+
+    response = client.get(reverse("landing"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "example/featured" in content
+    assert "A featured repository for the landing page." in content
+    assert 'href="https://github.com/example/featured"' in content
+    assert "View repository" in content
+    cache.clear()
 
 
 def mark_password_reauthenticated(client, username):

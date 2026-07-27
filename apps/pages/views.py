@@ -6,6 +6,10 @@ from django.views.generic import TemplateView
 from django_q.tasks import async_task
 
 from apps.core.analytics import queue_track_event
+from apps.repos.services import (
+    annotate_repository_recent_growth_metrics,
+    visible_repository_queryset,
+)
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
@@ -13,9 +17,35 @@ logger = get_awesome_repos_logger(__name__)
 
 class LandingPageView(TemplateView):
     template_name = "pages/landing-page.html"
+    sample_size = 4
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        repositories = annotate_repository_recent_growth_metrics(
+            visible_repository_queryset()
+        ).prefetch_related("awesome_items__awesome_list")
+        context.update(
+            {
+                "hide_side_ad_rails": False,
+                "recent_repositories": list(
+                    repositories.order_by("-created_at", "full_name")[: self.sample_size]
+                ),
+                "most_starred_repositories": list(
+                    repositories.filter(stars_growth_7d__gt=0).order_by(
+                        "-stars_growth_7d",
+                        "-stars",
+                        "full_name",
+                    )[: self.sample_size]
+                ),
+                "most_committed_repositories": list(
+                    repositories.filter(commits_growth_7d__gt=0).order_by(
+                        "-commits_growth_7d",
+                        "-commit_count",
+                        "full_name",
+                    )[: self.sample_size]
+                ),
+            }
+        )
 
         if self.request.user.is_authenticated and settings.POSTHOG_API_KEY:
             user = self.request.user
