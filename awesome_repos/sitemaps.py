@@ -32,6 +32,7 @@ class StaticViewSitemap(ConfiguredDomainSitemap):
 
     def items(self):
         return [
+            "landing",
             "repos:search",
             "repos:updates_index",
             "repos:list",
