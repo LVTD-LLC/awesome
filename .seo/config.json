@@ -1,0 +1,67 @@
+{
+  "mode": "initialize",
+  "initialized_at": "2026-07-27",
+  "domain": "https://awesome.lvtd.dev",
+  "stack": "django-templates-markdown-content",
+  "adapter": "markdown-fallback-with-django-routing",
+  "language": "python-django-html",
+  "marketing_route_prefix": "apps/pages and apps/repos",
+  "marketing_layout": "frontend/templates/base_landing.html",
+  "components_dir": "frontend/templates/components",
+  "data_dir": ".seo",
+  "sitemap_path": "awesome_repos/sitemaps.py",
+  "robots_path": "awesome_repos/urls.py",
+  "blog_content_path": "apps/blog/posts",
+  "keyword_data_source": "dataforseo",
+  "dataforseo_location": "United States",
+  "dataforseo_language": "English",
+  "gsc_property": "https://awesome.lvtd.dev/",
+  "ahrefs_project_id": null,
+  "plausible_site_id": "awesome.lvtd.dev",
+  "posthog_project_id": null,
+  "roadmap_path": "docs/seo-sprint.md",
+  "tool_evidence": {
+    "gsc": {
+      "status": "connected",
+      "credential_evidence": "Infisical /services/google-search-console",
+      "call_evidence": "Property list, 90-day query/page report, and sitemap list succeeded",
+      "reason": "The service account has full-user access to the URL-prefix property."
+    },
+    "ahrefs": {
+      "status": "missing",
+      "credential_evidence": "Loaded tools, runtime environment, TOOLS.md, repo config, and Infisical checked",
+      "call_evidence": "Not attempted because no usable Ahrefs credential or MCP was found",
+      "reason": "DataForSEO supplied measured market data instead."
+    },
+    "dataforseo": {
+      "status": "connected",
+      "credential_evidence": "Infisical /services/dataforseo",
+      "call_evidence": "Keyword overview, ranked keywords, SERPs, and backlink summary succeeded",
+      "reason": "Used for volume, KD, CPC, SERP shape, rank baseline, and backlinks."
+    },
+    "plausible": {
+      "status": "connected",
+      "credential_evidence": "Runtime PLAUSIBLE_API_KEY and workspace TOOLS.md",
+      "call_evidence": "90-day aggregate, channel, organic landing-page, and event queries succeeded",
+      "reason": "Used for traffic and engagement weighting."
+    },
+    "posthog": {
+      "status": "attempted_failed",
+      "credential_evidence": "Runtime management API key and workspace TOOLS.md",
+      "call_evidence": "Project listing succeeded, but no Awesome project was visible",
+      "reason": "No accessible project could be joined to Awesome conversion events."
+    },
+    "search_discovery": {
+      "status": "connected",
+      "credential_evidence": "Runtime EXA_API_KEY and self-hosted SearXNG documented in TOOLS.md",
+      "call_evidence": "Exa competitor and category discovery queries succeeded",
+      "reason": "Used to identify current discovery tools and source pages."
+    },
+    "extraction": {
+      "status": "connected",
+      "credential_evidence": "Runtime FIRECRAWL_API_KEY, JINA_READER_API_KEY, and OpenClaw WebFetch",
+      "call_evidence": "Firecrawl, Jina Reader, and WebFetch extractions succeeded",
+      "reason": "Used to verify Awesome, Star History, Awesome Lists, and category pages."
+    }
+  }
+}

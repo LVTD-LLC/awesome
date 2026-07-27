@@ -1,0 +1,294 @@
+{
+  "as_of": "2026-07-27",
+  "market": {
+    "location": "United States",
+    "language": "English"
+  },
+  "baseline": {
+    "gsc": {
+      "source": "gsc",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "property": "https://awesome.lvtd.dev/",
+      "period": {
+        "start": "2026-04-28",
+        "end": "2026-07-27"
+      },
+      "row_count": 3,
+      "clicks": 0,
+      "impressions": 3,
+      "notes": "The accessible URL-prefix property is extremely sparse and has no meaningful striking-distance rows. The sitemap API returned no submitted sitemap rows."
+    },
+    "dataforseo": {
+      "source": "dataforseo",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "domain_rating": null,
+      "domain_rank": 236,
+      "ranking_keywords": 1,
+      "top_ranking_keyword": {
+        "keyword": "ultraworkers/claw-code",
+        "volume": 50,
+        "kd": 9,
+        "position": 10,
+        "url": "https://awesome.lvtd.dev/repos/ultraworkers/claw-code/"
+      },
+      "backlinks": 14,
+      "referring_domains": 6,
+      "notes": "DataForSEO does not expose Ahrefs DR in this path. Use a conservative KD cap of 30 until authority improves."
+    },
+    "plausible": {
+      "source": "plausible",
+      "as_of": "2026-07-26",
+      "confidence": "measured",
+      "period_days": 90,
+      "visitors": 794,
+      "visits": 846,
+      "pageviews": 1913,
+      "organic_search": {
+        "visitors": 33,
+        "visits": 33,
+        "pageviews": 152
+      },
+      "events": {
+        "outbound_link_clicks": 137,
+        "outbound_link_visitors": 30
+      },
+      "notes": "Organic traffic is small but measurable. No signup, search, list-request, API-key, MCP-copy, or subscription goals were exposed in Plausible."
+    },
+    "posthog": {
+      "source": "posthog",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "status": "attempted_failed",
+      "notes": "The management API was reachable, but no Awesome project was visible to the connected account."
+    }
+  },
+  "candidates": {
+    "existing_page_boosts": [
+      {
+        "keyword": "awesome lists",
+        "url": "/lists/",
+        "volume": 210,
+        "kd": 17,
+        "cpc": null,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured",
+        "notes": "Best first target: strong product fit, within the KD cap, and the current SERP includes several purpose-built directories."
+      },
+      {
+        "keyword": "github awesome list",
+        "url": "/lists/",
+        "volume": 140,
+        "kd": 22,
+        "cpc": null,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured"
+      },
+      {
+        "keyword": "awesome list github",
+        "url": "/lists/",
+        "volume": 70,
+        "kd": 30,
+        "cpc": null,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured"
+      }
+    ],
+    "use_cases": [
+      {
+        "keyword": "best github repositories",
+        "slug": "github-repository-discovery",
+        "volume": 210,
+        "kd": 14,
+        "cpc": 11.8,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured",
+        "notes": "High-fit, winnable term; SERP mixes GitHub, Reddit, trending tools, and listicles."
+      },
+      {
+        "keyword": "github repo analytics",
+        "slug": "github-repository-analytics",
+        "volume": 20,
+        "kd": 11,
+        "cpc": 30.69,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured",
+        "notes": "Small demand but strong commercial-intent proxy and close feature fit."
+      },
+      {
+        "keyword": "github stars tracker",
+        "slug": "github-star-tracking",
+        "volume": 170,
+        "kd": 36,
+        "cpc": 46.75,
+        "intent": "informational",
+        "source": "dataforseo",
+        "as_of": "2026-07-27",
+        "confidence": "measured",
+        "notes": "Strong product fit and value, but above the current conservative KD cap. Re-check authority and SERP before execution."
+      }
+    ],
+    "audiences": [
+      {
+        "keyword": "open source discovery for developers",
+        "slug": "developers-evaluating-open-source",
+        "volume": null,
+        "kd": null,
+        "source": "exa",
+        "as_of": "2026-07-27",
+        "confidence": "derived",
+        "notes": "Persona fit is clear, but no measured demand was found. Do not prioritize before measured use-case pages."
+      }
+    ],
+    "alternatives": [
+      {
+        "keyword": "github explore alternatives",
+        "slug": "github-explore",
+        "volume": null,
+        "kd": null,
+        "source": "blended",
+        "sources": ["dataforseo", "exa", "webfetch"],
+        "as_of": "2026-07-27",
+        "confidence": "derived",
+        "notes": "Strategically useful positioning page, but validate demand before execution."
+      },
+      {
+        "keyword": "star history alternatives",
+        "slug": "star-history",
+        "volume": null,
+        "kd": null,
+        "source": "blended",
+        "sources": ["dataforseo", "firecrawl"],
+        "as_of": "2026-07-27",
+        "confidence": "derived",
+        "notes": "Supports the star-tracking cluster; demand was not measurable in the initial batch."
+      }
+    ],
+    "comparisons": [],
+    "playbooks": [
+      {
+        "keyword": "evaluate open source projects",
+        "slug": "evaluate-open-source-projects",
+        "volume": null,
+        "kd": null,
+        "source": "exa",
+        "as_of": "2026-07-27",
+        "confidence": "derived",
+        "notes": "Strong linkable-asset and product-education fit. Validate phrasing before drafting 2,500+ words."
+      }
+    ]
+  },
+  "serp_snapshots": {
+    "awesome_lists": {
+      "source": "dataforseo",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "top_domains": [
+        "github.com",
+        "awesomelists.io",
+        "getawesomelists.com",
+        "context-awesome.com",
+        "awesome.ecosyste.ms"
+      ],
+      "notes": "The SERP rewards list directories and topic hubs, matching Awesome's existing /lists/ surface."
+    },
+    "best_github_repositories": {
+      "source": "dataforseo",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "top_domains": [
+        "github.com",
+        "reddit.com",
+        "trendshift.io",
+        "ossinsight.io",
+        "firecrawl.dev"
+      ],
+      "notes": "Mixed SERP with weakly structured discussions and listicles creates room for a data-backed discovery page."
+    },
+    "github_stars_tracker": {
+      "source": "dataforseo",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "top_domains": [
+        "star-history.com",
+        "github.com",
+        "dev.to",
+        "posthog.com"
+      ],
+      "notes": "Dedicated tracking tools dominate. Awesome needs a focused utility/value proposition, not a generic article."
+    },
+    "github_repository_search": {
+      "source": "dataforseo",
+      "as_of": "2026-07-27",
+      "confidence": "measured",
+      "top_domains": [
+        "github.com",
+        "stackoverflow.com",
+        "reddit.com",
+        "gitsearchai.com",
+        "grep.app"
+      ],
+      "notes": "GitHub owns the navigational intent. Treat as a saturated head term rather than a near-term target."
+    }
+  },
+  "striking_distance": {
+    "source": "gsc",
+    "as_of": "2026-07-27",
+    "confidence": "measured",
+    "items": [],
+    "notes": "No GSC rows met the position 5-20 and meaningful-impression gate."
+  },
+  "saturated_or_out_of_scope": [
+    {
+      "keyword": "github repository search",
+      "volume": 170,
+      "kd": 35,
+      "reason": "Navigational SERP controlled by GitHub and above the current KD cap."
+    },
+    {
+      "keyword": "github explore",
+      "volume": 320,
+      "kd": 69,
+      "reason": "Navigational brand term."
+    },
+    {
+      "keyword": "open source alternatives",
+      "volume": 720,
+      "kd": 42,
+      "reason": "Demand is attractive, but users expect a software-alternative database that Awesome does not currently provide."
+    },
+    {
+      "keyword": "best open source projects",
+      "volume": 140,
+      "kd": 43,
+      "reason": "Above the current authority cap; revisit after link growth."
+    }
+  ],
+  "tool_evidence": {
+    "source": "blended",
+    "sources": [
+      "gsc",
+      "dataforseo",
+      "plausible",
+      "posthog",
+      "exa",
+      "firecrawl",
+      "jina",
+      "webfetch"
+    ],
+    "as_of": "2026-07-27",
+    "confidence": "measured",
+    "notes": "See .seo/config.json for credential discovery and call evidence."
+  }
+}

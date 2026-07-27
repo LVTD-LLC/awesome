@@ -1,0 +1,68 @@
+{
+  "as_of": "2026-07-27",
+  "baseline": {
+    "source": "dataforseo",
+    "confidence": "measured",
+    "backlinks": 14,
+    "referring_domains": 6,
+    "domain_rank": 236
+  },
+  "prospects": [
+    {
+      "domain": "github.com",
+      "url": "https://github.com/sindresorhus/awesome",
+      "type": "canonical-directory",
+      "source": "dataforseo-serp",
+      "status": "research",
+      "angle": "Awesome-compatible discovery and analytics companion; pursue only through a genuinely useful contribution."
+    },
+    {
+      "domain": "awesomelists.io",
+      "url": "https://awesomelists.io/",
+      "type": "directory",
+      "source": "dataforseo-serp+jina",
+      "status": "research",
+      "angle": "Complementary directory with repository activity and cross-list comparison data."
+    },
+    {
+      "domain": "awesome.ecosyste.ms",
+      "url": "https://awesome.ecosyste.ms/",
+      "type": "open-data-directory",
+      "source": "dataforseo-serp",
+      "status": "research",
+      "angle": "Open-data interoperability, API, and MCP collaboration."
+    },
+    {
+      "domain": "getawesomelists.com",
+      "url": "https://getawesomelists.com/",
+      "type": "directory",
+      "source": "dataforseo-serp",
+      "status": "research",
+      "angle": "Cross-reference active list metadata and repository health views."
+    },
+    {
+      "domain": "context-awesome.com",
+      "url": "https://www.context-awesome.com/browse",
+      "type": "directory",
+      "source": "dataforseo-serp",
+      "status": "research",
+      "angle": "Complementary list-search experience; propose a data-backed resource mention only if relevant."
+    },
+    {
+      "domain": "alternativeTo.net",
+      "url": "https://alternativeto.net/",
+      "type": "product-directory",
+      "source": "manual",
+      "status": "research",
+      "angle": "List Awesome as an open-source discovery alternative after positioning pages exist."
+    },
+    {
+      "domain": "producthunt.com",
+      "url": "https://www.producthunt.com/",
+      "type": "launch-directory",
+      "source": "manual",
+      "status": "research",
+      "angle": "Launch the public discovery, monitoring, API, and MCP workflow as one coherent product story."
+    }
+  ]
+}
