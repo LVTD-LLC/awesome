@@ -84,9 +84,13 @@ def active_sponsor_ad(request):
     sponsor_ad = cache.get(cache_key, cache_miss)
     if sponsor_ad == no_active_ad:
         return {"awesome_sponsor_ad": None}
+    if sponsor_ad is not cache_miss and not sponsor_ad.is_within_active_window:
+        cache.delete(cache_key)
+        sponsor_ad = cache_miss
     if sponsor_ad is cache_miss:
         sponsor_ad = (
             SponsorAdPurchase.objects.filter(status=SponsorAdPurchase.Status.ACTIVE)
+            .filter(details_submitted_at__gt=timezone.now() - SponsorAdPurchase.ACTIVE_DURATION)
             .exclude(startup_name="")
             .order_by("-updated_at")
             .first()

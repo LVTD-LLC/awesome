@@ -131,6 +131,14 @@ def retrieve_checkout_session(session_id):
     )
 
 
+def retrieve_checkout_session_line_items(session_id):
+    return _stripe_request("GET", f"checkout/sessions/{session_id}/line_items?limit=10")
+
+
+def expire_checkout_session(session_id):
+    return _stripe_request("POST", f"checkout/sessions/{session_id}/expire", {})
+
+
 def verify_webhook_signature(payload, signature_header, secret, tolerance=300):
     if not secret:
         raise StripeConfigurationError("Stripe webhook secret is not configured.")
