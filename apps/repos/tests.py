@@ -135,11 +135,14 @@ def assert_side_ad_rails(content: bytes) -> None:
     assert content.count(b'data-ad-slot="global-left-') == 5
     assert content.count(b'data-ad-slot="global-right-') == 5
     assert content.count(b"data-ad-slot=") == 10
-    assert content.count(b"data-ad-empty-slot=") == 1
+    assert content.count(b"data-ad-empty-slot=") == 3
+    assert b'data-ad-empty-slot="global-right-1"' in content
+    assert b'data-ad-empty-slot="global-right-2"' in content
     assert b'data-ad-empty-slot="global-right-5"' in content
-    assert b"Get sponsored" in content
-    assert content.count(b"utm_source=awesome_repos") == 9
-    assert content.count(b"utm_medium=side_ad") == 9
+    assert content.count(b"Your company could be here") == 3
+    assert content.count(b"Get sponsored") == 3
+    assert content.count(b"utm_source=awesome_repos") == 7
+    assert content.count(b"utm_medium=side_ad") == 7
     assert b"data-sponsor-modal-open" in content
     assert b'action="/sponsor/checkout/"' in content
 

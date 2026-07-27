@@ -43,11 +43,14 @@ def assert_standard_ad_layout(content):
     assert content.count('data-ad-slot="global-left-') == 5
     assert content.count('data-ad-slot="global-right-') == 5
     assert content.count("data-ad-slot=") == 10
-    assert content.count("data-ad-empty-slot=") == 1
+    assert content.count("data-ad-empty-slot=") == 3
+    assert 'data-ad-empty-slot="global-right-1"' in content
+    assert 'data-ad-empty-slot="global-right-2"' in content
     assert 'data-ad-empty-slot="global-right-5"' in content
-    assert "Get sponsored" in content
-    assert content.count("utm_source=awesome_repos") == 9
-    assert content.count("utm_medium=side_ad") == 9
+    assert content.count("Your company could be here") == 3
+    assert content.count("Get sponsored") == 3
+    assert content.count("utm_source=awesome_repos") == 7
+    assert content.count("utm_medium=side_ad") == 7
     assert "data-sponsor-modal-open" in content
     assert 'action="/sponsor/checkout/"' in content
     assert_sponsor_checkout_form_has_csrf(content)

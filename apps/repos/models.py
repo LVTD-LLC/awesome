@@ -195,6 +195,10 @@ class Repository(BaseModel):
         ordering = ["-stars", "full_name"]
         indexes = [
             models.Index(fields=["-stars"]),
+            models.Index(
+                fields=["-created_at", "-id"],
+                name="repo_created_desc_idx",
+            ),
             models.Index(fields=["-github_pushed_at"]),
             models.Index(fields=["first_commit_at"]),
             models.Index(fields=["is_archived"]),

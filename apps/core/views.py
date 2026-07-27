@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 from django_q.tasks import async_task
 
+from apps.core.admin_dashboard import repository_monitoring_context
 from apps.core.analytics import queue_track_event
 from apps.core.forms import HighlightedRepoDetailsForm, SponsorAdDetailsForm
 from apps.core.models import HighlightedRepoPurchase, Profile, SponsorAdPurchase
@@ -824,6 +825,7 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
                 "awesome_list_form": kwargs.get("awesome_list_form") or AwesomeListCreateForm(),
                 "recent_awesome_lists": recent_awesome_lists,
                 "github_rate_limit": github_rate_limit_status(),
+                **repository_monitoring_context(now=now),
             }
         )
 

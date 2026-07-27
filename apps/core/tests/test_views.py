@@ -1,5 +1,5 @@
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from html.parser import HTMLParser
 
 import pytest
@@ -9,8 +9,14 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.core.admin_dashboard import repository_monitoring_context
 from apps.core.views import build_absolute_public_url
-from apps.repos.models import AwesomeList, Repository, UserStarredRepository
+from apps.repos.models import (
+    AwesomeList,
+    Repository,
+    RepositorySnapshot,
+    UserStarredRepository,
+)
 
 
 class TableRowsParser(HTMLParser):
@@ -480,6 +486,194 @@ def test_admin_panel_nav_links_to_repository_and_list_pages(
     assert re.search(settings_link, content)
     assert not re.search(r"<a\b[^>]*>\s*Dashboard\s*</a>", content)
     assert not re.search(r"<a\b[^>]*>\s*Request list\s*</a>", content)
+
+
+@pytest.mark.django_db
+def test_admin_panel_shows_repository_analysis_health(
+    client,
+    monkeypatch,
+    sync_state_transitions,
+):
+    admin = get_user_model().objects.create_superuser(
+        username="admin",
+        email="admin@example.com",
+        password="password123",
+    )
+    client.force_login(admin)
+    monkeypatch.setattr(
+        "apps.core.views.github_rate_limit_status",
+        lambda: {
+            "ok": False,
+            "error": "",
+        },
+    )
+    now = timezone.now()
+
+    low_star_repo = Repository.objects.create(
+        full_name="example/new-low-star-repo",
+        owner="example",
+        name="new-low-star-repo",
+        url="https://github.com/example/new-low-star-repo",
+        stars=40,
+        language="Python",
+    )
+    medium_star_repo = Repository.objects.create(
+        full_name="example/medium-star-repo",
+        owner="example",
+        name="medium-star-repo",
+        url="https://github.com/example/medium-star-repo",
+        stars=400,
+    )
+    high_star_repo = Repository.objects.create(
+        full_name="example/high-star-repo",
+        owner="example",
+        name="high-star-repo",
+        url="https://github.com/example/high-star-repo",
+        stars=40_000,
+    )
+    stale_repo = Repository.objects.create(
+        full_name="example/stale-repo",
+        owner="example",
+        name="stale-repo",
+        url="https://github.com/example/stale-repo",
+        stars=4_000,
+    )
+    Repository.objects.filter(pk=low_star_repo.pk).update(created_at=now - timedelta(hours=1))
+    Repository.objects.filter(pk=medium_star_repo.pk).update(created_at=now - timedelta(days=3))
+    Repository.objects.filter(pk=high_star_repo.pk).update(created_at=now - timedelta(days=20))
+    Repository.objects.filter(pk=stale_repo.pk).update(created_at=now - timedelta(days=40))
+
+    for captured_at in (now - timedelta(hours=12), now - timedelta(hours=6)):
+        RepositorySnapshot.objects.create(
+            repository=low_star_repo,
+            captured_at=captured_at,
+            stars=low_star_repo.stars,
+        )
+    RepositorySnapshot.objects.create(
+        repository=medium_star_repo,
+        captured_at=now - timedelta(days=3),
+        stars=medium_star_repo.stars,
+    )
+    RepositorySnapshot.objects.create(
+        repository=high_star_repo,
+        captured_at=now - timedelta(days=20),
+        stars=high_star_repo.stars,
+    )
+    RepositorySnapshot.objects.create(
+        repository=stale_repo,
+        captured_at=now - timedelta(days=40),
+        stars=stale_repo.stars,
+    )
+
+    response = client.get(reverse("admin_panel"))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert response.context["repositories_analyzed"]["day"] == 1
+    assert response.context["repositories_analyzed"]["week"] == 2
+    assert response.context["repositories_analyzed"]["month"] == 3
+    assert response.context["analysis_runs_month"] == 4
+    assert response.context["analysis_coverage_month"] == 75
+    assert len(response.context["analysis_activity"]) == 30
+
+    low_star_band = next(
+        band for band in response.context["analysis_distribution"] if band["label"] == "0–99"
+    )
+    assert low_star_band["repository_count"] == 1
+    assert low_star_band["analyzed_repository_count"] == 1
+    assert low_star_band["analysis_run_count"] == 2
+    assert low_star_band["coverage_percent"] == 100
+
+    assert "Repository analysis" in content
+    assert "30-day analysis activity" in content
+    assert "Analysis distribution by stars" in content
+    assert "Recently added repositories" in content
+    recent_repo_row = table_row_for_text(content, "example/new-low-star-repo")
+    assert recent_repo_row[:3] == ["example/new-low-star-repo", "Python", "40"]
+    assert 'hx-select="#admin-monitoring"' in content
+
+
+@pytest.mark.django_db
+def test_admin_panel_marks_missing_star_band_coverage(
+    client,
+    monkeypatch,
+    sync_state_transitions,
+):
+    admin = get_user_model().objects.create_superuser(
+        username="admin",
+        email="admin@example.com",
+        password="password123",
+    )
+    client.force_login(admin)
+    monkeypatch.setattr(
+        "apps.core.views.github_rate_limit_status",
+        lambda: {
+            "ok": False,
+            "error": "",
+        },
+    )
+    low_star_repo = Repository.objects.create(
+        full_name="example/low-star-repo",
+        owner="example",
+        name="low-star-repo",
+        url="https://github.com/example/low-star-repo",
+        stars=20,
+    )
+    high_star_repo = Repository.objects.create(
+        full_name="example/popular-repo",
+        owner="example",
+        name="popular-repo",
+        url="https://github.com/example/popular-repo",
+        stars=80_000,
+    )
+    RepositorySnapshot.objects.create(
+        repository=high_star_repo,
+        captured_at=timezone.now() - timedelta(days=1),
+        stars=high_star_repo.stars,
+    )
+
+    response = client.get(reverse("admin_panel"))
+
+    assert response.status_code == 200
+    assert response.context["analysis_distribution_status"] == "Coverage gaps"
+    assert response.context["analysis_distribution_status_tone"] == "warning"
+    assert response.context["analysis_distribution_gap_count"] == 1
+    low_star_band = next(
+        band for band in response.context["analysis_distribution"] if band["label"] == "0–99"
+    )
+    assert low_star_band["repository_count"] == 1
+    assert low_star_band["analysis_run_count"] == 0
+    assert low_star_repo.full_name in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_repository_monitoring_chart_matches_30_day_total():
+    current_tz = timezone.get_current_timezone()
+    now = timezone.make_aware(datetime(2026, 7, 24, 12), current_tz)
+    first_day_start = timezone.make_aware(datetime(2026, 6, 25), current_tz)
+    repository = Repository.objects.create(
+        full_name="example/window-boundary",
+        owner="example",
+        name="window-boundary",
+        url="https://github.com/example/window-boundary",
+        stars=10,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repository,
+        captured_at=first_day_start,
+        stars=repository.stars,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repository,
+        captured_at=first_day_start - timedelta(seconds=1),
+        stars=repository.stars,
+    )
+
+    context = repository_monitoring_context(now=now)
+
+    assert len(context["analysis_activity"]) == 30
+    assert context["analysis_runs_month"] == 1
+    assert sum(day["run_count"] for day in context["analysis_activity"]) == 1
 
 
 @override_settings(SITE_URL="http://example.com")
