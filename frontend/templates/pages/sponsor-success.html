@@ -5,7 +5,7 @@
             <p class="app-label-caps text-green-700 dark:text-green-400">Payment received</p>
             <h1 class="mt-3 text-3xl font-black tracking-tight text-gray-950 dark:text-white">Send us your ad details</h1>
             <p class="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                Add the small logo, startup name, and short description you want shown in the Awesome sponsor slot.
+                Add the small logo, startup name, destination, and short description you want shown in the Awesome sponsor slot.
             </p>
             <div class="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-100">
                 Paid by {{ purchase.buyer_email|default:"your Stripe checkout email" }} for ${{ amount_dollars|floatformat:2 }} {{ purchase.currency|upper }}.
@@ -31,6 +31,14 @@
                     {{ form.startup_name }}
                     {% if form.startup_name.errors %}
                         <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.startup_name.errors|striptags }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.destination_url.id_for_label }}"
+                           class="block text-sm font-bold text-gray-900 dark:text-gray-100">Destination URL</label>
+                    {{ form.destination_url }}
+                    {% if form.destination_url.errors %}
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.destination_url.errors|striptags }}</p>
                     {% endif %}
                 </div>
                 <div>

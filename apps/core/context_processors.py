@@ -87,6 +87,7 @@ def active_sponsor_ad(request):
     if sponsor_ad is cache_miss:
         sponsor_ad = (
             SponsorAdPurchase.objects.filter(status=SponsorAdPurchase.Status.ACTIVE)
+            .filter(details_submitted_at__gt=timezone.now() - SponsorAdPurchase.ACTIVE_DURATION)
             .exclude(startup_name="")
             .order_by("-updated_at")
             .first()

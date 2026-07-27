@@ -1,4 +1,8 @@
+import hashlib
+import hmac
 import json
+import time
+from datetime import timedelta
 from urllib.error import URLError
 
 import pytest
@@ -6,9 +10,24 @@ from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from apps.core.models import SponsorAdPurchase
-from apps.core.payments import create_ads_checkout_session
+from apps.core.models import SponsorAdPurchase, StripeWebhookEvent
+from apps.core.payments import (
+    create_ads_checkout_session,
+    expire_checkout_session,
+    retrieve_checkout_session_line_items,
+)
+
+
+def stripe_signature(payload: str, secret: str = "whsec_test") -> str:
+    timestamp = int(time.time())
+    digest = hmac.new(
+        secret.encode(),
+        f"{timestamp}.{payload}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"t={timestamp},v1={digest}"
 
 
 @pytest.mark.django_db
@@ -43,6 +62,21 @@ class TestSponsorAdsCheckout:
 
         with pytest.raises(StripeRequestError, match="dns failure"):
             create_ads_checkout_session(success_url="https://example.com/success", cancel_url="/")
+
+    def test_checkout_session_inspection_uses_stripe_endpoints(self, monkeypatch):
+        requests = []
+        monkeypatch.setattr(
+            "apps.core.payments._stripe_request",
+            lambda method, path, data=None: requests.append((method, path, data)) or {},
+        )
+
+        retrieve_checkout_session_line_items("cs_test_123")
+        expire_checkout_session("cs_test_123")
+
+        assert requests == [
+            ("GET", "checkout/sessions/cs_test_123/line_items?limit=10", None),
+            ("POST", "checkout/sessions/cs_test_123/expire", {}),
+        ]
 
     @override_settings(STRIPE_SECRET_KEY="sk_test", STRIPE_AWESOME_ADS_PRICE_ID="price_test")
     def test_checkout_creates_purchase_and_redirects_to_stripe(self, client, monkeypatch):
@@ -108,6 +142,7 @@ class TestSponsorAdsCheckout:
             {
                 "session_id": purchase.stripe_checkout_session_id,
                 "startup_name": "",
+                "destination_url": "https://example.com",
                 "short_description": "Reliable agent workflows for busy teams.",
                 "logo": logo,
             },
@@ -143,6 +178,7 @@ class TestSponsorAdsCheckout:
             {
                 "session_id": purchase.stripe_checkout_session_id,
                 "startup_name": "Acme AI",
+                "destination_url": "https://acme.example",
                 "short_description": "Reliable agent workflows for busy teams.",
                 "logo": logo,
             },
@@ -152,8 +188,10 @@ class TestSponsorAdsCheckout:
         purchase.refresh_from_db()
         assert purchase.status == SponsorAdPurchase.Status.ACTIVE
         assert purchase.startup_name == "Acme AI"
+        assert purchase.destination_url == "https://acme.example"
         assert purchase.short_description == "Reliable agent workflows for busy teams."
         assert purchase.details_submitted_at is not None
+        assert purchase.active_until is not None
         assert events == [
             {
                 "event_name": "sponsor_ad_details_submitted",
@@ -190,6 +228,71 @@ class TestSponsorAdsCheckout:
 
         assert active_sponsor_ad(None) == {"awesome_sponsor_ad": None}
 
+    def test_active_sponsor_ad_excludes_expired_purchase(self):
+        from apps.core.context_processors import active_sponsor_ad
+
+        cache.delete("awesome:active_sponsor_ad")
+        SponsorAdPurchase.objects.create(
+            stripe_checkout_session_id="cs_test_expired_sponsor",
+            status=SponsorAdPurchase.Status.ACTIVE,
+            startup_name="Expired sponsor",
+            destination_url="https://expired.example",
+            short_description="This placement ended.",
+            details_submitted_at=timezone.now() - timedelta(days=31),
+        )
+
+        assert active_sponsor_ad(None) == {"awesome_sponsor_ad": None}
+
+    def test_active_sponsor_ad_links_to_purchaser_destination(self, client):
+        SponsorAdPurchase.objects.create(
+            stripe_checkout_session_id="cs_test_linked_sponsor",
+            status=SponsorAdPurchase.Status.ACTIVE,
+            startup_name="Linked sponsor",
+            destination_url="https://sponsor.example/product",
+            short_description="A useful developer product.",
+            details_submitted_at=timezone.now(),
+        )
+        cache.delete("awesome:active_sponsor_ad")
+
+        response = client.get(reverse("repos:search"))
+
+        assert response.status_code == 200
+        assert b'href="https://sponsor.example/product"' in response.content
+
+    def test_sponsor_details_resubmission_does_not_extend_active_window(self, client, monkeypatch):
+        original_details_time = timezone.now() - timedelta(days=3)
+        logo = SimpleUploadedFile(
+            "existing.gif",
+            b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+        purchase = SponsorAdPurchase.objects.create(
+            stripe_checkout_session_id="cs_test_sponsor_active",
+            status=SponsorAdPurchase.Status.ACTIVE,
+            buyer_email="buyer@example.com",
+            startup_name="Original sponsor",
+            destination_url="https://sponsor.example",
+            short_description="Original placement.",
+            logo=logo,
+            details_submitted_at=original_details_time,
+        )
+        monkeypatch.setattr("apps.core.views.stripe_configured", lambda: False)
+
+        response = client.post(
+            reverse("sponsor_success"),
+            {
+                "session_id": purchase.stripe_checkout_session_id,
+                "startup_name": "Updated sponsor",
+                "destination_url": "https://sponsor.example/updated",
+                "short_description": "Updated copy without extending the placement.",
+            },
+        )
+
+        assert response.status_code == 302
+        purchase.refresh_from_db()
+        assert purchase.startup_name == "Updated sponsor"
+        assert purchase.details_submitted_at == original_details_time
+
     def test_notification_is_deduplicated_with_atomic_claim(self, monkeypatch):
         purchase = SponsorAdPurchase.objects.create(
             stripe_checkout_session_id="cs_test_notify",
@@ -222,6 +325,63 @@ class TestSponsorAdsCheckout:
         assert response.status_code == 403
 
     @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
+    def test_webhook_rejects_completed_event_without_event_id(self, client):
+        payload = json.dumps(
+            {
+                "type": "checkout.session.completed",
+                "data": {"object": {"id": "cs_missing_event_id"}},
+            }
+        )
+
+        response = client.post(
+            reverse("stripe_webhook"),
+            data=payload,
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE=stripe_signature(payload),
+        )
+
+        assert response.status_code == 400
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
+    def test_failed_webhook_fulfillment_can_be_retried(self, client, monkeypatch):
+        event = {
+            "id": "evt_test_retry_after_failure",
+            "type": "checkout.session.completed",
+            "data": {"object": {"id": "cs_test_retry_after_failure"}},
+        }
+        payload = json.dumps(event)
+        request_kwargs = {
+            "data": payload,
+            "content_type": "application/json",
+            "HTTP_STRIPE_SIGNATURE": stripe_signature(payload),
+        }
+        monkeypatch.setattr(
+            "apps.core.views._handle_completed_checkout_session",
+            lambda session, webhook_event=None: (_ for _ in ()).throw(
+                RuntimeError("temporary failure")
+            ),
+        )
+        client.raise_request_exception = False
+
+        failed_response = client.post(reverse("stripe_webhook"), **request_kwargs)
+
+        assert failed_response.status_code == 500
+        webhook_event = StripeWebhookEvent.objects.get(event_id=event["id"])
+        assert webhook_event.processed_at is None
+
+        handled = []
+        monkeypatch.setattr(
+            "apps.core.views._handle_completed_checkout_session",
+            lambda session, webhook_event=None: handled.append(session["id"]),
+        )
+        retry_response = client.post(reverse("stripe_webhook"), **request_kwargs)
+
+        assert retry_response.status_code == 200
+        assert handled == ["cs_test_retry_after_failure"]
+        webhook_event.refresh_from_db()
+        assert webhook_event.processed_at is not None
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
     def test_webhook_marks_purchase_paid_and_sends_notification(
         self,
         client,
@@ -232,6 +392,7 @@ class TestSponsorAdsCheckout:
         profile = user.profile
         events = []
         event = {
+            "id": "evt_test_sponsor_paid",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
@@ -247,10 +408,6 @@ class TestSponsorAdsCheckout:
                 }
             },
         }
-        monkeypatch.setattr(
-            "apps.core.views.verify_webhook_signature",
-            lambda *args, **kwargs: True,
-        )
         notified = []
         monkeypatch.setattr(
             "apps.core.views.notify_sponsor_payment",
@@ -261,14 +418,20 @@ class TestSponsorAdsCheckout:
             lambda **kwargs: events.append(kwargs),
         )
 
+        payload = json.dumps(event)
+        request_kwargs = {
+            "data": payload,
+            "content_type": "application/json",
+            "HTTP_STRIPE_SIGNATURE": stripe_signature(payload),
+        }
         response = client.post(
             reverse("stripe_webhook"),
-            data=json.dumps(event),
-            content_type="application/json",
-            HTTP_STRIPE_SIGNATURE="t=1,v1=ok",
+            **request_kwargs,
         )
+        replay_response = client.post(reverse("stripe_webhook"), **request_kwargs)
 
         assert response.status_code == 200
+        assert replay_response.status_code == 200
         purchase = SponsorAdPurchase.objects.get(stripe_checkout_session_id="cs_test_paid")
         assert purchase.status == SponsorAdPurchase.Status.PAID
         assert purchase.buyer_email == "buyer@example.com"
@@ -287,6 +450,64 @@ class TestSponsorAdsCheckout:
                 "source_function": "sponsor_ads checkout completion",
             }
         ]
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
+    def test_webhook_retry_after_email_does_not_repeat_completed_side_effects(
+        self,
+        client,
+        mailoutbox,
+        monkeypatch,
+    ):
+        event = {
+            "id": "evt_test_partial_sponsor_failure",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_partial_sponsor_failure",
+                    "payment_status": "paid",
+                    "amount_total": 100000,
+                    "currency": "usd",
+                    "customer_details": {"email": "buyer@example.com"},
+                    "metadata": {"app": "awesome", "kind": "sponsor_ads"},
+                }
+            },
+        }
+        analytics_attempts = []
+
+        def flaky_queue_track_event(**kwargs):
+            analytics_attempts.append(kwargs)
+            if len(analytics_attempts) == 1:
+                raise RuntimeError("analytics queue unavailable")
+
+        monkeypatch.setattr("apps.core.views.queue_track_event", flaky_queue_track_event)
+        payload = json.dumps(event)
+        request_kwargs = {
+            "data": payload,
+            "content_type": "application/json",
+            "HTTP_STRIPE_SIGNATURE": stripe_signature(payload),
+        }
+        client.raise_request_exception = False
+
+        failed_response = client.post(reverse("stripe_webhook"), **request_kwargs)
+
+        assert failed_response.status_code == 500
+        purchase = SponsorAdPurchase.objects.get(
+            stripe_checkout_session_id="cs_test_partial_sponsor_failure"
+        )
+        assert purchase.notification_sent_at is not None
+        webhook_event = StripeWebhookEvent.objects.get(event_id=event["id"])
+        assert webhook_event.analytics_queued_at is None
+        assert webhook_event.processed_at is None
+        assert len(mailoutbox) == 1
+
+        retry_response = client.post(reverse("stripe_webhook"), **request_kwargs)
+
+        assert retry_response.status_code == 200
+        webhook_event.refresh_from_db()
+        assert webhook_event.analytics_queued_at is not None
+        assert webhook_event.processed_at is not None
+        assert len(analytics_attempts) == 2
+        assert len(mailoutbox) == 1
 
 
 @pytest.mark.django_db
@@ -392,10 +613,6 @@ class TestHighlightedRepoCheckout:
         ]
 
     def test_highlighted_success_form_does_not_reset_active_window(self, client, monkeypatch):
-        from datetime import timedelta
-
-        from django.utils import timezone
-
         from apps.core.models import HighlightedRepoPurchase
 
         original_details_time = timezone.now() - timedelta(days=3)
@@ -429,10 +646,6 @@ class TestHighlightedRepoCheckout:
         assert purchase.details_submitted_at == original_details_time
 
     def test_active_highlighted_repo_excludes_expired_purchase(self):
-        from datetime import timedelta
-
-        from django.utils import timezone
-
         from apps.core.context_processors import active_highlighted_repo
         from apps.core.models import HighlightedRepoPurchase
 
@@ -456,6 +669,7 @@ class TestHighlightedRepoCheckout:
         profile = user.profile
         events = []
         event = {
+            "id": "evt_test_highlight_paid",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
@@ -469,10 +683,6 @@ class TestHighlightedRepoCheckout:
                 }
             },
         }
-        monkeypatch.setattr(
-            "apps.core.views.verify_webhook_signature",
-            lambda *args, **kwargs: True,
-        )
         notified = []
         monkeypatch.setattr(
             "apps.core.views.notify_highlighted_repo_payment",
@@ -483,14 +693,17 @@ class TestHighlightedRepoCheckout:
             lambda **kwargs: events.append(kwargs),
         )
 
-        response = client.post(
-            reverse("stripe_webhook"),
-            data=json.dumps(event),
-            content_type="application/json",
-            HTTP_STRIPE_SIGNATURE="t=1,v1=ok",
-        )
+        payload = json.dumps(event)
+        request_kwargs = {
+            "data": payload,
+            "content_type": "application/json",
+            "HTTP_STRIPE_SIGNATURE": stripe_signature(payload),
+        }
+        response = client.post(reverse("stripe_webhook"), **request_kwargs)
+        replay_response = client.post(reverse("stripe_webhook"), **request_kwargs)
 
         assert response.status_code == 200
+        assert replay_response.status_code == 200
         assert HighlightedRepoPurchase.objects.filter(
             stripe_checkout_session_id="cs_test_highlight_paid",
             status=HighlightedRepoPurchase.Status.PAID,
@@ -566,13 +779,24 @@ class TestRemoveAdsCheckout:
         assert response.status_code == 302
         assert response.url == "https://checkout.stripe.com/c/pay"
 
+    @pytest.mark.parametrize(
+        "event_type",
+        ["checkout.session.completed", "checkout.session.async_payment_succeeded"],
+    )
     @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
-    def test_webhook_enables_remove_ads_on_profile(self, client, django_user_model, monkeypatch):
+    def test_webhook_enables_remove_ads_on_profile(
+        self,
+        client,
+        django_user_model,
+        monkeypatch,
+        event_type,
+    ):
         user = django_user_model.objects.create_user(username="buyer", password="pw")
         profile = user.profile
         events = []
         event = {
-            "type": "checkout.session.completed",
+            "id": f"evt_test_remove_ads_paid_{event_type}",
+            "type": event_type,
             "data": {
                 "object": {
                     "id": "cs_test_remove_ads_paid",
@@ -585,22 +809,21 @@ class TestRemoveAdsCheckout:
             },
         }
         monkeypatch.setattr(
-            "apps.core.views.verify_webhook_signature",
-            lambda *args, **kwargs: True,
-        )
-        monkeypatch.setattr(
             "apps.core.views.queue_track_event",
             lambda **kwargs: events.append(kwargs),
         )
 
-        response = client.post(
-            reverse("stripe_webhook"),
-            data=json.dumps(event),
-            content_type="application/json",
-            HTTP_STRIPE_SIGNATURE="t=1,v1=ok",
-        )
+        payload = json.dumps(event)
+        request_kwargs = {
+            "data": payload,
+            "content_type": "application/json",
+            "HTTP_STRIPE_SIGNATURE": stripe_signature(payload),
+        }
+        response = client.post(reverse("stripe_webhook"), **request_kwargs)
+        replay_response = client.post(reverse("stripe_webhook"), **request_kwargs)
 
         assert response.status_code == 200
+        assert replay_response.status_code == 200
         profile.refresh_from_db()
         assert profile.remove_ads is True
         assert events == [
@@ -617,6 +840,19 @@ class TestRemoveAdsCheckout:
                 "source_function": "remove_ads checkout completion",
             }
         ]
+
+    def test_remove_ads_profile_hides_ads_in_rendered_search_page(self, client, django_user_model):
+        user = django_user_model.objects.create_user(username="ad-free-buyer", password="pw")
+        user.profile.remove_ads = True
+        user.profile.save(update_fields=["remove_ads", "updated_at"])
+        client.force_login(user)
+
+        response = client.get(reverse("repos:search"))
+
+        assert response.status_code == 200
+        assert b'data-ad-rail="left"' not in response.content
+        assert b'data-ad-rail="right"' not in response.content
+        assert b"Open highlighted repo slot" not in response.content
 
     @override_settings(
         STRIPE_SECRET_KEY="sk_test",

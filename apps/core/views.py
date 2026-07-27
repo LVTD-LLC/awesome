@@ -28,7 +28,12 @@ from django_q.tasks import async_task
 from apps.core.admin_dashboard import repository_monitoring_context
 from apps.core.analytics import queue_track_event
 from apps.core.forms import HighlightedRepoDetailsForm, SponsorAdDetailsForm
-from apps.core.models import HighlightedRepoPurchase, Profile, SponsorAdPurchase
+from apps.core.models import (
+    HighlightedRepoPurchase,
+    Profile,
+    SponsorAdPurchase,
+    StripeWebhookEvent,
+)
 from apps.core.payments import (
     StripeConfigurationError,
     StripeRequestError,
@@ -79,22 +84,46 @@ def _track_checkout_started(request, *, session_id: str, product: str) -> None:
     )
 
 
-def _track_purchase_completed(*, session, product: str, profile: Profile | None = None) -> None:
+def _track_purchase_completed(
+    *,
+    session,
+    product: str,
+    profile: Profile | None = None,
+    webhook_event: StripeWebhookEvent | None = None,
+) -> None:
     amount_total = session.get("amount_total") or 0
     currency = (session.get("currency") or "usd").lower()
     session_id = session.get("id", "")
-    queue_track_event(
-        event_name="purchase_completed",
-        profile_id=profile.id if profile else None,
-        distinct_id=f"stripe_checkout:{session_id}" if session_id else None,
-        properties={
-            "product": product,
-            "value": amount_total / 100,
-            "currency": currency,
-            "transaction_id": session_id,
-        },
-        source_function=f"{product} checkout completion",
-    )
+    analytics_claimed_at = None
+    if webhook_event is not None:
+        analytics_claimed_at = timezone.now()
+        claimed = StripeWebhookEvent.objects.filter(
+            id=webhook_event.id,
+            analytics_queued_at__isnull=True,
+        ).update(analytics_queued_at=analytics_claimed_at)
+        if not claimed:
+            return
+
+    try:
+        queue_track_event(
+            event_name="purchase_completed",
+            profile_id=profile.id if profile else None,
+            distinct_id=f"stripe_checkout:{session_id}" if session_id else None,
+            properties={
+                "product": product,
+                "value": amount_total / 100,
+                "currency": currency,
+                "transaction_id": session_id,
+            },
+            source_function=f"{product} checkout completion",
+        )
+    except Exception:
+        if webhook_event is not None:
+            StripeWebhookEvent.objects.filter(
+                id=webhook_event.id,
+                analytics_queued_at=analytics_claimed_at,
+            ).update(analytics_queued_at=None)
+        raise
 
 
 def _profile_for_checkout_session(session, expected_user_id=None) -> Profile | None:
@@ -113,7 +142,10 @@ def _profile_for_checkout_session(session, expected_user_id=None) -> Profile | N
     return Profile.objects.filter(user_id=user_id).first()
 
 
-def _handle_completed_checkout_session(session) -> None:
+def _handle_completed_checkout_session(
+    session,
+    webhook_event: StripeWebhookEvent | None = None,
+) -> None:
     metadata = session.get("metadata", {})
     if metadata.get("app") == "awesome" and metadata.get("kind", "sponsor_ads") == "sponsor_ads":
         purchase = upsert_purchase_from_checkout_session(session)
@@ -123,6 +155,7 @@ def _handle_completed_checkout_session(session) -> None:
                 session=session,
                 product="sponsor_ads",
                 profile=_profile_for_checkout_session(session),
+                webhook_event=webhook_event,
             )
     elif metadata.get("app") == "awesome" and metadata.get("kind") == "highlighted_repo":
         purchase = upsert_highlighted_repo_from_checkout_session(session)
@@ -135,11 +168,17 @@ def _handle_completed_checkout_session(session) -> None:
                 session=session,
                 product="highlighted_repo",
                 profile=_profile_for_checkout_session(session),
+                webhook_event=webhook_event,
             )
     elif metadata.get("app") == "awesome" and metadata.get("kind") == "remove_ads":
         profile = enable_remove_ads_for_checkout_session(session)
         if profile is not None:
-            _track_purchase_completed(session=session, product="remove_ads", profile=profile)
+            _track_purchase_completed(
+                session=session,
+                product="remove_ads",
+                profile=profile,
+                webhook_event=webhook_event,
+            )
 
 
 def build_absolute_public_url(path: str) -> str:
@@ -528,9 +567,22 @@ def stripe_webhook(request):
     except json.JSONDecodeError:
         return HttpResponseBadRequest("Invalid JSON.")
 
-    if event.get("type") == "checkout.session.completed":
+    if event.get("type") in {
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+    }:
+        event_id = event.get("id")
+        if not event_id:
+            return HttpResponseBadRequest("Missing Stripe event ID.")
         session = event.get("data", {}).get("object", {})
-        _handle_completed_checkout_session(session)
+        webhook_event, _created = StripeWebhookEvent.objects.get_or_create(
+            event_id=event_id,
+            defaults={"event_type": event["type"]},
+        )
+        if webhook_event.processed_at is None:
+            _handle_completed_checkout_session(session, webhook_event=webhook_event)
+            webhook_event.processed_at = timezone.now()
+            webhook_event.save(update_fields=["processed_at", "updated_at"])
 
     return HttpResponse("ok")
 
