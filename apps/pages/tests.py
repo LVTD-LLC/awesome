@@ -139,8 +139,8 @@ def test_landing_page_shows_repository_discovery_rows_and_side_ads(client):
     assert reverse("repos:search") in content
     assert reverse("repos:list") in content
     assert reverse("account_signup") in content
-    assert f'{reverse("repos:search")}?sort=stars_growth_7d' in content
-    assert f'{reverse("repos:search")}?sort=commits_growth_7d' in content
+    assert f"{reverse('repos:search')}?sort=stars_growth_7d" in content
+    assert f"{reverse('repos:search')}?sort=commits_growth_7d" in content
     assert_standard_ad_layout(content)
     assert recent_repo in response.context["recent_repositories"]
 
@@ -158,7 +158,7 @@ def test_landing_page_preserves_legacy_root_search_queries(client):
     assert response.status_code == 302
     assert (
         response["Location"]
-        == f'{reverse("repos:search")}?q=django&sort=stars&utm_source=saved-search'
+        == f"{reverse('repos:search')}?q=django&sort=stars&utm_source=saved-search"
     )
 
 
