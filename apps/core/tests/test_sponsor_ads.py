@@ -243,6 +243,34 @@ class TestSponsorAdsCheckout:
 
         assert active_sponsor_ad(None) == {"awesome_sponsor_ad": None}
 
+    def test_cached_sponsor_ad_expires_at_active_window_boundary(
+        self,
+        django_assert_num_queries,
+        monkeypatch,
+    ):
+        from apps.core.context_processors import active_sponsor_ad
+
+        now = timezone.now()
+        purchase = SponsorAdPurchase.objects.create(
+            stripe_checkout_session_id="cs_test_cached_sponsor_expiry",
+            status=SponsorAdPurchase.Status.ACTIVE,
+            startup_name="Deadline sponsor",
+            destination_url="https://deadline.example",
+            short_description="This placement expires shortly.",
+            details_submitted_at=now - SponsorAdPurchase.ACTIVE_DURATION + timedelta(seconds=10),
+        )
+        cache.delete("awesome:active_sponsor_ad")
+
+        with django_assert_num_queries(1):
+            assert active_sponsor_ad(None) == {"awesome_sponsor_ad": purchase}
+
+        after_expiry = now + timedelta(seconds=11)
+        monkeypatch.setattr("apps.core.context_processors.timezone.now", lambda: after_expiry)
+        monkeypatch.setattr("apps.core.models.timezone.now", lambda: after_expiry)
+
+        with django_assert_num_queries(1):
+            assert active_sponsor_ad(None) == {"awesome_sponsor_ad": None}
+
     def test_active_sponsor_ad_links_to_purchaser_destination(self, client):
         SponsorAdPurchase.objects.create(
             stripe_checkout_session_id="cs_test_linked_sponsor",
