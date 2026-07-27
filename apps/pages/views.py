@@ -18,7 +18,7 @@ logger = get_awesome_repos_logger(__name__)
 
 class LandingPageView(TemplateView):
     template_name = "pages/landing-page.html"
-    sample_size = 4
+    sample_size = 6
     legacy_search_param_names = frozenset(
         {
             "q",
