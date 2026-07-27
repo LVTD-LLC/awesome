@@ -100,6 +100,8 @@ class ProfileStateTransition(BaseModel):
 
 
 class SponsorAdPurchase(BaseModel):
+    ACTIVE_DURATION = timedelta(days=30)
+
     class Status(models.TextChoices):
         CHECKOUT_STARTED = "checkout_started", "Checkout started"
         PAID = "paid", "Paid"
@@ -121,6 +123,7 @@ class SponsorAdPurchase(BaseModel):
     details_submitted_at = models.DateTimeField(null=True, blank=True)
     logo = models.ImageField(upload_to="sponsor-ads/logos/", blank=True, null=True)
     startup_name = models.CharField(max_length=120, blank=True, default="")
+    destination_url = models.URLField(max_length=500, blank=True, default="")
     short_description = models.CharField(max_length=180, blank=True, default="")
 
     class Meta:
@@ -134,6 +137,16 @@ class SponsorAdPurchase(BaseModel):
         if self.logo:
             return self.logo.url
         return ""
+
+    @property
+    def active_until(self):
+        if not self.details_submitted_at:
+            return None
+        return self.details_submitted_at + self.ACTIVE_DURATION
+
+    @property
+    def is_within_active_window(self):
+        return bool(self.active_until and self.active_until > timezone.now())
 
     def mark_paid_from_checkout_session(self, session):
         customer = session.get("customer") or {}
@@ -158,7 +171,8 @@ class SponsorAdPurchase(BaseModel):
 
     def mark_details_submitted(self):
         self.status = self.Status.ACTIVE
-        self.details_submitted_at = timezone.now()
+        if not self.details_submitted_at:
+            self.details_submitted_at = timezone.now()
 
 
 class HighlightedRepoPurchase(BaseModel):
@@ -226,6 +240,16 @@ class HighlightedRepoPurchase(BaseModel):
         self.status = self.Status.ACTIVE
         if not self.details_submitted_at:
             self.details_submitted_at = timezone.now()
+
+
+class StripeWebhookEvent(BaseModel):
+    event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=255)
+    analytics_queued_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.event_id
 
 
 class EmailSent(BaseModel):

@@ -99,6 +99,22 @@ parallel. Pytest uses `awesome_repos.test_settings`, which keeps test cache,
 media, and task-queue state local to the test process while preserving the
 PostgreSQL-backed migration path in CI.
 
+### Stripe payment smoke checks
+
+The normal payment tests mock Stripe's API and run in CI. An opt-in smoke suite
+can also create and immediately expire real Stripe Checkout Sessions in test
+mode for sponsor ads, highlighted repositories, and Remove Ads. Configure a
+Stripe test secret plus test-mode price IDs, then run:
+
+```bash
+STRIPE_SMOKE_TEST=1 uv run pytest apps/core/tests/test_stripe_smoke.py -q
+```
+
+The smoke suite refuses to run with a non-test secret key. It verifies each
+Checkout Session's product metadata, configured price, quantity, and expected
+amount: $1,000 for sponsor ads, $500 for highlighted repositories, and $4 for
+Remove Ads.
+
 ### API and MCP
 
 Authenticated API keys can read account and catalog data from the API. Repository

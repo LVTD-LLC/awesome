@@ -34,11 +34,21 @@ class SponsorAdDetailsForm(forms.ModelForm):
             }
         ),
     )
+    destination_url = forms.URLField(
+        max_length=500,
+        required=True,
+        widget=forms.URLInput(
+            attrs={
+                "placeholder": "https://example.com",
+                "class": "app-input",
+            }
+        ),
+    )
     logo = forms.ImageField(required=True)
 
     class Meta:
         model = SponsorAdPurchase
-        fields = ["logo", "startup_name", "short_description"]
+        fields = ["logo", "startup_name", "destination_url", "short_description"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
