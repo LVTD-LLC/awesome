@@ -131,7 +131,9 @@ def test_landing_page_shows_repository_discovery_rows_and_side_ads(client):
     assert response.context["most_committed_repositories"] == [committed_repo]
     content = response.content.decode()
     assert "data-uidotsh-pick" not in content
+    assert "data-uidotsh-option" not in content
     assert "ui-picker.js" not in content
+    assert content.count("lg:grid-cols-3") == 3
     assert "Sponsored repository" in content
     assert "Put your repository in front of curious developers." in content
     assert "Most starred in the last 7 days" in content
@@ -143,6 +145,49 @@ def test_landing_page_shows_repository_discovery_rows_and_side_ads(client):
     assert f"{reverse('repos:search')}?sort=commits_growth_7d" in content
     assert_standard_ad_layout(content)
     assert recent_repo in response.context["recent_repositories"]
+
+
+def test_landing_page_shows_six_repositories_per_discovery_row(client):
+    repositories = [
+        Repository.objects.create(
+            full_name=f"example/repository-{index}",
+            owner="example",
+            name=f"repository-{index}",
+            url=f"https://github.com/example/repository-{index}",
+            stars=index,
+            commit_count=index,
+        )
+        for index in range(7)
+    ]
+    RepositorySnapshot.objects.bulk_create(
+        [
+            RepositorySnapshot(
+                repository=repository,
+                captured_at=timezone.now() - timedelta(days=6),
+                stars=0,
+                commit_count=0,
+            )
+            for repository in repositories
+        ]
+    )
+
+    response = client.get(reverse("landing"))
+
+    assert response.status_code == 200
+    assert {
+        key: len(response.context[key])
+        for key in (
+            "recent_repositories",
+            "most_starred_repositories",
+            "most_committed_repositories",
+        )
+    } == {
+        "recent_repositories": 6,
+        "most_starred_repositories": 6,
+        "most_committed_repositories": 6,
+    }
+    assert repositories[0] not in response.context["recent_repositories"]
+    assert repositories[-1] in response.context["recent_repositories"]
 
 
 def test_landing_page_preserves_legacy_root_search_queries(client):
