@@ -43,6 +43,6 @@
     {% include "components/landing_highlighted_repo.html" %}
     {% url 'repos:search' as all_repos_url %}
     {% include "pages/landing/_repo_row.html" with title="Recently added" description="Freshly indexed from curated lists." repositories=recent_repositories metric="recent" browse_url=all_repos_url only %}
-    {% include "pages/landing/_repo_row.html" with title="Most starred in the last 7 days" description="The largest observed star gains this week." repositories=most_starred_repositories metric="stars" browse_url=all_repos_url|add:"?sort=star_growth" only %}
-    {% include "pages/landing/_repo_row.html" with title="Most commits in the last 7 days" description="Repositories with the strongest observed commit activity." repositories=most_committed_repositories metric="commits" browse_url=all_repos_url|add:"?sort=velocity" only %}
+    {% include "pages/landing/_repo_row.html" with title="Most starred in the last 7 days" description="The largest observed star gains this week." repositories=most_starred_repositories metric="stars" browse_url=all_repos_url|add:"?sort=stars_growth_7d" only %}
+    {% include "pages/landing/_repo_row.html" with title="Most commits in the last 7 days" description="Repositories with the strongest observed commit activity." repositories=most_committed_repositories metric="commits" browse_url=all_repos_url|add:"?sort=commits_growth_7d" only %}
 </div>

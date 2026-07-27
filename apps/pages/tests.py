@@ -139,8 +139,53 @@ def test_landing_page_shows_repository_discovery_rows_and_side_ads(client):
     assert reverse("repos:search") in content
     assert reverse("repos:list") in content
     assert reverse("account_signup") in content
+    assert f'{reverse("repos:search")}?sort=stars_growth_7d' in content
+    assert f'{reverse("repos:search")}?sort=commits_growth_7d' in content
     assert_standard_ad_layout(content)
     assert recent_repo in response.context["recent_repositories"]
+
+
+def test_landing_page_preserves_legacy_root_search_queries(client):
+    response = client.get(
+        reverse("landing"),
+        {
+            "q": "django",
+            "sort": "stars",
+            "utm_source": "saved-search",
+        },
+    )
+
+    assert response.status_code == 302
+    assert (
+        response["Location"]
+        == f'{reverse("repos:search")}?q=django&sort=stars&utm_source=saved-search'
+    )
+
+
+def test_landing_page_keeps_tracking_only_queries_on_landing(client):
+    response = client.get(reverse("landing"), {"utm_source": "newsletter"})
+
+    assert response.status_code == 200
+
+
+def test_landing_page_handles_authenticated_user_without_profile(
+    auth_client,
+    user,
+    settings,
+    monkeypatch,
+):
+    settings.POSTHOG_API_KEY = "phc_test"
+    user.profile.delete()
+    queued_tasks = []
+    monkeypatch.setattr(
+        "apps.pages.views.async_task",
+        lambda *args, **kwargs: queued_tasks.append((args, kwargs)),
+    )
+
+    response = auth_client.get(reverse("landing"))
+
+    assert response.status_code == 200
+    assert queued_tasks == []
 
 
 def test_landing_page_features_active_sponsored_repository(client):

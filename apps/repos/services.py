@@ -2553,7 +2553,9 @@ def _order_repositories(
         "oldest": ("first_commit_at", "asc"),
         "commits": ("commit_count", "desc"),
         "velocity": ("commits_growth_percent", "desc"),
+        "commits_growth_7d": ("commits_growth_7d", "desc"),
         "star_growth": ("stars_growth_percent", "desc"),
+        "stars_growth_7d": ("stars_growth_7d", "desc"),
         "liability": ("stars_growth_percent", "desc"),
         "awesome": ("awesome_count", "desc"),
         "least_awesome": ("awesome_count", "asc"),
@@ -2804,6 +2806,11 @@ def repository_search_queryset(
 
     if semantic_search:
         return qs.order_by("vector_distance", "-stars", "full_name")
+    if (params.get("sort") or "").strip() in {
+        "commits_growth_7d",
+        "stars_growth_7d",
+    }:
+        qs = annotate_repository_recent_growth_metrics(qs)
     return _order_repositories(qs, params, extra_sort_map=extra_sort_map)
 
 

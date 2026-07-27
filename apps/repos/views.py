@@ -233,7 +233,9 @@ REPOSITORY_SORT_LABELS = {
     "oldest": "Oldest first commit",
     "commits": "Commits",
     "velocity": "Commit velocity",
+    "commits_growth_7d": "7-day commit gain",
     "star_growth": "Star growth",
+    "stars_growth_7d": "7-day star gain",
     "liability": "Star growth",
     "awesome": "Awesome-list mentions",
     "least_awesome": "Fewest list mentions",
@@ -785,8 +787,11 @@ class RepositorySearchView(ListView):
             self.request.GET,
             include_snapshot_metrics=False,
         )
+        recent_growth_sorts = {"commits_growth_7d", "stars_growth_7d"}
+        if (self.request.GET.get("sort") or "").strip() not in recent_growth_sorts:
+            queryset = annotate_repository_recent_growth_metrics(queryset)
         return with_repository_like_state(
-            annotate_repository_recent_growth_metrics(queryset),
+            queryset,
             self.request.user,
         ).prefetch_related(
             "awesome_items__awesome_list",
@@ -798,8 +803,9 @@ class RepositorySearchView(ListView):
         context["object_list"] = context["repositories"]
         context["page_obj"].object_list = context["repositories"]
         search_page = self.request.GET.get("page") or "1"
+        profile = getattr(self.request.user, "profile", None)
         if (
-            self.request.user.is_authenticated
+            profile is not None
             and repository_filters_applied(
                 self.request.GET,
                 include_sort=True,
@@ -809,7 +815,7 @@ class RepositorySearchView(ListView):
             params = repository_search_params(self.request)
             queue_track_event(
                 event_name="search_performed",
-                profile_id=self.request.user.profile.id,
+                profile_id=profile.id,
                 properties={
                     "query": params.get("q", ""),
                     "mode": params.get("mode", ""),

@@ -4536,6 +4536,18 @@ def test_repository_search_filters_growth_unmaintained_and_sort_direction():
         old_growth,
         unknown_baseline,
     ]
+    assert list(repository_search_queryset({"sort": "stars_growth_7d"})) == [
+        unknown_baseline,
+        fast,
+        slow,
+        old_growth,
+    ]
+    assert list(repository_search_queryset({"sort": "commits_growth_7d"})) == [
+        unknown_baseline,
+        fast,
+        slow,
+        old_growth,
+    ]
     assert list(repository_search_queryset({"sort": "liability"})) == [
         fast,
         slow,
@@ -5543,6 +5555,25 @@ def test_repository_search_tracks_first_page_only(auth_client, user, monkeypatch
 
     events.clear()
     response = auth_client.get(reverse("repos:search"), {"q": "framework", "page": "2"})
+
+    assert response.status_code == 200
+    assert events == []
+
+
+@pytest.mark.django_db
+def test_repository_search_handles_authenticated_user_without_profile(
+    auth_client,
+    user,
+    monkeypatch,
+):
+    user.profile.delete()
+    events = []
+    monkeypatch.setattr(
+        "apps.repos.views.queue_track_event",
+        lambda **kwargs: events.append(kwargs),
+    )
+
+    response = auth_client.get(reverse("repos:search"), {"q": "framework"})
 
     assert response.status_code == 200
     assert events == []

@@ -127,9 +127,17 @@
                                 {% if request.GET.sort == "commits" %}selected{% endif %}>Commits</option>
                         <option value="velocity"
                                 {% if request.GET.sort == "velocity" %}selected{% endif %}>Commit velocity</option>
+                        <option value="commits_growth_7d"
+                                {% if request.GET.sort == "commits_growth_7d" %}selected{% endif %}>
+                            7-day commit gain
+                        </option>
                         <option value="star_growth"
                                 {% if request.GET.sort == "star_growth" or request.GET.sort == "liability" %}selected{% endif %}>
                             Star growth
+                        </option>
+                        <option value="stars_growth_7d"
+                                {% if request.GET.sort == "stars_growth_7d" %}selected{% endif %}>
+                            7-day star gain
                         </option>
                         <option value="awesome"
                                 {% if request.GET.sort == "awesome" %}selected{% endif %}>
