@@ -72,6 +72,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: added a beta-quality notice above generated weekly and monthly repository update posts.
 - Awesome: moved full repository search from the root landing page to `/repos/`.
 - Awesome: restored TrustMRR-style side sponsor rails on the landing page and moved the highlighted repository directly below the hero.
 - Awesome: refreshed side-rail ads for Rowset, Djass, and LVTD, and opened the former Cleanapp and OSIG placements to new sponsors.
