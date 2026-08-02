@@ -37,6 +37,7 @@ from apps.core.models import (
 from apps.core.payments import (
     StripeConfigurationError,
     StripeRequestError,
+    checkout_session_matches_product,
     create_ads_checkout_session,
     create_highlighted_repo_checkout_session,
     create_remove_ads_checkout_session,
@@ -146,8 +147,7 @@ def _handle_completed_checkout_session(
     session,
     webhook_event: StripeWebhookEvent | None = None,
 ) -> None:
-    metadata = session.get("metadata", {})
-    if metadata.get("app") == "awesome" and metadata.get("kind", "sponsor_ads") == "sponsor_ads":
+    if checkout_session_matches_product(session, "sponsor_ads"):
         purchase = upsert_purchase_from_checkout_session(session)
         if purchase.status in {SponsorAdPurchase.Status.PAID, SponsorAdPurchase.Status.ACTIVE}:
             notify_sponsor_payment(purchase)
@@ -157,7 +157,7 @@ def _handle_completed_checkout_session(
                 profile=_profile_for_checkout_session(session),
                 webhook_event=webhook_event,
             )
-    elif metadata.get("app") == "awesome" and metadata.get("kind") == "highlighted_repo":
+    elif checkout_session_matches_product(session, "highlighted_repo"):
         purchase = upsert_highlighted_repo_from_checkout_session(session)
         if purchase.status in {
             HighlightedRepoPurchase.Status.PAID,
@@ -170,7 +170,7 @@ def _handle_completed_checkout_session(
                 profile=_profile_for_checkout_session(session),
                 webhook_event=webhook_event,
             )
-    elif metadata.get("app") == "awesome" and metadata.get("kind") == "remove_ads":
+    elif checkout_session_matches_product(session, "remove_ads"):
         profile = enable_remove_ads_for_checkout_session(session)
         if profile is not None:
             _track_purchase_completed(
@@ -300,8 +300,7 @@ def upsert_highlighted_repo_from_checkout_session(session):
 
 
 def enable_remove_ads_for_checkout_session(session, expected_user_id=None):
-    metadata = session.get("metadata", {})
-    if metadata.get("app") != "awesome" or metadata.get("kind") != "remove_ads":
+    if not checkout_session_matches_product(session, "remove_ads"):
         return None
 
     if session.get("payment_status") != "paid":
@@ -356,7 +355,10 @@ def sponsor_success(request):
     purchase = get_object_or_404(SponsorAdPurchase, stripe_checkout_session_id=session_id)
     if request.method == "GET" and stripe_configured():
         try:
-            purchase = upsert_purchase_from_checkout_session(retrieve_checkout_session(session_id))
+            session = retrieve_checkout_session(session_id)
+            if not checkout_session_matches_product(session, "sponsor_ads"):
+                return HttpResponseForbidden("Checkout product does not match this purchase.")
+            purchase = upsert_purchase_from_checkout_session(session)
             if purchase.status in {SponsorAdPurchase.Status.PAID, SponsorAdPurchase.Status.ACTIVE}:
                 try:
                     notify_sponsor_payment(purchase)
@@ -486,9 +488,10 @@ def highlighted_repo_success(request):
     purchase = get_object_or_404(HighlightedRepoPurchase, stripe_checkout_session_id=session_id)
     if request.method == "GET" and highlighted_repo_checkout_configured():
         try:
-            purchase = upsert_highlighted_repo_from_checkout_session(
-                retrieve_checkout_session(session_id)
-            )
+            session = retrieve_checkout_session(session_id)
+            if not checkout_session_matches_product(session, "highlighted_repo"):
+                return HttpResponseForbidden("Checkout product does not match this purchase.")
+            purchase = upsert_highlighted_repo_from_checkout_session(session)
             if purchase.status in {
                 HighlightedRepoPurchase.Status.PAID,
                 HighlightedRepoPurchase.Status.ACTIVE,

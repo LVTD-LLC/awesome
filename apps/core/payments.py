@@ -82,8 +82,10 @@ def _create_checkout_session(
         "metadata[app]": "awesome",
         "metadata[kind]": kind,
         "metadata[duration]": duration,
+        "metadata[price_id]": price_id,
         "payment_intent_data[metadata][app]": "awesome",
         "payment_intent_data[metadata][kind]": kind,
+        "payment_intent_data[metadata][price_id]": price_id,
     }
     if client_reference_id:
         payload["client_reference_id"] = client_reference_id
@@ -121,6 +123,22 @@ def create_remove_ads_checkout_session(*, success_url, cancel_url, client_refere
         kind="remove_ads",
         duration="lifetime",
         client_reference_id=client_reference_id,
+    )
+
+
+def checkout_session_matches_product(session, kind):
+    expected_price_ids = {
+        "sponsor_ads": settings.STRIPE_AWESOME_ADS_PRICE_ID,
+        "highlighted_repo": settings.STRIPE_AWESOME_HIGHLIGHTED_REPO_PRICE_ID,
+        "remove_ads": settings.STRIPE_AWESOME_REMOVE_ADS_PRICE_ID,
+    }
+    expected_price_id = expected_price_ids.get(kind)
+    metadata = session.get("metadata") or {}
+    return (
+        bool(expected_price_id)
+        and metadata.get("app") == "awesome"
+        and metadata.get("kind") == kind
+        and metadata.get("price_id") == expected_price_id
     )
 
 

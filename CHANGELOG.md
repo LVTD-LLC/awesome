@@ -15,6 +15,10 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 
 ## [Unreleased]
+### Security
+- Awesome Stripe webhooks and success-page refreshes now require the exact configured Price ID
+  for the matching product before creating purchases or changing account access.
+
 ### Added
 - Awesome: initialized a measured SEO sprint roadmap with brand context, keyword research, technical findings, internal-link inventory, and off-page targets.
 - Awesome: added a repository discovery landing page with recent, 7-day star-growth, and 7-day commit-growth showcases.
