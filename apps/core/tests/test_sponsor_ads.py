@@ -30,6 +30,13 @@ def stripe_signature(payload: str, secret: str = "whsec_test") -> str:
     return f"t={timestamp},v1={digest}"
 
 
+@pytest.fixture(autouse=True)
+def configured_awesome_prices(settings):
+    settings.STRIPE_AWESOME_ADS_PRICE_ID = "price_sponsor_ads"
+    settings.STRIPE_AWESOME_HIGHLIGHTED_REPO_PRICE_ID = "price_highlighted_repo"
+    settings.STRIPE_AWESOME_REMOVE_ADS_PRICE_ID = "price_remove_ads"
+
+
 @pytest.mark.django_db
 class TestSponsorAdsCheckout:
     @override_settings(STRIPE_SECRET_KEY="sk_test", STRIPE_AWESOME_ADS_PRICE_ID="price_test")
@@ -49,6 +56,8 @@ class TestSponsorAdsCheckout:
 
         assert captured["path"] == "checkout/sessions"
         assert captured["data"]["customer_creation"] == "always"
+        assert captured["data"]["metadata[price_id]"] == "price_test"
+        assert captured["data"]["payment_intent_data[metadata][price_id]"] == "price_test"
         assert "customer_update[name]" not in captured["data"]
 
     @override_settings(STRIPE_SECRET_KEY="sk_test", STRIPE_AWESOME_ADS_PRICE_ID="price_test")
@@ -109,7 +118,11 @@ class TestSponsorAdsCheckout:
                 "amount_total": 100000,
                 "currency": "usd",
                 "customer_details": {"email": "buyer@example.com"},
-                "metadata": {"app": "awesome"},
+                "metadata": {
+                    "app": "awesome",
+                    "kind": "sponsor_ads",
+                    "price_id": "price_test",
+                },
             },
         )
         monkeypatch.setattr(
@@ -204,6 +217,39 @@ class TestSponsorAdsCheckout:
                 "source_function": "sponsor_success",
             }
         ]
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test")
+    def test_webhook_ignores_shared_account_checkout_with_wrong_price(self, client):
+        event = {
+            "id": "evt_test_tjalerts_support",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_tjalerts_support",
+                    "payment_status": "paid",
+                    "amount_total": 100,
+                    "currency": "usd",
+                    "metadata": {
+                        "app": "awesome",
+                        "kind": "sponsor_ads",
+                        "price_id": "price_tjalerts_support",
+                    },
+                }
+            },
+        }
+        payload = json.dumps(event)
+
+        response = client.post(
+            reverse("stripe_webhook"),
+            data=payload,
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE=stripe_signature(payload),
+        )
+
+        assert response.status_code == 200
+        assert not SponsorAdPurchase.objects.filter(
+            stripe_checkout_session_id="cs_test_tjalerts_support"
+        ).exists()
 
     def test_active_sponsor_ad_caches_empty_result(self, django_assert_num_queries):
         from apps.core.context_processors import active_sponsor_ad
@@ -432,7 +478,11 @@ class TestSponsorAdsCheckout:
                     "payment_intent": "pi_123",
                     "customer_details": {"email": "buyer@example.com", "name": "Buyer"},
                     "client_reference_id": str(user.id),
-                    "metadata": {"app": "awesome"},
+                    "metadata": {
+                        "app": "awesome",
+                        "kind": "sponsor_ads",
+                        "price_id": "price_sponsor_ads",
+                    },
                 }
             },
         }
@@ -496,7 +546,11 @@ class TestSponsorAdsCheckout:
                     "amount_total": 100000,
                     "currency": "usd",
                     "customer_details": {"email": "buyer@example.com"},
-                    "metadata": {"app": "awesome", "kind": "sponsor_ads"},
+                    "metadata": {
+                        "app": "awesome",
+                        "kind": "sponsor_ads",
+                        "price_id": "price_sponsor_ads",
+                    },
                 }
             },
         }
@@ -707,7 +761,11 @@ class TestHighlightedRepoCheckout:
                     "currency": "usd",
                     "customer_details": {"email": "buyer@example.com"},
                     "client_reference_id": str(user.id),
-                    "metadata": {"app": "awesome", "kind": "highlighted_repo"},
+                    "metadata": {
+                        "app": "awesome",
+                        "kind": "highlighted_repo",
+                        "price_id": "price_highlighted_repo",
+                    },
                 }
             },
         }
@@ -832,7 +890,11 @@ class TestRemoveAdsCheckout:
                     "currency": "usd",
                     "payment_status": "paid",
                     "client_reference_id": str(user.id),
-                    "metadata": {"app": "awesome", "kind": "remove_ads"},
+                    "metadata": {
+                        "app": "awesome",
+                        "kind": "remove_ads",
+                        "price_id": "price_remove_ads",
+                    },
                 }
             },
         }
@@ -928,7 +990,11 @@ class TestRemoveAdsCheckout:
                 "id": session_id,
                 "payment_status": "paid",
                 "client_reference_id": str(other_user.id),
-                "metadata": {"app": "awesome", "kind": "remove_ads"},
+                "metadata": {
+                    "app": "awesome",
+                    "kind": "remove_ads",
+                    "price_id": "price_remove_ads",
+                },
             },
         )
 

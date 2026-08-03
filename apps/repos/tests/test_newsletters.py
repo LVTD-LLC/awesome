@@ -652,6 +652,11 @@ def test_public_repository_update_pages_and_rss_render(client, repository):
     assert b"Sign in to subscribe" in list_response.content
     assert detail_response.status_code == 200
     assert b"Added tracking." in detail_response.content
+    assert b"Beta feature" in detail_response.content
+    assert b"We analyze the commits from this period" in detail_response.content
+    assert detail_response.content.index(b"Beta feature") < detail_response.content.index(
+        b"Added tracking."
+    )
     assert b"Follow future updates" in detail_response.content
     assert feed_response.status_code == 200
     assert b"Django weekly update" in feed_response.content

@@ -15,6 +15,10 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 
 ## [Unreleased]
+### Security
+- Awesome Stripe webhooks and success-page refreshes now require the exact configured Price ID
+  for the matching product before creating purchases or changing account access.
+
 ### Added
 - Awesome: redesigned repository detail headers around a theme-aware decision dashboard, consolidated activity, metadata, classification, technology stack, and awesome-list membership into the header, moved repository updates into a modal, added a compact AI development signal summary, and made growth charts focus on observed snapshots without dense per-capture markers.
 - Awesome: initialized a measured SEO sprint roadmap with brand context, keyword research, technical findings, internal-link inventory, and off-page targets.
@@ -73,6 +77,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
 
 ### Changed
+- Awesome: added a beta-quality notice above generated weekly and monthly repository update posts.
 - Awesome: moved full repository search from the root landing page to `/repos/`.
 - Awesome: restored TrustMRR-style side sponsor rails on the landing page and moved the highlighted repository directly below the hero.
 - Awesome: refreshed side-rail ads for Rowset, Djass, and LVTD, and opened the former Cleanapp and OSIG placements to new sponsors.

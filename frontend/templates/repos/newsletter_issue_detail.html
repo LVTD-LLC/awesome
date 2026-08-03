@@ -47,6 +47,14 @@
                 </div>
             </dl>
         </header>
+        <aside class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+               aria-labelledby="repository-update-beta-heading">
+            <p id="repository-update-beta-heading"
+               class="text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">Beta feature</p>
+            <p class="mt-2 text-sm leading-6">
+                We analyze the commits from this period and compile the major changes into this post. We're still refining the process to get the quality just right.
+            </p>
+        </aside>
         <div class="prose prose-lg prose-gray mt-8 max-w-none prose-a:text-green-700 prose-a:no-underline hover:prose-a:underline prose-code:break-words prose-h2:mt-10 prose-h2:text-2xl prose-h3:mt-8 prose-li:my-1 dark:prose-invert dark:prose-a:text-green-300">
             {{ issue.content_html|safe }}
         </div>
