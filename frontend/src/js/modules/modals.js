@@ -9,6 +9,11 @@ const MODAL_CONFIGS = [
     openSelector: "[data-sponsor-modal-open]",
     closeSelector: "[data-sponsor-modal-close]",
   },
+  {
+    modalSelector: "[data-repository-updates-modal]",
+    openSelector: "[data-repository-updates-modal-open]",
+    closeSelector: "[data-repository-updates-modal-close]",
+  },
 ];
 
 const FOCUSABLE_SELECTOR = [

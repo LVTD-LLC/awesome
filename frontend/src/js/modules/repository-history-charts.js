@@ -123,12 +123,13 @@ function renderChart(chart, rawData) {
   const allData = rawData
     .map((point) => ({
       date: new Date(point.captured_at),
+      syntheticOrigin: point.synthetic_origin === true,
       value: point[metric] == null ? null : Number(point[metric]),
     }))
     .filter((point) => Number.isFinite(point.date.getTime()) && Number.isFinite(point.value))
     .sort((left, right) => left.date - right.date);
   const range = chartRange(chart);
-  const data = filterHistoryDataByRange(allData, range);
+  const data = filterHistoryDataByRange(allData, range).filter((point) => !point.syntheticOrigin);
 
   plot.innerHTML = "";
   plot.classList.add("relative");
@@ -182,7 +183,7 @@ function renderChart(chart, rawData) {
 
   content
     .selectAll("circle")
-    .data(data)
+    .data(endpointMarkers(data))
     .join("circle")
     .attr("cx", (point) => x(point.date))
     .attr("cy", (point) => y(point.value))
@@ -216,6 +217,14 @@ function renderChart(chart, rawData) {
   });
 }
 
+function endpointMarkers(data) {
+  if (data.length <= 2) {
+    return data;
+  }
+
+  return [data[0], data[data.length - 1]];
+}
+
 function attachTooltip({ content, data, height, label, margin, plot, theme, width, x, y }) {
   const d3 = window.d3;
   const bisect = d3.bisector((point) => point.date).center;
@@ -226,9 +235,8 @@ function attachTooltip({ content, data, height, label, margin, plot, theme, widt
   const tooltip = d3
     .select(plot)
     .append("div")
-    .attr("class", "pointer-events-none absolute z-10 hidden rounded-lg border px-3 py-2 text-xs shadow-lg")
+    .attr("class", "pointer-events-none absolute z-10 hidden rounded-lg px-3 py-2 text-sm shadow-lg ring-1 ring-black/5 dark:shadow-none dark:ring-white/10")
     .style("background", theme.surface)
-    .style("border-color", theme.border)
     .style("color", theme.text);
 
   content
@@ -474,7 +482,7 @@ function themeToken(styles, name) {
 function styleAxis(axis, theme) {
   axis.select(".domain").attr("stroke", theme.border);
   axis.selectAll("line").attr("stroke", theme.border);
-  axis.selectAll("text").attr("fill", theme.muted).attr("font-size", 11);
+  axis.selectAll("text").attr("fill", theme.muted).attr("font-size", 12);
 }
 
 function expandedDateDomain([min, max]) {
@@ -514,7 +522,8 @@ function observeThemeChanges(callback) {
 
 function emptyState(message) {
   const element = document.createElement("div");
-  element.className = "flex h-full items-center justify-center rounded-xl bg-gray-50 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400";
+  element.className =
+    "flex h-full items-center justify-center rounded-xl bg-gray-50 text-base text-gray-500 dark:bg-gray-900 dark:text-gray-400 sm:text-sm";
   element.textContent = message;
   return element;
 }

@@ -16,6 +16,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 ## [Unreleased]
 ### Added
+- Awesome: redesigned repository detail headers around a theme-aware decision dashboard, consolidated activity, metadata, classification, technology stack, and awesome-list membership into the header, moved repository updates into a modal, added a compact AI development signal summary, and made growth charts focus on observed snapshots without dense per-capture markers.
 - Awesome: initialized a measured SEO sprint roadmap with brand context, keyword research, technical findings, internal-link inventory, and off-page targets.
 - Awesome: added a repository discovery landing page with recent, 7-day star-growth, and 7-day commit-growth showcases.
 - Awesome admin panel now tracks 1/7/30-day repository analysis coverage, daily parser activity, star-band distribution, and recently added repositories.
