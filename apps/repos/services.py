@@ -1723,7 +1723,7 @@ def repository_history_chart_data(
     repository: Repository,
     *,
     limit: int = 365,
-) -> list[dict[str, int | str | None]]:
+) -> list[dict[str, bool | int | str | None]]:
     snapshots = list(
         repository.snapshots.order_by("-captured_at", "-id").only(
             "captured_at",
@@ -1747,7 +1747,7 @@ def awesome_list_history_chart_data(
     awesome_list: AwesomeList,
     *,
     limit: int = 365,
-) -> list[dict[str, int | str | None]]:
+) -> list[dict[str, bool | int | str | None]]:
     if limit <= 0:
         return []
 
@@ -1786,10 +1786,10 @@ def awesome_list_history_chart_data(
 
 
 def _history_chart_data_with_origin(
-    points: list[dict[str, int | str | None]],
+    points: list[dict[str, bool | int | str | None]],
     first_commit_at: datetime | None,
     first_point_at: datetime | None,
-) -> list[dict[str, int | str | None]]:
+) -> list[dict[str, bool | int | str | None]]:
     if not points or first_commit_at is None or first_point_at is None:
         return points
 
@@ -1801,6 +1801,7 @@ def _history_chart_data_with_origin(
             "captured_at": first_commit_at.isoformat(),
             "stars": 0,
             "commit_count": 0,
+            "synthetic_origin": True,
         },
         *points,
     ]

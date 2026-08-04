@@ -5116,6 +5116,7 @@ def test_repository_history_chart_data_starts_from_first_commit_origin():
         "captured_at": first_commit_at.isoformat(),
         "stars": 0,
         "commit_count": 0,
+        "synthetic_origin": True,
     }
     assert [point["stars"] for point in chart_data] == [0, 101]
     assert [point["commit_count"] for point in chart_data] == [0, 201]
@@ -5168,6 +5169,7 @@ def test_awesome_list_history_chart_data_starts_from_first_commit_origin():
         "captured_at": first_commit_at.isoformat(),
         "stars": 0,
         "commit_count": 0,
+        "synthetic_origin": True,
     }
     assert [point["stars"] for point in chart_data] == [0, 101]
     assert [point["commit_count"] for point in chart_data] == [0, 201]
@@ -6746,7 +6748,7 @@ def test_regular_user_cannot_queue_awesome_list_missing_repo_discovery(
 
 
 @pytest.mark.django_db
-def test_repository_detail_page_renders_performance_history(client):
+def test_repository_detail_page_renders_performance_history(client, django_user_model):
     repo = Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -6754,12 +6756,24 @@ def test_repository_detail_page_renders_performance_history(client):
         url="https://github.com/django/django",
         description="The Web framework",
         language="Python",
+        license_name="BSD-3-Clause",
+        default_branch="main",
         topics=["django", "python"],
+        generated_tags=["web-framework"],
+        stack_signals=[{"slug": "django", "label": "Django"}],
+        readme_url="https://github.com/django/django#readme",
         stars=123456,
         forks=32000,
         watchers=5,
         commit_count=90,
+        github_created_at=timezone.now() - timedelta(days=365),
     )
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Django",
+        slug="awesome-django",
+        source_url="https://github.com/wsvincent/awesome-django",
+    )
+    AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repo)
     RepositorySnapshot.objects.create(
         repository=repo,
         captured_at=timezone.now() - timedelta(days=2),
@@ -6783,8 +6797,80 @@ def test_repository_detail_page_renders_performance_history(client):
 
     assert response.status_code == 200
     assert response.context["hide_side_ad_rails"] is False
+    assert "ui_picker_enabled" not in response.context
     assert_side_ad_rails(response.content)
+    assert b'data-uidotsh-pick="Repository overview"' not in response.content
+    assert b'data-uidotsh-pick="Page navigation"' not in response.content
+    assert b'data-uidotsh-pick="Repository updates trigger"' not in response.content
+    assert b'data-uidotsh-pick="Activity summary"' not in response.content
+    assert b"data-uidotsh-pick" not in response.content
+    assert b"data-uidotsh-option" not in response.content
+    assert b"https://ui.sh/ui-picker.js" not in response.content
+    assert response.content.count(f'id="repo-like-{repo.pk}"'.encode()) == 1
+    assert b"Save it for later" not in response.content
+    assert response.content.count(b"data-repository-updates-modal-open") == 1
+    assert b"Follow updates" in response.content
+    assert response.content.count(b"bg-green-700") >= 2
+    assert response.content.count(b"dark:bg-green-500 dark:text-green-950") >= 2
+    assert response.content.count(b"data-repository-updates-modal\n") == 1
+    assert b"data-repository-updates-modal-close" in response.content
+    assert b'role="dialog"' in response.content
+    assert b'aria-labelledby="repository-detail-subscribe-heading"' in response.content
+    assert b"Sign in to follow" in response.content
+    user = django_user_model.objects.create_user(
+        username="reader",
+        email="reader@example.com",
+        password="password123",
+    )
+    client.force_login(user)
+    authenticated_response = client.get(
+        reverse("repos:repo_detail", kwargs={"owner": "django", "name": "django"})
+    )
+    assert b'name="email"' in authenticated_response.content
+    assert b'value="reader@example.com"' in authenticated_response.content
+    assert b'name="cadence"' in authenticated_response.content
+    assert b"Follow repository" in authenticated_response.content
+    assert b"Links and files" not in response.content
+    assert b">Appears in<" not in response.content
+    assert b"curator mention" not in response.content
+    assert b"1 awesome list" in response.content
+    assert b"Awesome Django" in response.content
+    assert awesome_list.get_absolute_url().encode() in response.content
+    assert response.content.count(b">Classification<") == 1
+    assert b"Search any label to find related repositories." not in response.content
+    assert b">Generated tags<" in response.content
+    assert b">Technology stack<" in response.content
+    assert b">Django<" in response.content
+    assert b">Detected stack<" not in response.content
+    assert response.content.count(b">Metadata<") == 1
+    assert b">Language<" in response.content
+    assert b">License<" in response.content
+    assert b">Default branch<" in response.content
+    assert b">Created<" in response.content
+    assert b">README<" in response.content
+    assert response.content.count(b">Activity and growth<") == 1
+    assert b"Stars" in response.content
+    assert b"last 7 days" in response.content
+    assert b"Commits" in response.content
+    assert b"Stars since tracking" in response.content
+    assert b"Stored snapshots" in response.content
+    summary_start = response.content.index(b"data-repository-summary")
+    summary_end = response.content.index(b"</header>", summary_start)
+    assert b"repo-chip" not in response.content[:summary_start]
+    summary = response.content[summary_start:summary_end]
+    assert b"bg-white text-gray-950" in summary
+    assert b"dark:bg-gray-950 dark:text-white" in summary
+    assert b"bg-gray-50/60" in summary
+    assert b"dark:bg-white/[0.02]" in summary
+    assert (
+        b'data-repository-summary class="overflow-hidden rounded-2xl bg-gray-950'
+        not in response.content
+    )
+    assert summary_start < response.content.index(b">Activity and growth<") < summary_end
     assert b"Tracked growth" in response.content
+    assert response.content.index(b"AI development signals") < response.content.index(
+        b"Tracked growth"
+    )
     assert b"123,456" in response.content
     assert b"32,000" in response.content
     assert b'href="/repos/?topic=django"' in response.content
@@ -6801,11 +6887,16 @@ def test_repository_detail_page_renders_performance_history(client):
     assert b'data-chart-range-value="all"' in response.content
     assert b"data-chart-custom-start" in response.content
     assert b"data-chart-custom-end" in response.content
+    assert b"Custom date range" in response.content
     assert b"/static/vendors/js/d3.min.js" in response.content
     assert b"/static/js/modules/repository-history-charts.js" in response.content
     assert b"repository-history-data" in response.content
     assert b'data-metric="stars"' in response.content
     assert b'data-metric="commit_count"' in response.content
+    assert response.content.count(b"data-repository-history-chart") == 2
+    assert b"data-chart-style" not in response.content
+    assert b"Charts use measured snapshots only." in response.content
+    assert response.content.count(b"Observed snapshots") == 2
     assert b'"stars": 123431' in response.content
     assert b'"commit_count": 90' in response.content
     assert b"Commits since first" not in response.content
@@ -6842,11 +6933,12 @@ def test_repository_detail_page_uses_normalized_dependency_file_count(client):
     assert response.context["repository_hidden_dependency_file_count"] == 5
     assert response.context["repository_detail_summary"]["dependency_file_count"] == 13
     content = response.content.decode()
-    assert "13 manifests" in content
-    assert "5 more files" in content
-    assert "manifest-7.txt" in content
-    assert "manifest-8.txt" not in content
-    assert "invalid-manifest-entry" not in content
+    assert "Detected stack" not in content
+    assert "Manifest files" not in content
+    assert "Dependency files" not in content
+    assert "Topics" not in content
+    assert "Generated tags" not in content
+    assert "Technology stack" not in content
 
 
 @pytest.mark.django_db
@@ -7056,7 +7148,7 @@ def test_repository_detail_page_skips_chart_data_without_history(client, monkeyp
 
 
 @pytest.mark.django_db
-def test_repository_detail_page_compacts_dependency_files(client):
+def test_repository_detail_page_keeps_dependency_files_out_of_summary(client):
     dependency_files = [
         {
             "path": "pyproject.toml",
@@ -7120,14 +7212,13 @@ def test_repository_detail_page_compacts_dependency_files(client):
     assert len(response.context["repository_visible_dependency_files"]) == 8
     assert response.context["repository_hidden_dependency_file_count"] == 1
     content = response.content.decode()
-    assert "Dependency files" in content
-    assert "9 manifests" in content
-    assert "pyproject.toml" in content
-    assert "12 dependencies" in content
-    assert "composer.json" in content
-    assert "1 more file" in content
+    assert "Dependency files" not in content
+    assert "9 manifests" not in content
+    assert "pyproject.toml" not in content
+    assert "12 dependencies" not in content
+    assert "composer.json" not in content
+    assert "1 more file" not in content
     assert "hidden.lock" not in content
-    assert "No dependency manifests detected." not in content
 
 
 @pytest.mark.django_db
@@ -7209,10 +7300,11 @@ def test_repository_detail_page_compacts_ai_development_signals(client):
     ]
     assert summary["hidden_signal_count"] == 0
     assert summary["show_detail_signals"] is True
-    assert b"AI agent config detected" in response.content
-    assert b"Key config paths" in response.content
+    assert b"AI development signals" in response.content
+    assert b"7 paths" in response.content
     assert b"more config paths detected." not in response.content
-    assert b"Review config paths" in response.content
+    assert b"View paths" in response.content
+    assert b".agents/skills/company-creator/SKILL.md" in response.content
     assert b"AI dev signals:" not in response.content
 
 
@@ -7235,11 +7327,11 @@ def test_repository_detail_page_shows_empty_ai_development_signal_state(client):
     assert summary["total_count"] == 0
     assert summary["visible_tools"] == []
     assert summary["visible_signals"] == []
-    assert b"No AI development config files detected." in response.content
+    assert b"No config files detected." in response.content
 
 
 @pytest.mark.django_db
-def test_repository_detail_page_hides_ai_development_detail_expander_when_all_paths_visible(
+def test_repository_detail_page_links_ai_development_paths_when_all_paths_visible(
     client,
 ):
     repo = Repository.objects.create(
@@ -7272,7 +7364,7 @@ def test_repository_detail_page_hides_ai_development_detail_expander_when_all_pa
     assert b'href="https://github.com/django/django/blob/stable/6.0.x/AGENTS.md"' in (
         response.content
     )
-    assert b"Review config paths" not in response.content
+    assert b"View paths" in response.content
 
 
 @pytest.mark.django_db
@@ -7305,7 +7397,7 @@ def test_repository_detail_page_counts_hidden_ai_development_key_paths(client):
     assert len(summary["visible_signals"]) == 6
     assert summary["hidden_signal_count"] == 2
     assert summary["show_detail_signals"] is True
-    assert b"2 more config paths detected." in response.content
+    assert b".github/instructions/agent-7.instructions.md" in response.content
 
 
 @pytest.mark.django_db
