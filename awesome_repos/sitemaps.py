@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib import sitemaps
 from django.db.models import Max, Q
+from django.template.response import TemplateResponse
 from django.urls import reverse
 
 from apps.blog.services import list_blog_posts
@@ -12,6 +13,15 @@ from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
 
 class ConfiguredDomainSitemap(sitemaps.Sitemap):
     protocol = "https"
+    # Keep individual XML documents quick to generate and download. The sitemap
+    # index advertises every page, so crawlers still discover the full catalog.
+    limit = 2_000
+
+    def get_latest_lastmod(self):
+        # Django's default implementation materializes every item in a section.
+        # That makes the lightweight sitemap index as expensive as rendering the
+        # full catalog. Section documents still expose per-URL lastmod values.
+        return None
 
     def get_urls(self, page=1, site=None, protocol=None):
         parsed_site_url = urlsplit(settings.SITE_URL)
@@ -22,6 +32,35 @@ class ConfiguredDomainSitemap(sitemaps.Sitemap):
             site=configured_site,
             protocol=configured_protocol,
         )
+
+
+def configured_sitemap_index(request, sitemaps, sitemap_url_name):
+    """Render a sitemap index using SITE_URL instead of the django_site row."""
+    base_url = settings.SITE_URL.rstrip("/")
+    sitemap_entries = []
+
+    for section, sitemap_class in sitemaps.items():
+        sitemap_instance = sitemap_class() if callable(sitemap_class) else sitemap_class
+        section_path = reverse(sitemap_url_name, kwargs={"section": section})
+        section_url = f"{base_url}{section_path}"
+
+        for page in range(1, sitemap_instance.paginator.num_pages + 1):
+            page_suffix = f"?p={page}" if page > 1 else ""
+            sitemap_entries.append(
+                SimpleNamespace(
+                    location=f"{section_url}{page_suffix}",
+                    last_mod=None,
+                )
+            )
+
+    response = TemplateResponse(
+        request,
+        "sitemap_index.xml",
+        {"sitemaps": sitemap_entries},
+        content_type="application/xml",
+    )
+    response.headers["X-Robots-Tag"] = "noindex, noodp, noarchive"
+    return response
 
 
 class StaticViewSitemap(ConfiguredDomainSitemap):
@@ -61,6 +100,14 @@ class RepositorySitemap(ConfiguredDomainSitemap):
             Repository.objects.filter(is_archived=False, is_disabled=False)
             .exclude(is_awesome_list_candidate=True)
             .exclude(full_name__in=active_list_source_repositories)
+            .only(
+                "id",
+                "owner",
+                "name",
+                "github_pushed_at",
+                "last_synced_at",
+                "updated_at",
+            )
             .order_by("id")
         )
 
@@ -73,7 +120,17 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
     priority = 0.8
 
     def items(self):
-        return AwesomeList.objects.filter(is_active=True).order_by("id")
+        return (
+            AwesomeList.objects.filter(is_active=True)
+            .only(
+                "id",
+                "slug",
+                "last_scanned_at",
+                "github_pushed_at",
+                "updated_at",
+            )
+            .order_by("id")
+        )
 
     def lastmod(self, item):
         return item.last_scanned_at or item.github_pushed_at or item.updated_at
@@ -109,6 +166,7 @@ class RepositoryUpdatesSitemap(ConfiguredDomainSitemap):
                     filter=published_issues,
                 ),
             )
+            .only("id", "owner", "name", "updated_at")
             .order_by("id")
         )
 
@@ -145,6 +203,16 @@ class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
                 repository__is_awesome_list_candidate=False,
             )
             .select_related("repository")
+            .only(
+                "id",
+                "slug",
+                "cadence",
+                "published_at",
+                "updated_at",
+                "repository__id",
+                "repository__owner",
+                "repository__name",
+            )
             .order_by("id")
         )
 

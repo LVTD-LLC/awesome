@@ -84,6 +84,8 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: sponsor ads now collect a destination URL and expire after their purchased 30-day placement.
 
 ### Fixed
+- Awesome: split the oversized sitemap into a cached index and lightweight paginated sections,
+  while loading only the database fields required to render sitemap entries.
 - Awesome: gave landing-page repository names more room with six cards in a three-column desktop grid.
 - Awesome: made Stripe webhook fulfillment replay-safe so retries do not duplicate completion side effects.
 - Awesome: added restrained playful copy to rare empty and success states, a first-liked-repository flourish, and an open-source console easter egg.

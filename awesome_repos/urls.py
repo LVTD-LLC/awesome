@@ -19,10 +19,11 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.http import HttpResponse
 from django.urls import include, path
+from django.views.decorators.cache import cache_page
 from django.views.generic import TemplateView
 
 from apps.pages.views import AccountSignupByPasskeyView, AccountSignupView
-from awesome_repos.sitemaps import sitemaps
+from awesome_repos.sitemaps import configured_sitemap_index, sitemaps
 
 
 def robots_txt(_request):
@@ -63,8 +64,17 @@ urlpatterns += [
     path("", include("apps.core.urls")),
     path(
         "sitemap.xml",
-        sitemap,
+        cache_page(60 * 60)(configured_sitemap_index),
+        {
+            "sitemaps": sitemaps,
+            "sitemap_url_name": "sitemap_section",
+        },
+        name="sitemap_index",
+    ),
+    path(
+        "sitemap-<section>.xml",
+        cache_page(60 * 60)(sitemap),
         {"sitemaps": sitemaps},
-        name="django.contrib.sitemaps.views.sitemap",
+        name="sitemap_section",
     ),
 ]

@@ -167,8 +167,11 @@ def test_robots_txt_allows_crawling_and_advertises_sitemap(client):
     )
 
 
-@override_settings(SITE_URL="https://awesome.example")
-def test_sitemap_includes_public_static_repository_and_list_pages(client):
+@override_settings(
+    SITE_URL="https://awesome.example",
+    ALLOWED_HOSTS=["awesome.example", "testserver"],
+)
+def test_sitemap_index_links_paginated_sections(client):
     repository = Repository.objects.create(
         full_name="django/django",
         owner="django",
@@ -236,20 +239,39 @@ def test_sitemap_includes_public_static_repository_and_list_pages(client):
         published_at=timezone.now(),
     )
 
-    response = client.get("/sitemap.xml")
+    response = client.get("/sitemap.xml", headers={"host": "awesome.example"})
 
     assert response.status_code == 200
     content = response_text(response)
-    assert "<loc>https://awesome.example/</loc>" in content
-    assert "<loc>https://awesome.example/updates/</loc>" in content
-    assert "<loc>https://awesome.example/lists/</loc>" in content
-    assert "<loc>https://awesome.example/repos/django/django/</loc>" in content
-    assert "<loc>https://awesome.example/repos/django/channels/</loc>" not in content
-    assert "<loc>https://awesome.example/repos/django/disabled/</loc>" not in content
-    assert "<loc>https://awesome.example/lists/awesome-django/</loc>" in content
-    assert "<loc>https://awesome.example/repos/django/django/updates/</loc>" in content
-    assert f"<loc>https://awesome.example{issue.get_absolute_url()}</loc>" in content
-    assert "<loc>https://awesome.example/repos/django/channels/updates/</loc>" not in content
-    assert f"<loc>https://awesome.example{archived_issue.get_absolute_url()}</loc>" not in content
-    assert "<loc>https://awesome.example/repos/django/disabled/updates/</loc>" not in content
+    assert "<sitemapindex" in content
+    assert "<loc>https://awesome.example/sitemap-static.xml</loc>" in content
+    assert "<loc>https://awesome.example/sitemap-repositories.xml</loc>" in content
+    assert "<loc>https://awesome.example/sitemap-awesome_lists.xml</loc>" in content
+    assert "<loc>https://awesome.example/repos/django/django/</loc>" not in content
+
+    static_content = response_text(client.get("/sitemap-static.xml"))
+    repository_content = response_text(client.get("/sitemap-repositories.xml"))
+    list_content = response_text(client.get("/sitemap-awesome_lists.xml"))
+    updates_content = response_text(client.get("/sitemap-repository_updates.xml"))
+    issues_content = response_text(client.get("/sitemap-repository_update_issues.xml"))
+
+    assert "<loc>https://awesome.example/</loc>" in static_content
+    assert "<loc>https://awesome.example/updates/</loc>" in static_content
+    assert "<loc>https://awesome.example/lists/</loc>" in static_content
+    assert "<loc>https://awesome.example/repos/django/django/</loc>" in repository_content
+    assert "<loc>https://awesome.example/repos/django/channels/</loc>" not in repository_content
+    assert "<loc>https://awesome.example/repos/django/disabled/</loc>" not in repository_content
+    assert "<loc>https://awesome.example/lists/awesome-django/</loc>" in list_content
+    assert "<loc>https://awesome.example/repos/django/django/updates/</loc>" in updates_content
+    assert f"<loc>https://awesome.example{issue.get_absolute_url()}</loc>" in issues_content
+    assert (
+        "<loc>https://awesome.example/repos/django/channels/updates/</loc>" not in updates_content
+    )
+    assert (
+        f"<loc>https://awesome.example{archived_issue.get_absolute_url()}</loc>"
+        not in issues_content
+    )
+    assert (
+        "<loc>https://awesome.example/repos/django/disabled/updates/</loc>" not in updates_content
+    )
     assert RepositoryNewsletterIssueSitemap().lastmod(issue) == issue.updated_at
