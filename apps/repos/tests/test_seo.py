@@ -167,7 +167,10 @@ def test_robots_txt_allows_crawling_and_advertises_sitemap(client):
     )
 
 
-@override_settings(SITE_URL="https://awesome.example")
+@override_settings(
+    SITE_URL="https://awesome.example",
+    ALLOWED_HOSTS=["awesome.example", "testserver"],
+)
 def test_sitemap_index_links_paginated_sections(client):
     repository = Repository.objects.create(
         full_name="django/django",
