@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib import sitemaps
 from django.db.models import Max, Q
+from django.template.response import TemplateResponse
 from django.urls import reverse
 
 from apps.blog.services import list_blog_posts
@@ -31,6 +32,35 @@ class ConfiguredDomainSitemap(sitemaps.Sitemap):
             site=configured_site,
             protocol=configured_protocol,
         )
+
+
+def configured_sitemap_index(request, sitemaps, sitemap_url_name):
+    """Render a sitemap index using SITE_URL instead of the django_site row."""
+    base_url = settings.SITE_URL.rstrip("/")
+    sitemap_entries = []
+
+    for section, sitemap_class in sitemaps.items():
+        sitemap_instance = sitemap_class() if callable(sitemap_class) else sitemap_class
+        section_path = reverse(sitemap_url_name, kwargs={"section": section})
+        section_url = f"{base_url}{section_path}"
+
+        for page in range(1, sitemap_instance.paginator.num_pages + 1):
+            page_suffix = f"?p={page}" if page > 1 else ""
+            sitemap_entries.append(
+                SimpleNamespace(
+                    location=f"{section_url}{page_suffix}",
+                    last_mod=None,
+                )
+            )
+
+    response = TemplateResponse(
+        request,
+        "sitemap_index.xml",
+        {"sitemaps": sitemap_entries},
+        content_type="application/xml",
+    )
+    response.headers["X-Robots-Tag"] = "noindex, noodp, noarchive"
+    return response
 
 
 class StaticViewSitemap(ConfiguredDomainSitemap):
