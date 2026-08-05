@@ -12,6 +12,15 @@ from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
 
 class ConfiguredDomainSitemap(sitemaps.Sitemap):
     protocol = "https"
+    # Keep individual XML documents quick to generate and download. The sitemap
+    # index advertises every page, so crawlers still discover the full catalog.
+    limit = 2_000
+
+    def get_latest_lastmod(self):
+        # Django's default implementation materializes every item in a section.
+        # That makes the lightweight sitemap index as expensive as rendering the
+        # full catalog. Section documents still expose per-URL lastmod values.
+        return None
 
     def get_urls(self, page=1, site=None, protocol=None):
         parsed_site_url = urlsplit(settings.SITE_URL)
@@ -61,6 +70,14 @@ class RepositorySitemap(ConfiguredDomainSitemap):
             Repository.objects.filter(is_archived=False, is_disabled=False)
             .exclude(is_awesome_list_candidate=True)
             .exclude(full_name__in=active_list_source_repositories)
+            .only(
+                "id",
+                "owner",
+                "name",
+                "github_pushed_at",
+                "last_synced_at",
+                "updated_at",
+            )
             .order_by("id")
         )
 
@@ -73,7 +90,17 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
     priority = 0.8
 
     def items(self):
-        return AwesomeList.objects.filter(is_active=True).order_by("id")
+        return (
+            AwesomeList.objects.filter(is_active=True)
+            .only(
+                "id",
+                "slug",
+                "last_scanned_at",
+                "github_pushed_at",
+                "updated_at",
+            )
+            .order_by("id")
+        )
 
     def lastmod(self, item):
         return item.last_scanned_at or item.github_pushed_at or item.updated_at
@@ -109,6 +136,7 @@ class RepositoryUpdatesSitemap(ConfiguredDomainSitemap):
                     filter=published_issues,
                 ),
             )
+            .only("id", "owner", "name", "updated_at")
             .order_by("id")
         )
 
@@ -145,6 +173,16 @@ class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
                 repository__is_awesome_list_candidate=False,
             )
             .select_related("repository")
+            .only(
+                "id",
+                "slug",
+                "cadence",
+                "published_at",
+                "updated_at",
+                "repository__id",
+                "repository__owner",
+                "repository__name",
+            )
             .order_by("id")
         )
 
