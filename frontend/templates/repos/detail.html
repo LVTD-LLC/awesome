@@ -323,26 +323,28 @@
                                  data-chart-range-type="all"
                                  data-chart-mode="observed"
                                  data-history-source="repository-history-data">
-                                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                    <div>
-                                        <h4 id="repository-history-mode-heading-{{ repository.pk }}"
-                                            class="text-base font-semibold text-gray-950 dark:text-white sm:text-sm">Chart data</h4>
-                                        <p class="mt-1 text-base font-medium text-gray-500 dark:text-gray-400 sm:text-sm"
-                                           data-chart-mode-summary>Observed captures only</p>
+                                {% if repository.github_created_at or repository.first_commit_at %}
+                                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        <div>
+                                            <h4 id="repository-history-mode-heading-{{ repository.pk }}"
+                                                class="text-base font-semibold text-gray-950 dark:text-white sm:text-sm">Chart data</h4>
+                                            <p class="mt-1 text-base font-medium text-gray-500 dark:text-gray-400 sm:text-sm"
+                                               data-chart-mode-summary>Observed captures only</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2"
+                                             role="group"
+                                             aria-labelledby="repository-history-mode-heading-{{ repository.pk }}">
+                                            <button type="button"
+                                                    class="rounded-full bg-green-700 px-3 py-1.5 text-sm font-semibold text-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-500 dark:text-gray-950"
+                                                    data-chart-mode-value="observed"
+                                                    aria-pressed="true">Observed</button>
+                                            <button type="button"
+                                                    class="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 ring-1 ring-gray-950/10 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-950 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-gray-900"
+                                                    data-chart-mode-value="inferred"
+                                                    aria-pressed="false">Inferred</button>
+                                        </div>
                                     </div>
-                                    <div class="flex flex-wrap gap-2"
-                                         role="group"
-                                         aria-labelledby="repository-history-mode-heading-{{ repository.pk }}">
-                                        <button type="button"
-                                                class="rounded-full bg-green-700 px-3 py-1.5 text-sm font-semibold text-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-500 dark:text-gray-950"
-                                                data-chart-mode-value="observed"
-                                                aria-pressed="true">Observed</button>
-                                        <button type="button"
-                                                class="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 ring-1 ring-gray-950/10 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-950 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-gray-900"
-                                                data-chart-mode-value="inferred"
-                                                aria-pressed="false">Inferred</button>
-                                    </div>
-                                </div>
+                                {% endif %}
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                     <div>
                                         <h4 id="repository-history-range-heading-{{ repository.pk }}"

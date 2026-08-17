@@ -459,7 +459,7 @@ function updateModeControls(control) {
   if (summary) {
     summary.textContent =
       mode === "inferred"
-        ? "Includes an inferred line from repository creation at zero"
+        ? "Includes an inferred line from the repository origin at zero"
         : "Observed captures only";
   }
 }

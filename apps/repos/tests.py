@@ -5124,6 +5124,33 @@ def test_repository_history_chart_data_marks_github_creation_origin_as_inferred(
 
 
 @pytest.mark.django_db
+def test_repository_history_chart_data_falls_back_to_first_commit_origin():
+    first_commit_at = datetime(2005, 7, 14, tzinfo=UTC)
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        first_commit_at=first_commit_at,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=first_commit_at + timedelta(days=10),
+        stars=100,
+        commit_count=200,
+    )
+
+    chart_data = repository_history_chart_data(repo)
+
+    assert chart_data[0] == {
+        "captured_at": first_commit_at.isoformat(),
+        "stars": 0,
+        "commit_count": 0,
+        "synthetic_origin": True,
+    }
+
+
+@pytest.mark.django_db
 def test_awesome_list_history_chart_data_uses_list_snapshots_chronologically():
     awesome_list = AwesomeList.objects.create(
         name="Awesome Django",

@@ -1740,7 +1740,8 @@ def repository_history_chart_data(
         for snapshot in reversed(snapshots)
     ]
     first_point_at = snapshots[-1].captured_at if snapshots else None
-    return _history_chart_data_with_origin(points, repository.github_created_at, first_point_at)
+    origin_at = repository.github_created_at or repository.first_commit_at
+    return _history_chart_data_with_origin(points, origin_at, first_point_at)
 
 
 def awesome_list_history_chart_data(
