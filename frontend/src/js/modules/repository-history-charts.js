@@ -68,8 +68,17 @@ function initRangeControls(root, charts) {
     setControlRange(control, { type: "all" });
 
     const buttons = [...control.querySelectorAll("[data-chart-range-value]")];
+    const modeButtons = [...control.querySelectorAll("[data-chart-mode-value]")];
     const startInput = control.querySelector("[data-chart-custom-start]");
     const endInput = control.querySelector("[data-chart-custom-end]");
+
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        control.dataset.chartMode = button.dataset.chartModeValue || "observed";
+        updateModeControls(control);
+        renderChartsForSource(charts, sourceId);
+      });
+    });
 
     buttons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -89,6 +98,7 @@ function initRangeControls(root, charts) {
     });
 
     updateRangeControls(control, controlRange(control));
+    updateModeControls(control);
   });
 }
 
@@ -128,13 +138,20 @@ function renderChart(chart, rawData) {
     }))
     .filter((point) => Number.isFinite(point.date.getTime()) && Number.isFinite(point.value))
     .sort((left, right) => left.date - right.date);
+  const mode = chartMode(chart);
+  const modeData = mode === "inferred" ? allData : allData.filter((point) => !point.syntheticOrigin);
   const range = chartRange(chart);
-  const data = filterHistoryDataByRange(allData, range).filter((point) => !point.syntheticOrigin);
+  const data = filterHistoryDataByRange(modeData, range);
+
+  const modeLabel = chart.querySelector("[data-chart-mode-label]");
+  if (modeLabel) {
+    modeLabel.textContent = mode === "inferred" ? "Inferred from creation" : "Observed snapshots";
+  }
 
   plot.innerHTML = "";
   plot.classList.add("relative");
   if (!data.length) {
-    const message = allData.length && range?.type !== "all" ? "No tracked data in this time range." : "No tracked data yet.";
+    const message = modeData.length && range?.type !== "all" ? "No tracked data in this time range." : "No tracked data yet.";
     plot.append(emptyState(message));
     return;
   }
@@ -266,7 +283,9 @@ function attachTooltip({ content, data, height, label, margin, plot, theme, widt
       const tooltipLeft = Math.max(8, Math.min(margin.left + markerX + 12, plot.clientWidth - 160));
       const tooltipTop = Math.max(8, margin.top + markerY - 46);
       tooltip
-        .html(`<div class="font-semibold">${formatNumber(point.value)} ${label.toLowerCase()}</div><div>${formatDate(point.date)}</div>`)
+        .html(
+          `<div class="font-semibold">${formatNumber(point.value)} ${label.toLowerCase()}</div><div>${formatDate(point.date)}${point.syntheticOrigin ? " · inferred" : ""}</div>`,
+        )
         .style("left", `${tooltipLeft}px`)
         .style("top", `${tooltipTop}px`);
     });
@@ -315,6 +334,12 @@ function chartRange(chart) {
   const sourceId = chart.dataset.historySource;
   const control = sourceId ? rangeControlForSource(sourceId) : null;
   return control ? controlRange(control) : null;
+}
+
+function chartMode(chart) {
+  const sourceId = chart.dataset.historySource;
+  const control = sourceId ? rangeControlForSource(sourceId) : null;
+  return control?.dataset.chartMode || "inferred";
 }
 
 function rangeControlForSource(sourceId) {
@@ -421,6 +446,21 @@ function updateRangeControls(control, range) {
   const summary = control.querySelector("[data-chart-range-summary]");
   if (summary) {
     summary.textContent = rangeSummary(range);
+  }
+}
+
+function updateModeControls(control) {
+  const mode = control.dataset.chartMode || "observed";
+  control.querySelectorAll("[data-chart-mode-value]").forEach((button) => {
+    setRangeButtonActive(button, button.dataset.chartModeValue === mode);
+  });
+
+  const summary = control.querySelector("[data-chart-mode-summary]");
+  if (summary) {
+    summary.textContent =
+      mode === "inferred"
+        ? "Includes an inferred line from repository creation at zero"
+        : "Observed captures only";
   }
 }
 

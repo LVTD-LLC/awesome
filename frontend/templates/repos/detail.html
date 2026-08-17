@@ -311,7 +311,7 @@
                                 <div class="flex min-w-0 flex-col gap-1">
                                     <h3 class="text-balance text-lg font-semibold text-gray-950 dark:text-white">Tracked growth</h3>
                                     <p class="text-pretty text-base text-gray-500 dark:text-gray-400 sm:text-sm">
-                                        {{ performance.snapshot_count }} observed capture{{ performance.snapshot_count|pluralize }} since {{ performance.first_snapshot.captured_at|date:"Y-m-d" }}. Charts use measured snapshots only.
+                                        {{ performance.snapshot_count }} observed capture{{ performance.snapshot_count|pluralize }} since {{ performance.first_snapshot.captured_at|date:"Y-m-d" }}. Observed captures are shown by default.
                                     </p>
                                 </div>
                                 <p class="shrink-0 text-base text-gray-500 dark:text-gray-400 sm:text-sm">
@@ -321,7 +321,28 @@
                             <div class="flex flex-col gap-3 border-t border-gray-950/10 pt-4 dark:border-white/10"
                                  data-repository-history-range-controls
                                  data-chart-range-type="all"
+                                 data-chart-mode="observed"
                                  data-history-source="repository-history-data">
+                                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <h4 id="repository-history-mode-heading-{{ repository.pk }}"
+                                            class="text-base font-semibold text-gray-950 dark:text-white sm:text-sm">Chart data</h4>
+                                        <p class="mt-1 text-base font-medium text-gray-500 dark:text-gray-400 sm:text-sm"
+                                           data-chart-mode-summary>Observed captures only</p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2"
+                                         role="group"
+                                         aria-labelledby="repository-history-mode-heading-{{ repository.pk }}">
+                                        <button type="button"
+                                                class="rounded-full bg-green-700 px-3 py-1.5 text-sm font-semibold text-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-500 dark:text-gray-950"
+                                                data-chart-mode-value="observed"
+                                                aria-pressed="true">Observed</button>
+                                        <button type="button"
+                                                class="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 ring-1 ring-gray-950/10 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-950 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-gray-900"
+                                                data-chart-mode-value="inferred"
+                                                aria-pressed="false">Inferred</button>
+                                    </div>
+                                </div>
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                     <div>
                                         <h4 id="repository-history-range-heading-{{ repository.pk }}"
@@ -384,7 +405,8 @@
                                              data-history-source="repository-history-data" data-metric="stars" data-label="Stars">
                                         <div class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                             <h4 class="text-balance text-base font-semibold text-gray-950 dark:text-white">Stars history</h4>
-                                            <p class="text-base text-gray-500 dark:text-gray-400 sm:text-sm">Observed snapshots</p>
+                                            <p class="text-base text-gray-500 dark:text-gray-400 sm:text-sm"
+                                               data-chart-mode-label>Observed snapshots</p>
                                         </div>
                                         <div class="h-72 w-full sm:h-80" data-chart-plot></div>
                                     </section>
@@ -393,7 +415,8 @@
                                              data-history-source="repository-history-data" data-metric="commit_count" data-label="Commits">
                                         <div class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                             <h4 class="text-balance text-base font-semibold text-gray-950 dark:text-white">Commits history</h4>
-                                            <p class="text-base text-gray-500 dark:text-gray-400 sm:text-sm">Observed snapshots</p>
+                                            <p class="text-base text-gray-500 dark:text-gray-400 sm:text-sm"
+                                               data-chart-mode-label>Observed snapshots</p>
                                         </div>
                                         <div class="h-72 w-full sm:h-80" data-chart-plot></div>
                                     </section>
