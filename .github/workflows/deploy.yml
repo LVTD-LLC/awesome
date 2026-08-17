@@ -49,7 +49,7 @@ jobs:
       - name: Install uv for deploy script
         uses: astral-sh/setup-uv@v6
         with:
-          version: "latest"
+          version: "0.12.5"
 
       - name: Deploy server and workers to CapRover
         shell: bash

@@ -85,6 +85,7 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: sponsor ads now collect a destination URL and expire after their purchased 30-day placement.
 
 ### Fixed
+- Awesome: pinned the production deploy workflow's uv version so deployments no longer depend on a GitHub API lookup for the latest release.
 - Awesome: split the oversized sitemap into a cached index and lightweight paginated sections,
   while loading only the database fields required to render sitemap entries.
 - Awesome: gave landing-page repository names more room with six cards in a three-column desktop grid.
