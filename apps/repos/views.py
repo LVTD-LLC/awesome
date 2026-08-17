@@ -41,6 +41,11 @@ from apps.repos.newsletters import (
     unsubscribe_newsletter,
     upsert_newsletter_subscription_with_status,
 )
+from apps.repos.og_images import (
+    OG_IMAGE_CACHE_TIMEOUT_SECONDS,
+    build_repository_og_image_data,
+    render_repository_og_image,
+)
 from apps.repos.search_services import (
     awesome_list_search_queryset,
     visible_awesome_list_item_count,
@@ -74,6 +79,19 @@ AI_DEVELOPMENT_VISIBLE_PATH_LIMIT = 6
 AI_DEVELOPMENT_DETAIL_PATH_LIMIT = 24
 AI_DEVELOPMENT_VISIBLE_TOOL_LIMIT = 5
 REPOSITORY_DEPENDENCY_FILE_PREVIEW_LIMIT = 8
+
+
+def repository_og_image(request, owner: str, name: str):
+    repository = get_object_or_404(Repository, full_name=f"{owner}/{name}")
+    data = build_repository_og_image_data(repository)
+    image_bytes = cache.get(data.cache_key)
+    if image_bytes is None:
+        image_bytes = render_repository_og_image(data)
+        cache.set(data.cache_key, image_bytes, OG_IMAGE_CACHE_TIMEOUT_SECONDS)
+
+    response = HttpResponse(image_bytes, content_type="image/png")
+    response["Cache-Control"] = f"public, max-age={OG_IMAGE_CACHE_TIMEOUT_SECONDS}"
+    return response
 
 
 def _repository_path_url(repository: Repository, path: str, kind: str) -> str:

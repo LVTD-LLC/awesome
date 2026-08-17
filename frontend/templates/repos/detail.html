@@ -1,8 +1,9 @@
 {% extends "base_landing.html" %}
 {% load humanize static repo_stack_tags %}
 {% block meta %}
+    {% url 'repos:repo_og_image' owner=repository.owner name=repository.name as repository_og_image_path %}
     {% with meta_title=repository.full_name|add:" · Awesome" meta_description=repository.description|default:"GitHub repository details, metadata, topics, stack signals, and awesome-list mentions indexed by Awesome." %}
-        {% include "components/seo_meta.html" with title=meta_title description=meta_description canonical_path=repository.get_absolute_url og_type="article" %}
+        {% include "components/seo_meta.html" with title=meta_title description=meta_description canonical_path=repository.get_absolute_url og_type="article" og_image_path=repository_og_image_path og_image_alt=repository.full_name|add:" repository activity on Awesome" %}
     {% endwith %}
 {% endblock meta %}
 {% block extra_head %}

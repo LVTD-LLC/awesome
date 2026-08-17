@@ -61,6 +61,18 @@ def test_repository_detail_has_page_specific_metadata_and_schema(client):
     )
     assert '<link rel="canonical" href="https://testserver/repos/django/django/" />' in content
     assert '<meta property="og:type" content="article" />' in content
+    assert (
+        '<meta property="og:image" '
+        'content="https://testserver/repos/django/django/og.png" />' in content
+    )
+    assert (
+        '<meta property="og:image:alt"\n'
+        '      content="django/django repository activity on Awesome" />' in content
+    )
+    assert (
+        '<meta name="twitter:image" '
+        'content="https://testserver/repos/django/django/og.png" />' in content
+    )
     assert '"@type": "SoftwareSourceCode"' in content
     assert '"codeRepository": "https://github.com/django/django"' in content
     assert '"url": "https://testserver/repos/django/django/"' in content
