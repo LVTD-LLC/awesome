@@ -5093,19 +5093,20 @@ def test_repository_history_chart_data_limits_latest_snapshots_chronologically()
 
 
 @pytest.mark.django_db
-def test_repository_history_chart_data_starts_from_first_commit_origin():
-    first_commit_at = datetime(2005, 7, 13, tzinfo=UTC)
+def test_repository_history_chart_data_marks_github_creation_origin_as_inferred():
+    github_created_at = datetime(2005, 7, 13, tzinfo=UTC)
     repo = Repository.objects.create(
         full_name="django/django",
         owner="django",
         name="django",
         url="https://github.com/django/django",
-        first_commit_at=first_commit_at,
+        github_created_at=github_created_at,
+        first_commit_at=github_created_at + timedelta(days=1),
     )
     for index in range(2):
         RepositorySnapshot.objects.create(
             repository=repo,
-            captured_at=first_commit_at + timedelta(days=10 + index),
+            captured_at=github_created_at + timedelta(days=10 + index),
             stars=100 + index,
             commit_count=200 + index,
         )
@@ -5113,13 +5114,40 @@ def test_repository_history_chart_data_starts_from_first_commit_origin():
     chart_data = repository_history_chart_data(repo, limit=1)
 
     assert chart_data[0] == {
-        "captured_at": first_commit_at.isoformat(),
+        "captured_at": github_created_at.isoformat(),
         "stars": 0,
         "commit_count": 0,
         "synthetic_origin": True,
     }
     assert [point["stars"] for point in chart_data] == [0, 101]
     assert [point["commit_count"] for point in chart_data] == [0, 201]
+
+
+@pytest.mark.django_db
+def test_repository_history_chart_data_falls_back_to_first_commit_origin():
+    first_commit_at = datetime(2005, 7, 14, tzinfo=UTC)
+    repo = Repository.objects.create(
+        full_name="django/django",
+        owner="django",
+        name="django",
+        url="https://github.com/django/django",
+        first_commit_at=first_commit_at,
+    )
+    RepositorySnapshot.objects.create(
+        repository=repo,
+        captured_at=first_commit_at + timedelta(days=10),
+        stars=100,
+        commit_count=200,
+    )
+
+    chart_data = repository_history_chart_data(repo)
+
+    assert chart_data[0] == {
+        "captured_at": first_commit_at.isoformat(),
+        "stars": 0,
+        "commit_count": 0,
+        "synthetic_origin": True,
+    }
 
 
 @pytest.mark.django_db
@@ -6877,6 +6905,12 @@ def test_repository_detail_page_renders_performance_history(client, django_user_
     assert b"Stars history" in response.content
     assert b"Commits history" in response.content
     assert b"Time horizon" in response.content
+    assert b"Chart data" in response.content
+    assert b"Observed" in response.content
+    assert b"Inferred" in response.content
+    assert b'data-chart-mode="observed"' in response.content
+    assert b'data-chart-mode-value="observed"' in response.content
+    assert b'data-chart-mode-value="inferred"' in response.content
     assert f"repository-history-range-heading-{repo.pk}".encode() in response.content
     assert b'data-chart-range-type="all"' in response.content
     assert b"data-chart-range-presets" in response.content
@@ -6895,10 +6929,11 @@ def test_repository_detail_page_renders_performance_history(client, django_user_
     assert b'data-metric="commit_count"' in response.content
     assert response.content.count(b"data-repository-history-chart") == 2
     assert b"data-chart-style" not in response.content
-    assert b"Charts use measured snapshots only." in response.content
+    assert b"Observed captures are shown by default." in response.content
     assert response.content.count(b"Observed snapshots") == 2
     assert b'"stars": 123431' in response.content
     assert b'"commit_count": 90' in response.content
+    assert b'"synthetic_origin": true' in response.content
     assert b"Commits since first" not in response.content
     assert b"Forks since first" not in response.content
     assert b"<table" not in response.content

@@ -1740,7 +1740,8 @@ def repository_history_chart_data(
         for snapshot in reversed(snapshots)
     ]
     first_point_at = snapshots[-1].captured_at if snapshots else None
-    return _history_chart_data_with_origin(points, repository.first_commit_at, first_point_at)
+    origin_at = repository.github_created_at or repository.first_commit_at
+    return _history_chart_data_with_origin(points, origin_at, first_point_at)
 
 
 def awesome_list_history_chart_data(
@@ -1787,18 +1788,18 @@ def awesome_list_history_chart_data(
 
 def _history_chart_data_with_origin(
     points: list[dict[str, bool | int | str | None]],
-    first_commit_at: datetime | None,
+    origin_at: datetime | None,
     first_point_at: datetime | None,
 ) -> list[dict[str, bool | int | str | None]]:
-    if not points or first_commit_at is None or first_point_at is None:
+    if not points or origin_at is None or first_point_at is None:
         return points
 
-    if first_commit_at >= first_point_at:
+    if origin_at >= first_point_at:
         return points
 
     return [
         {
-            "captured_at": first_commit_at.isoformat(),
+            "captured_at": origin_at.isoformat(),
             "stars": 0,
             "commit_count": 0,
             "synthetic_origin": True,
