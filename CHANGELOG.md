@@ -20,6 +20,9 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
   for the matching product before creating purchases or changing account access.
 
 ### Added
+- Awesome: added repository-specific Open Graph images with real 30-day star charts,
+  star and commit growth, update freshness, awesome-list counts, and honest
+  insufficient-history states.
 - Awesome: redesigned repository detail headers around a theme-aware decision dashboard, consolidated activity, metadata, classification, technology stack, and awesome-list membership into the header, moved repository updates into a modal, added a compact AI development signal summary, and made growth charts focus on observed snapshots without dense per-capture markers.
 - Awesome: added an inferred repository-history chart option that connects a zero-value point at the GitHub creation date, or first commit when creation metadata is unavailable, to the first observed capture.
 - Awesome: initialized a measured SEO sprint roadmap with brand context, keyword research, technical findings, internal-link inventory, and off-page targets.

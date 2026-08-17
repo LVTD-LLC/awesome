@@ -68,6 +68,11 @@ urlpatterns = [
         views.repository_badge,
         name="repo_badge",
     ),
+    path(
+        "repos/<str:owner>/<str:name>/og.png",
+        views.repository_og_image,
+        name="repo_og_image",
+    ),
     path("repos/<str:owner>/<str:name>/", views.RepositoryDetailView.as_view(), name="repo_detail"),
     path("liked/", views.LikedRepositoryListView.as_view(), name="liked"),
     path("lists/", views.AwesomeListListView.as_view(), name="list"),
