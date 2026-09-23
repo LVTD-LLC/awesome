@@ -1,48 +1,176 @@
 # Changelog
-All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project tries to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Changes are grouped by date, newest first. Historical dates reflect the commits
+that recorded each entry.
 
-## Types of changes
+## 2026-09-23
 
-**Added** for new features.
-**Changed** for changes in existing functionality.
-**Deprecated** for soon-to-be removed features.
-**Removed** for now removed features.
-**Fixed** for any bug fixes.
-**Security** in case of vulnerabilities.
+- Restored individual repository detail pages to the XML sitemap by reverting PR #141.
+- Grouped changelog entries by date, newest first, using Git history for existing entries.
 
+## 2026-08-17
 
-## [Unreleased]
-### Removed
-- Individual repository detail pages from the XML sitemap; public indexes, awesome lists, blog posts, and published updates remain included.
-
-### Security
-- Awesome Stripe webhooks and success-page refreshes now require the exact configured Price ID
-  for the matching product before creating purchases or changing account access.
-
-### Added
 - Awesome: added repository-specific Open Graph images with real 30-day star charts,
   star and commit growth, update freshness, awesome-list counts, and honest
   insufficient-history states.
-- Awesome: redesigned repository detail headers around a theme-aware decision dashboard, consolidated activity, metadata, classification, technology stack, and awesome-list membership into the header, moved repository updates into a modal, added a compact AI development signal summary, and made growth charts focus on observed snapshots without dense per-capture markers.
 - Awesome: added an inferred repository-history chart option that connects a zero-value point at the GitHub creation date, or first commit when creation metadata is unavailable, to the first observed capture.
+- Awesome: pinned the production deploy workflow's uv version so deployments no longer depend on a GitHub API lookup for the latest release.
+
+## 2026-08-06
+
+- Awesome: split the oversized sitemap into a cached index and lightweight paginated sections,
+  while loading only the database fields required to render sitemap entries.
+
+## 2026-08-04
+
+- Awesome: redesigned repository detail headers around a theme-aware decision dashboard, consolidated activity, metadata, classification, technology stack, and awesome-list membership into the header, moved repository updates into a modal, added a compact AI development signal summary, and made growth charts focus on observed snapshots without dense per-capture markers.
+
+## 2026-08-03
+
+- Awesome Stripe webhooks and success-page refreshes now require the exact configured Price ID
+  for the matching product before creating purchases or changing account access.
+
+## 2026-07-28
+
+- Awesome: added a beta-quality notice above generated weekly and monthly repository update posts.
+
+## 2026-07-27
+
 - Awesome: initialized a measured SEO sprint roadmap with brand context, keyword research, technical findings, internal-link inventory, and off-page targets.
 - Awesome: added a repository discovery landing page with recent, 7-day star-growth, and 7-day commit-growth showcases.
-- Awesome admin panel now tracks 1/7/30-day repository analysis coverage, daily parser activity, star-band distribution, and recently added repositories.
 - Awesome: added opt-in Stripe test-mode smoke checks for all three paid products.
+- Awesome: moved full repository search from the root landing page to `/repos/`.
+- Awesome: restored TrustMRR-style side sponsor rails on the landing page and moved the highlighted repository directly below the hero.
+- Awesome: refreshed side-rail ads for Rowset, Djass, and LVTD, and opened the former Cleanapp and OSIG placements to new sponsors.
+- Awesome: sponsor ads now collect a destination URL and expire after their purchased 30-day placement.
+- Awesome: gave landing-page repository names more room with six cards in a three-column desktop grid.
+- Awesome: made Stripe webhook fulfillment replay-safe so retries do not duplicate completion side effects.
+
+## 2026-07-24
+
+- Awesome admin panel now tracks 1/7/30-day repository analysis coverage, daily parser activity, star-band distribution, and recently added repositories.
+
+## 2026-07-20
+
+- Awesome: added restrained playful copy to rare empty and success states, a first-liked-repository flourish, and an open-source console easter egg.
+
+## 2026-07-05
+
 - Awesome: added OpenRouter app attribution headers for AI and embedding requests using `SITE_URL`.
-- Awesome: added a $4 one-time Remove Ads Stripe checkout from Settings, backed by a profile flag that hides side ads and highlighted repository placements after payment.
+
+## 2026-07-04
+
+- Awesome: blog posts now publish from checked-in Markdown files in `apps/blog/posts`, with frontmatter-driven SEO metadata, JSON-LD, and sitemap entries.
+- Awesome: added a dedicated blog app with public Markdown-backed blog pages and published-post sitemap entries.
+- Awesome: removed the database-backed blog models, admin screens, and hidden staff-only blog CRUD/review/publish API endpoints.
+
+## 2026-06-22
+
+- Awesome: added repository update newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
+- Awesome: added a public repository updates hub, signed-in user email subscriptions, settings subscription management links, and sitemap entries for published update archives and posts.
+
+## 2026-06-19
+
+- Awesome: added time-horizon controls to repository detail history charts, including 7-day, 30-day, 90-day, 1-year, all-time, and custom date ranges.
+- Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.
+- Awesome: colorized repository and awesome-list catalog signals with a consistent palette for source metadata, detected stacks, generated insights, momentum, and issue states.
+
+## 2026-06-18
+
+- Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
+- Awesome: moved public generated repository report archives and RSS feeds from `/newsletters/` to `/updates/`, with permanent redirects from old report URLs.
+- Awesome: split CI into parallel Python quality, frontend, and pytest jobs with pytest-only settings, strict markers, and slow-test duration reporting.
+- Awesome: redesigned repository detail pages into a single-column content flow with full-width history charts and readable similar-repository cards.
+
+## 2026-06-17
+
+- Awesome: repository and awesome-list star/commit history charts now start from zero at the first commit date when that metadata is available.
+
+## 2026-06-14
+
+- Awesome: added a Streamable HTTP MCP endpoint at `/mcp` for AI agents to search repositories and awesome lists.
+- Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
+- Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.
+- Awesome: switched web serving from WSGI to ASGI so the FastMCP app runs with its native lifespan instead of a Django forwarding adapter.
+
+## 2026-06-13
+
+- Awesome: explicitly keep shared side sponsor rails enabled on repository detail pages.
+
+## 2026-06-12
+
+- Awesome: added a multi-select repository file filter for AI/project instruction files such as `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
+- Awesome: compacted repository-detail dependency files into wrapping chips with an overflow count.
+- Awesome: repository-detail AI development file paths now link to their GitHub blob URLs.
+
+## 2026-06-09
+
+- Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
+
+## 2026-06-08
+
+- Awesome: repository velocity and star-growth filters now require observed recent capture history instead of falling back to all-time tracked growth.
+
+## 2026-06-06
+
+- Awesome: show a GitHub-star badge next to the liked heart when a repository is in the signed-in user's imported starred repos.
+- Awesome: keep authenticated pages rendering if a user record is temporarily missing its profile.
+- Awesome: removed shareable repository badge embed cards from repository detail pages.
+
+## 2026-06-05
+
+- Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.
+
+## 2026-06-04
+
 - Awesome: added experimental keyboard shortcuts with inline key hints for site navigation, slash search focus, list browsing, pagination, and theme toggling.
+- Awesome admin panel now shows each recent user's imported starred-repository count and starred-import status.
+- Awesome: expanded analytics coverage for search, repository likes, starred imports, and checkout events while avoiding email-based PostHog identification.
+
+## 2026-06-03
+
+- Awesome: added a $4 one-time Remove Ads Stripe checkout from Settings, backed by a profile flag that hides side ads and highlighted repository placements after payment.
+- Awesome: use valid stored GitHub OAuth tokens as a background repository sync pool after the primary `GITHUB_TOKEN`.
+
+## 2026-06-02
+
+- Awesome: record awesome-list GitHub metadata snapshots and show list-level likes/stars and commit charts on awesome-list detail pages.
+- Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
+- Awesome: added a recently-starred sort for personal GitHub starred repository search.
+- Awesome: optimized root and starred repository search pages by skipping unused history-growth annotations and caching public filter metadata.
+- Awesome: refined Sentry performance instrumentation with configurable HTTP/background trace sampling, Django middleware/cache spans, and separate breadcrumb/event/log levels.
+- Awesome: repository search results no longer show tracked commit-growth deltas.
+- Awesome: unified repository search filters across global search, awesome-list repository search, and personal starred-repository search.
+- Awesome: compacted repository-detail AI development signals into summary badges and bounded config-path lists.
+- Awesome: moved desktop side sponsor rails closer to the viewport edges while keeping page content centered.
+- Awesome: fixed the sponsor ad checkout form so it includes a CSRF token when rendered from side-ad rails.
+- Awesome: keep personal Starred and Liked nav links hidden from anonymous visitors.
+- Awesome: keep explicitly liked repositories visible in the personal liked page even when hidden from public catalog search.
+
+## 2026-06-01
+
 - Awesome: added one-time Stripe checkout onboarding for $1,000 sponsor ads, including a TrustMRR-style modal, post-payment notification email, and paid ad-details submission flow.
+- Awesome: added a daily generated-tag backfill task so existing repository rows get tagged outside GitHub metadata refreshes.
+- Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
+- Awesome: added a liked repositories page for authenticated users.
+- Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
+- Awesome: store repository website links from GitHub metadata or description URLs and show them on repository pages.
+- Awesome: added Settings to the account navbar, simplified Settings around GitHub imports and future repository update preferences, and moved awesome-list requests into the Lists page flow.
+- Awesome: GitHub signups now land on Settings so starred-repository imports stay off by default until the user clicks the import CTA.
+- Awesome: updated default contact email and production domain references to rasul@lvtd.dev and awesome.lvtd.dev.
+- Awesome: replaced separate public/app navigation with a shared search-first navbar that exposes repos, lists, starred repos, liked repos, and list requests.
+- Awesome: repository generated-tag prompts now include known language, GitHub topics, and AI-development signals.
+- Awesome: trapped keyboard focus inside the list-request and delete-account modals.
+- Awesome: return users to Settings after connecting GitHub and style the allauth connected-accounts fallback page.
+
+## 2026-05-31
+
 - Awesome: added optional Chatwoot live-chat widget support configured with `CHATWOOT_BASE_URL` and `CHATWOOT_WEBSITE_TOKEN`.
 - Awesome: added local logo assets and wired the navbar, favicon, touch icon, README, and base social metadata to the new branding.
 - Awesome: ingest GitHub awesome-list READMEs, index the linked repositories, and expose searchable repository/list detail pages with stars, freshness, archive-state, and cross-list counts.
 - Awesome: added an admin-panel flow to create new awesome-list sources and queue their initial scan.
 - Awesome admin panel now shows GitHub API rate-limit status for the configured scanner token.
 - Awesome admin panel now lets superusers retry scans for existing awesome-list repos.
-- Awesome admin panel now shows each recent user's imported starred-repository count and starred-import status.
 - Awesome: added a daily scheduled task that queues a capped number of newly discovered repositories from awesome-list READMEs.
 - Awesome: added pgvector-backed repository embeddings from GitHub descriptions and READMEs via OpenRouter/PydanticAI.
 - Awesome search filters now expose semantic relevance mode for repository queries.
@@ -52,98 +180,30 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: store each ingested repository README alongside the GitHub API metadata.
 - Awesome: detect AI development config files during repository sync and add an AI dev signals filter to repository search.
 - Awesome: generate repository discovery tags from descriptions and READMEs, and add filters for generated tags and GitHub topics.
-- Awesome: added a daily generated-tag backfill task so existing repository rows get tagged outside GitHub metadata refreshes.
 - Awesome: added an awesome-list directory and detail pages with stored list activity metrics including stars, commits, README repository counts, forks, issues, and scan freshness.
-- Awesome: record awesome-list GitHub metadata snapshots and show list-level likes/stars and commit charts on awesome-list detail pages.
 - Awesome: added D3 charts to repository detail pages for historical stars and commit counts.
 - Awesome: added search, filters, and sorting to awesome-list detail repository tables.
 - Awesome: added superuser-only catalog maintenance controls on awesome-list and repository detail pages, plus a missing-repository discovery action for awesome lists.
 - Awesome search now has desktop side sponsor placements for future ads.
 - Awesome: show semantically similar repositories on repository detail pages when pgvector embeddings are available.
 - Awesome: added API endpoints for authenticated repository search, repository detail, awesome-list search/detail, and list-scoped repository search.
-- Awesome: added a Streamable HTTP MCP endpoint at `/mcp` for AI agents to search repositories and awesome lists.
 - Awesome: added a public awesome-list request form with an admin-reviewable request queue.
 - Awesome: repository topic badges now link to the matching topic-filtered search results.
 - Awesome: expanded desktop side sponsor rails to ten placements, including one open "Get sponsored" slot.
 - Awesome: store first-commit dates for awesome lists and repositories, show them in search/detail pages, and add age filters.
 - Awesome: added a management command to backfill first-commit dates for existing awesome-list and repository rows.
 - Awesome: detect awesome-list repositories during repository sync and hide them from normal repository browse/search surfaces.
-- Awesome: added opt-in GitHub starred repository imports with a personal starred-repo search surface and daily user-token refreshes.
-- Awesome: use valid stored GitHub OAuth tokens as a background repository sync pool after the primary `GITHUB_TOKEN`.
-- Awesome: added a liked repositories page for authenticated users.
-- Awesome: detect repository dependency manifests during sync, infer package managers and stacks such as Django, Next.js, Rails, and Axum, and expose stack/package-manager filters in the UI, API, and MCP search tools.
-- Awesome: store repository website links from GitHub metadata or description URLs and show them on repository pages.
-- Awesome: added repository update newsletters with tracked commits, generated issues, RSS feeds, and email delivery.
-- Awesome: added a public repository updates hub, signed-in user email subscriptions, settings subscription management links, and sitemap entries for published update archives and posts.
-- Awesome: added repository search filters for detected frameworks, unmaintained repositories, tracked commit velocity, tracked star growth, and sort direction.
-- Awesome: added a recently-starred sort for personal GitHub starred repository search.
-- Awesome: added shareable SVG repository badges for star history, commit history, and 7/30-day star-growth and commit-velocity deltas.
-- Awesome: added time-horizon controls to repository detail history charts, including 7-day, 30-day, 90-day, 1-year, all-time, and custom date ranges.
-- Awesome: show a GitHub-star badge next to the liked heart when a repository is in the signed-in user's imported starred repos.
-- Awesome: added a multi-select repository file filter for AI/project instruction files such as `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
-- Awesome: made the MCP server public, mounted it through the top-level ASGI app, added request/tool monitoring, and added a Settings setup prompt.
-
-### Changed
-- Awesome: added a beta-quality notice above generated weekly and monthly repository update posts.
-- Awesome: moved full repository search from the root landing page to `/repos/`.
-- Awesome: restored TrustMRR-style side sponsor rails on the landing page and moved the highlighted repository directly below the hero.
-- Awesome: refreshed side-rail ads for Rowset, Djass, and LVTD, and opened the former Cleanapp and OSIG placements to new sponsors.
-- Awesome: sponsor ads now collect a destination URL and expire after their purchased 30-day placement.
-
-### Fixed
-- Awesome: pinned the production deploy workflow's uv version so deployments no longer depend on a GitHub API lookup for the latest release.
-- Awesome: split the oversized sitemap into a cached index and lightweight paginated sections,
-  while loading only the database fields required to render sitemap entries.
-- Awesome: gave landing-page repository names more room with six cards in a three-column desktop grid.
-- Awesome: made Stripe webhook fulfillment replay-safe so retries do not duplicate completion side effects.
-- Awesome: added restrained playful copy to rare empty and success states, a first-liked-repository flourish, and an open-source console easter egg.
-- Awesome: blog posts now publish from checked-in Markdown files in `apps/blog/posts`, with frontmatter-driven SEO metadata, JSON-LD, and sitemap entries.
-- Awesome: repository filters now use typed datalist controls for long ecosystem/list choices and a compact inline help affordance for momentum filter explanations.
-- Awesome: colorized repository and awesome-list catalog signals with a consistent palette for source metadata, detected stacks, generated insights, momentum, and issue states.
-- Awesome: changed the default OpenRouter newsletter model to DeepSeek V4 Flash for cheaper high-volume commit summaries.
-- Awesome: moved public generated repository report archives and RSS feeds from `/newsletters/` to `/updates/`, with permanent redirects from old report URLs.
-- Awesome: repository and awesome-list star/commit history charts now start from zero at the first commit date when that metadata is available.
-- Awesome: split CI into parallel Python quality, frontend, and pytest jobs with pytest-only settings, strict markers, and slow-test duration reporting.
-- Awesome: redesigned repository detail pages into a single-column content flow with full-width history charts and readable similar-repository cards.
-- Awesome: moved MCP setup from a standalone public page into a compact Settings card with a copyable AI-agent setup prompt.
-- Awesome: split repository search-card tags into labeled stack, GitHub topic, and generated-tag rows, and added license/open-issue context.
-- Awesome: repository velocity and star-growth filters now require observed recent capture history instead of falling back to all-time tracked growth.
-- Awesome: expanded analytics coverage for search, repository likes, starred imports, and checkout events while avoiding email-based PostHog identification.
-- Awesome: optimized root and starred repository search pages by skipping unused history-growth annotations and caching public filter metadata.
-- Awesome: refined Sentry performance instrumentation with configurable HTTP/background trace sampling, Django middleware/cache spans, and separate breadcrumb/event/log levels.
-- Awesome: repository search results no longer show tracked commit-growth deltas.
-- Awesome: unified repository search filters across global search, awesome-list repository search, and personal starred-repository search.
-- Awesome: added Settings to the account navbar, simplified Settings around GitHub imports and future repository update preferences, and moved awesome-list requests into the Lists page flow.
-- Awesome: compacted repository-detail AI development signals into summary badges and bounded config-path lists.
-- Awesome: compacted repository-detail dependency files into wrapping chips with an overflow count.
-- Awesome: repository-detail AI development file paths now link to their GitHub blob URLs.
-- Awesome: GitHub signups now land on Settings so starred-repository imports stay off by default until the user clicks the import CTA.
-- Awesome: updated default contact email and production domain references to rasul@lvtd.dev and awesome.lvtd.dev.
 - Awesome: renamed product-facing copy and brand assets to the shorter product name.
 - Awesome: awesome-list detail pages now show list-level GitHub stars and commits instead of aggregate repository growth charts.
 - Awesome: replaced placeholder side-rail sponsor slots with equal-height ads for LVTD projects and attribution-tagged outbound links.
-- Awesome: moved desktop side sponsor rails closer to the viewport edges while keeping page content centered.
 - Awesome: standardized page width around global side ad rails with five sponsor slots on each side.
 - Awesome: repository search is now the root landing page, with `/repos/` permanently redirecting to `/` and a prominent link to the `/lists/` awesome-list directory.
 - Awesome: admin navbar now links directly to Repos and Lists instead of Dashboard and Settings.
 - Awesome: moved repository search filters into a compact vertical modal opened from a single filter button.
-- Awesome: replaced separate public/app navigation with a shared search-first navbar that exposes repos, lists, starred repos, liked repos, and list requests.
 - Awesome admin-panel add flow now only asks for the GitHub URL; list names and slugs are derived automatically from the source repo.
-- Awesome-list scans now log start/finish/failure details and surface empty scans or sync failures in the admin panel.
 - Awesome: repository detail history now relies on D3 charts instead of duplicating growth cards and a snapshot table.
 - Awesome: GitHub star counts now render with thousands separators, and repository search results no longer show tracked star-growth deltas.
 - Awesome: moved the MCP endpoint into its own Django app and rebuilt it on FastMCP while keeping API and MCP search payloads on shared service functions.
-- Awesome: switched web serving from WSGI to ASGI so the FastMCP app runs with its native lifespan instead of a Django forwarding adapter.
-- Awesome: repository generated-tag prompts now include known language, GitHub topics, and AI-development signals.
-
-### Fixed
-- Awesome: explicitly keep shared side sponsor rails enabled on repository detail pages.
-- Awesome: keep authenticated pages rendering if a user record is temporarily missing its profile.
-- Awesome: fixed the sponsor ad checkout form so it includes a CSRF token when rendered from side-ad rails.
-- Awesome: keep personal Starred and Liked nav links hidden from anonymous visitors.
-- Awesome: keep explicitly liked repositories visible in the personal liked page even when hidden from public catalog search.
-- Awesome: trapped keyboard focus inside the list-request and delete-account modals.
-- Awesome: return users to Settings after connecting GitHub and style the allauth connected-accounts fallback page.
 - Awesome: fixed invalid nested links on awesome-list repository cards that created empty clickable containers.
 - Awesome: loosened desktop side sponsor rail spacing so ad cards no longer crowd or overlap their copy.
 - Awesome: repair repository migration graph ordering so production can migrate past the AI-development and activity merge branches.
@@ -152,27 +212,23 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 - Awesome: removed manifest-dependent logo static references so production template rendering works after `collectstatic`.
 - Awesome: run generated-tag sync when a repository has no stored generated tags, including metadata-only refreshes.
 - Awesome: removed side sponsor rail reservations from awesome-list detail pages to keep the repository list layout balanced.
-
-### Changed
 - Awesome landing pages no longer render a public navbar.
+- Awesome: removed the feedback collection widget, API endpoint, admin feedback stats, and stored feedback model.
+
+## 2026-05-22
+
+- Awesome-list scans now log start/finish/failure details and surface empty scans or sync failures in the admin panel.
+
+## 2026-05-21
+
 - Frontend assets now use Tailwind CLI plus Django staticfiles instead of a JavaScript bundler.
 - AI-assisted development guidance now uses tool-neutral `AGENTS.md` files
   instead of agent-vendor-specific instruction files.
 - Deployments now use one shared Docker image, one CapRover deploy workflow, and explicit `APP_PROCESS_TYPE` guards to choose server vs. worker at runtime.
 - Align template runtimes on Python 3.14.5, Django 6.0.5, Node.js 24.15.0 LTS, PostgreSQL 18, and Redis 8.6.3.
 - Sentry setup now includes release metadata, configurable tracing/profiling/log settings, logging breadcrumbs/events, and the `before_send` hook by default.
-
-### Added
-- Awesome: added a dedicated blog app with public Markdown-backed blog pages and published-post sitemap entries.
 - Fly.io deployment support with `fly.toml`, web and worker process groups, migration release commands, and `DATABASE_URL` support.
 - HTMX, django-htmx middleware, Alpine.js, and frontend rules for Django-native interactivity.
 - `ALLOW_SIGNUPS` environment flag (default `True`) to pause new email/social registrations while keeping existing user logins available.
-
-### Removed
-- Awesome: removed the database-backed blog models, admin screens, and hidden staff-only blog CRUD/review/publish API endpoints.
-- Awesome: removed shareable repository badge embed cards from repository detail pages.
-- Awesome: removed the feedback collection widget, API endpoint, admin feedback stats, and stored feedback model.
-- Stimulus, Webpack, `python-webpack-boilerplate`, manifest loading, and generated Webpack configuration.
-
-### Fixed
+- Removed Stimulus, Webpack, `python-webpack-boilerplate`, manifest loading, and generated Webpack configuration.
 - Local Docker Compose now waits for the frontend watcher to finish its first asset build, and `npm run watch` now keeps browser modules in sync while editing JavaScript.

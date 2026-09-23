@@ -39,7 +39,9 @@ with the app structure that Cookiecutter created.
 3. Put code in the smallest appropriate app or frontend module.
 4. Add or update tests for feature work, bug fixes, and risky refactors.
 5. Run targeted checks first, then broader checks before finishing.
-6. Update `CHANGELOG.md` for user-visible behavior changes.
+6. Update `CHANGELOG.md` for user-visible behavior changes. Group entries under
+   `## YYYY-MM-DD` headings, newest date first; do not use release versions or
+   an Unreleased section.
 
 ## Commands
 
