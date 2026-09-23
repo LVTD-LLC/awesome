@@ -86,6 +86,35 @@ class StaticViewSitemap(ConfiguredDomainSitemap):
         return reverse(item)
 
 
+class RepositorySitemap(ConfiguredDomainSitemap):
+    changefreq = "weekly"
+    priority = 0.7
+
+    def items(self):
+        active_list_source_repositories = (
+            AwesomeList.objects.filter(is_active=True)
+            .exclude(repo_full_name="")
+            .values("repo_full_name")
+        )
+        return (
+            Repository.objects.filter(is_archived=False, is_disabled=False)
+            .exclude(is_awesome_list_candidate=True)
+            .exclude(full_name__in=active_list_source_repositories)
+            .only(
+                "id",
+                "owner",
+                "name",
+                "github_pushed_at",
+                "last_synced_at",
+                "updated_at",
+            )
+            .order_by("id")
+        )
+
+    def lastmod(self, item):
+        return item.github_pushed_at or item.last_synced_at or item.updated_at
+
+
 class AwesomeListSitemap(ConfiguredDomainSitemap):
     changefreq = "weekly"
     priority = 0.8
@@ -193,6 +222,7 @@ class RepositoryNewsletterIssueSitemap(ConfiguredDomainSitemap):
 
 sitemaps = {
     "static": StaticViewSitemap,
+    "repositories": RepositorySitemap,
     "awesome_lists": AwesomeListSitemap,
     "blog_posts": BlogPostSitemap,
     "repository_updates": RepositoryUpdatesSitemap,

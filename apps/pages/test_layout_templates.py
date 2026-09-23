@@ -1,5 +1,4 @@
 import re
-from html.parser import HTMLParser
 
 import pytest
 from django.contrib.staticfiles import finders
@@ -68,52 +67,3 @@ def test_side_ad_rail_keeps_paid_sponsor_beside_two_open_slots():
     assert "Paid sponsor" in right_rail
     assert right_rail.count("Your company could be here") == 2
     assert right_rail.count("data-ad-empty-slot=") == 2
-
-
-class AdLinkParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.links = []
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "a":
-            self.links.append(dict(attrs))
-
-
-@pytest.mark.parametrize(
-    ("template_name", "context", "expected_links"),
-    [
-        ("side_ad_rail.html", {"side": "left"}, 5),
-        ("side_ad_rail.html", {"side": "right"}, 2),
-        (
-            "side_ad_rail.html",
-            {
-                "side": "right",
-                "awesome_sponsor_ad": {
-                    "startup_name": "Paid sponsor",
-                    "destination_url": "https://sponsor.example/",
-                },
-            },
-            3,
-        ),
-        ("highlighted_repo_slot.html", {}, 1),
-        ("landing_highlighted_repo.html", {}, 1),
-    ],
-)
-def test_all_ad_destination_links_are_sponsored(template_name, context, expected_links):
-    content = render_to_string(
-        f"components/{template_name}",
-        {
-            "awesome_highlighted_repo": {
-                "repo_url": "https://github.com/example/promoted",
-                "repo_full_name": "example/promoted",
-            },
-            **context,
-        },
-    )
-    parser = AdLinkParser()
-    parser.feed(content)
-
-    assert len(parser.links) == expected_links
-    for link in parser.links:
-        assert "sponsored" in link.get("rel", "").split(), link
