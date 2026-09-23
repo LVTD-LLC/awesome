@@ -15,6 +15,9 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 
 ## [Unreleased]
+### Removed
+- Individual repository detail pages from the XML sitemap; public indexes, awesome lists, blog posts, and published updates remain included.
+
 ### Security
 - Awesome Stripe webhooks and success-page refreshes now require the exact configured Price ID
   for the matching product before creating purchases or changing account access.
