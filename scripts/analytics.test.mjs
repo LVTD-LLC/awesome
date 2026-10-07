@@ -44,3 +44,17 @@ test("profile identification and private URL redaction", () => {
   const event = options.before_send({ properties: { $current_url: "https://browseawesome.com/accounts/confirm/secret?token=secret" } });
   assert.equal(event.properties.$current_url, "https://browseawesome.com/[private]");
 });
+
+test("SDK nullable properties survive scrubbing and preserve only the public routing token", () => {
+  const { options } = setup();
+  const event = options.before_send({ properties: {
+    token: "phc_test", $set: null, nested: { value: null, token: "secret" },
+    values: [null, { password: "secret" }], authorization: "secret",
+  } });
+  assert.equal(event.properties.token, "phc_test");
+  assert.equal(event.properties.$set, null);
+  assert.equal(event.properties.nested.value, null);
+  assert.equal(event.properties.nested.token, undefined);
+  assert.ok(!JSON.stringify(event).includes("secret"));
+  assert.equal(options.before_send({ properties: { token: "private-token" } }).properties.token, undefined);
+});
