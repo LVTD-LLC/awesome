@@ -1,0 +1,23 @@
+{% extends "base_landing.html" %}
+{% block meta %}
+    {% include "components/seo_meta.html" with title="Weekly discoveries · BrowseAwesome" robots="noindex, nofollow" %}
+{% endblock meta %}
+{% block content %}
+    <section class="mx-auto max-w-2xl py-16">
+        <a href="{% url 'landing' %}"
+           class="text-green-700 underline dark:text-green-300">Back to BrowseAwesome</a>
+        <h1 class="mt-6 text-3xl font-bold text-gray-950 dark:text-white">Awesome discoveries, once a week.</h1>
+        <p class="mt-4 text-gray-600 dark:text-gray-300">
+            Standout open-source projects from awesome lists, in one weekly email.
+        </p>
+        {% if rate_limited %}
+            <p role="alert" class="mt-4 text-red-700 dark:text-red-300">Too many attempts. Please try again in an hour.</p>
+        {% endif %}
+        {% if service_error %}
+            <p role="alert" class="mt-4 text-red-700 dark:text-red-300">
+                We couldn’t complete your signup. Please try again in a few minutes.
+            </p>
+        {% endif %}
+        {% include "pages/newsletter_form.html" %}
+    </section>
+{% endblock content %}

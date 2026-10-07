@@ -7,6 +7,7 @@ from django.views.generic import TemplateView
 from django_q.tasks import async_task
 
 from apps.core.analytics import queue_track_event
+from apps.pages.newsletter import NewsletterForm, enabled
 from apps.repos.services import (
     annotate_repository_recent_growth_metrics,
     visible_repository_queryset,
@@ -60,6 +61,8 @@ class LandingPageView(TemplateView):
         context.update(
             {
                 "hide_side_ad_rails": False,
+                "newsletter_enabled": enabled(),
+                "newsletter_form": NewsletterForm(),
                 "recent_repositories": list(
                     repositories.order_by("-created_at", "full_name")[: self.sample_size]
                 ),
