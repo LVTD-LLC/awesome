@@ -1,7 +1,7 @@
 /* Shared bootstrap for normal navigation and HTMX. No form contents are captured. */
 (() => {
   const config = document.currentScript.dataset;
-  const ph = window.posthog;
+  let ph = window.posthog;
   if (!ph || !config.posthogKey) return;
   const safeUrl = (value) => {
     try {
@@ -48,6 +48,8 @@
       return event;
     },
     loaded: (client) => {
+      // The async SDK replaces the bootstrap queue with its live client instance.
+      ph = client;
       if (config.posthogProfile) client.identify(config.posthogProfile);
       else if (client.get_property("$user_id")) client.reset();
       client.register({ app: "browseawesome" });

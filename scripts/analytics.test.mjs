@@ -24,7 +24,9 @@ function setup(profile = "") {
   vm.runInNewContext(readFileSync("frontend/src/js/modules/analytics.js", "utf8"), {
     window: { posthog: ph, location }, document, URL, URLSearchParams,
   });
-  options.loaded(ph);
+  const client = { ...ph, capture: (event, properties) => events.push({ event, properties }) };
+  ph.capture = () => { throw new Error("bootstrap queue used after SDK loaded"); };
+  options.loaded(client);
   return { events, handlers, location, options };
 }
 
