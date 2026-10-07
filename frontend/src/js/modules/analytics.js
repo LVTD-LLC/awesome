@@ -27,6 +27,7 @@
     before_send: (event) => {
       if (!event) return null;
       const scrub = (properties) => {
+        if (!properties || typeof properties !== "object") return;
         for (const key of Object.keys(properties || {})) {
           if (/email|password|authorization|token|cookie/i.test(key)) {
             delete properties[key];
@@ -40,7 +41,10 @@
         }
         delete properties.$search_keyword;
       };
+      // The SDK's public project token routes ingestion; it is not a user secret.
+      const projectToken = event.properties?.token === config.posthogKey;
       scrub(event.properties);
+      if (projectToken) event.properties.token = config.posthogKey;
       return event;
     },
     loaded: (client) => {
