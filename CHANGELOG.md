@@ -2,6 +2,7 @@
 
 ## 2026-10-07
 
+- Use the loaded PostHog SDK client, not its bootstrap queue, for browser navigation events.
 - Fix browser analytics scrubbing for nullable SDK properties and preserve the public project routing token.
 - Add a public weekly discovery newsletter signup with double opt-in, CSRF validation,
   a honeypot, shared-cache rate limiting, and recoverable provider errors. Existing
