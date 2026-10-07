@@ -6,6 +6,7 @@ import sentry_sdk
 from django.conf import settings
 
 from apps.core.analytics import queue_track_event
+from awesome_repos.telemetry import span as telemetry_span
 from awesome_repos.utils import get_awesome_repos_logger
 
 logger = get_awesome_repos_logger(__name__)
@@ -75,7 +76,10 @@ def record_mcp_tool_call(tool_name: str, callback) -> dict[str, Any]:
     user_error: MCPToolUserError | None = None
 
     try:
-        with sentry_sdk.start_span(op="mcp.tool", name=tool_name) as span:
+        with (
+            telemetry_span("mcp.tool", tool_name=tool_name),
+            sentry_sdk.start_span(op="mcp.tool", name=tool_name) as span,
+        ):
             span.set_tag("mcp.tool_name", tool_name)
             try:
                 payload = callback()

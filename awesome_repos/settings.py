@@ -156,6 +156,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "awesome_repos.telemetry.TelemetryMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -635,6 +636,11 @@ if SENTRY_ACTIVE:
 
 
 POSTHOG_API_KEY = env("POSTHOG_API_KEY", default="")
+POSTHOG_HOST = env("POSTHOG_HOST", default="https://us.i.posthog.com").rstrip("/")
+POSTHOG_LOGS_ENABLED = env.bool("POSTHOG_LOGS_ENABLED", default=False)
+POSTHOG_TRACING_ENABLED = env.bool("POSTHOG_TRACING_ENABLED", default=False)
+POSTHOG_AI_ENABLED = env.bool("POSTHOG_AI_ENABLED", default=False)
+POSTHOG_SERVICE_NAME = env("POSTHOG_SERVICE_NAME", default="browseawesome-web")
 CHATWOOT_BASE_URL = env("CHATWOOT_BASE_URL", default="https://app.chatwoot.com").rstrip("/")
 CHATWOOT_WEBSITE_TOKEN = env("CHATWOOT_WEBSITE_TOKEN", default="")
 

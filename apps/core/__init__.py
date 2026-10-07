@@ -1,4 +1,3 @@
-import posthog
 from django.apps import AppConfig
 from django.conf import settings
 
@@ -14,10 +13,9 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import apps.core.signals  # noqa
+        import apps.core.telemetry_tasks  # noqa
 
         if settings.POSTHOG_API_KEY:
-            posthog.api_key = settings.POSTHOG_API_KEY
-            posthog.host = "https://us.i.posthog.com"
+            from awesome_repos.telemetry import configure
 
-        if settings.ENVIRONMENT == "dev":
-            posthog.debug = True
+            configure()

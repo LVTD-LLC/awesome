@@ -2,6 +2,7 @@
 
 import hashlib
 
+import posthog
 import requests
 from django import forms
 from django.conf import settings
@@ -84,6 +85,11 @@ def subscribe(request):
                 context["service_error"] = True
                 status = 503
             else:
+                if settings.POSTHOG_API_KEY:
+                    posthog.capture(
+                        "newsletter_signup_requested",
+                        properties={"double_opt_in": data["has_optin"]},
+                    )
                 return redirect("newsletter_thanks")
         else:
             status = 400

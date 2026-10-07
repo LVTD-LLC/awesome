@@ -86,6 +86,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Analytics browser contract tests
+        run: node --test scripts/analytics.test.mjs
+
       - name: Build frontend assets
         run: npm run build
 

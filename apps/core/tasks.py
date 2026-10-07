@@ -123,8 +123,8 @@ def track_event(
         return f"No distinct id provided for event {event_name}."
 
     posthog.capture(
-        distinct_id,
-        event=event_name,
+        event_name,
+        distinct_id=distinct_id,
         properties=event_properties,
     )
 

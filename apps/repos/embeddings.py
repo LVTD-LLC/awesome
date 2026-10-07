@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import time
+import uuid
 from dataclasses import dataclass
 from typing import Literal
 
+import posthog
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.utils import timezone
@@ -104,7 +107,35 @@ def _embedding_model() -> OpenAIEmbeddingModel:
 
 
 async def _embed_text_async(text: str, input_type: EmbedInputType) -> EmbeddingResponse:
-    result = await _embedding_model().embed(text, input_type=input_type)
+    start = time.monotonic()
+    trace_id = str(uuid.uuid4())
+    try:
+        result = await _embedding_model().embed(text, input_type=input_type)
+    except Exception:
+        if settings.POSTHOG_API_KEY and settings.POSTHOG_AI_ENABLED:
+            posthog.capture(
+                "$ai_embedding",
+                properties={
+                    "$ai_trace_id": trace_id,
+                    "$ai_model": settings.REPOSITORY_EMBEDDING_MODEL,
+                    "$ai_provider": "openrouter",
+                    "$ai_latency": time.monotonic() - start,
+                    "$ai_is_error": True,
+                },
+            )
+        raise
+    if settings.POSTHOG_API_KEY and settings.POSTHOG_AI_ENABLED:
+        posthog.capture(
+            "$ai_embedding",
+            properties={
+                "$ai_trace_id": trace_id,
+                "$ai_model": result.model_name,
+                "$ai_provider": "openrouter",
+                "$ai_latency": time.monotonic() - start,
+                "$ai_input_tokens": getattr(getattr(result, "usage", None), "input_tokens", 0),
+                "input_type": input_type,
+            },
+        )
     vector = list(result.embeddings[0])
     return EmbeddingResponse(vector=vector, model=result.model_name)
 
