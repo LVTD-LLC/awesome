@@ -55,7 +55,7 @@ def test_queue_track_event_queues_worker_task(monkeypatch):
 def test_track_event_identifies_profile_without_email(profile, monkeypatch):
     captured = {}
 
-    def fake_capture(distinct_id, *, event, properties):
+    def fake_capture(event, *, distinct_id, properties):
         captured["distinct_id"] = distinct_id
         captured["event"] = event
         captured["properties"] = properties
@@ -101,7 +101,7 @@ def test_track_event_does_not_set_person_properties_by_default(profile, monkeypa
     captured = {}
     logs = []
 
-    def fake_capture(distinct_id, *, event, properties):
+    def fake_capture(event, *, distinct_id, properties):
         captured["distinct_id"] = distinct_id
         captured["event"] = event
         captured["properties"] = properties

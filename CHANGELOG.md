@@ -10,6 +10,15 @@
 Changes are grouped by date, newest first. Historical dates reflect the commits
 that recorded each entry.
 
+## 2026-10-07
+
+- Connected Browse Awesome to its own PostHog project with web/product analytics,
+  HTMX-aware pageviews, catalog and outbound-link events, and consistent profile IDs.
+- Added browser/server error tracking, structured OTLP logs, HTTP/MCP traces, and
+  AI model/embedding usage telemetry without exporting AI message content.
+- Fixed backend event capture for the current PostHog SDK and documented telemetry
+  configuration, privacy controls, verification, and rollback.
+
 ## 2026-09-23
 
 - Restored individual repository detail pages to the XML sitemap by reverting PR #141.
