@@ -759,3 +759,8 @@ SUPPORTED_AI_MODELS = {
         "newsletter": NEWSLETTER_OPENROUTER_MODEL,
     },
 }
+
+# Empty configuration keeps the public discovery newsletter disabled.
+NEWSLETTER_LISTMONK_URL = env("NEWSLETTER_LISTMONK_URL", default="")
+NEWSLETTER_LIST_UUID = env("NEWSLETTER_LIST_UUID", default="")
+NEWSLETTER_TRUST_PROXY = env.bool("NEWSLETTER_TRUST_PROXY", default=False)

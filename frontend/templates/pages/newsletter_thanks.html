@@ -1,0 +1,14 @@
+{% extends "base_landing.html" %}
+{% block meta %}
+    {% include "components/seo_meta.html" with title="Check your inbox · BrowseAwesome" robots="noindex, nofollow" %}
+{% endblock meta %}
+{% block content %}
+    <section class="mx-auto max-w-2xl py-16">
+        <h1 class="text-3xl font-bold text-gray-950 dark:text-white">Check your inbox.</h1>
+        <p class="mt-4 leading-7 text-gray-600 dark:text-gray-300">
+            If your address needs confirmation, you’ll receive an email with a link to subscribe. Already subscribed? You’re all set. Check your spam folder if you don’t see it.
+        </p>
+        <a href="{% url 'landing' %}"
+           class="mt-6 inline-block text-green-700 underline dark:text-green-300">Back to BrowseAwesome</a>
+    </section>
+{% endblock content %}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-07
+
+- Add a public weekly discovery newsletter signup with double opt-in, CSRF validation,
+  a honeypot, shared-cache rate limiting, and recoverable provider errors. Existing
+  per-repository update subscriptions are unchanged.
+
 ## 2026-09-29
 
 ### Removed

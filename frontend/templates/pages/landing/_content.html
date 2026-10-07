@@ -40,6 +40,20 @@
             {% endif %}
         </div>
     </header>
+    {% if newsletter_enabled %}
+        <section id="newsletter"
+                 aria-labelledby="newsletter-heading"
+                 class="mx-auto mb-12 max-w-3xl rounded-2xl border border-green-200 bg-green-50 p-6 dark:border-green-900 dark:bg-gray-900 sm:p-8">
+            <h2 id="newsletter-heading"
+                class="text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                Awesome discoveries, once a week.
+            </h2>
+            <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">
+                Standout open-source projects from awesome lists, in one weekly email. No account needed.
+            </p>
+            {% include "pages/newsletter_form.html" with form=newsletter_form %}
+        </section>
+    {% endif %}
     {% include "components/landing_highlighted_repo.html" %}
     {% url 'repos:search' as all_repos_url %}
     {% include "pages/landing/_repo_row.html" with title="Recently added" description="Freshly indexed from curated lists." repositories=recent_repositories metric="recent" browse_url=all_repos_url only %}
