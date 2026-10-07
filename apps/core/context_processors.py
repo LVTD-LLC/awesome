@@ -39,7 +39,8 @@ def mfa_recovery_codes_settings(request):
 
 def posthog_api_key(request):
     user = getattr(request, "user", None)
-    profile_id = str(user.profile.pk) if user and user.is_authenticated else ""
+    profile = getattr(user, "profile", None) if user and user.is_authenticated else None
+    profile_id = str(profile.pk) if profile else ""
     return {
         "posthog_api_key": settings.POSTHOG_API_KEY,
         "posthog_host": settings.POSTHOG_HOST,

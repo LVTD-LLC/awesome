@@ -1,11 +1,12 @@
 """PostHog telemetry. No request bodies, credentials, or AI content are exported."""
 
 import copy
+import json
 import logging
 import re
 import time
 from contextlib import nullcontext
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import posthog
 from django.conf import settings
@@ -167,6 +168,29 @@ class SafeLogFilter(logging.Filter):
         return safe
 
 
+def request_identity(request):
+    cookie = {}
+    raw_cookie = request.COOKIES.get(f"ph_{settings.POSTHOG_API_KEY}_posthog", "")
+    try:
+        candidate = json.loads(unquote(raw_cookie[:4096]))
+        if isinstance(candidate, dict):
+            cookie = candidate
+    except (ValueError, TypeError):
+        pass
+    distinct_id = request.headers.get("X-POSTHOG-DISTINCT-ID") or cookie.get("distinct_id", "")
+    session = cookie.get("$sesid", [])
+    cookie_session = session[1] if isinstance(session, list) and len(session) > 1 else ""
+    session_id = request.headers.get("X-POSTHOG-SESSION-ID") or cookie_session
+    user = getattr(request, "user", None)
+    profile = getattr(user, "profile", None) if user and user.is_authenticated else None
+    if profile:
+        distinct_id = str(profile.pk)
+    return tuple(
+        value if isinstance(value, str) and re.fullmatch(r"[\w-]{1,100}", value) else ""
+        for value in (distinct_id, session_id)
+    )
+
+
 class TelemetryMiddleware(MiddlewareMixin):
     """Request traces use route names, never query strings or account URLs."""
 
@@ -174,15 +198,10 @@ class TelemetryMiddleware(MiddlewareMixin):
         if not settings.POSTHOG_API_KEY or _provider is None:
             return self.get_response(request)
         with posthog.new_context(capture_exceptions=False):
-            user = getattr(request, "user", None)
-            if user and user.is_authenticated:
-                posthog.identify_context(str(user.profile.pk))
-            else:
-                distinct_id = request.headers.get("X-POSTHOG-DISTINCT-ID", "")
-                if re.fullmatch(r"[\w-]{1,100}", distinct_id):
-                    posthog.identify_context(distinct_id)
-            session_id = request.headers.get("X-POSTHOG-SESSION-ID", "")
-            if re.fullmatch(r"[\w-]{1,100}", session_id):
+            distinct_id, session_id = request_identity(request)
+            if distinct_id:
+                posthog.identify_context(distinct_id)
+            if session_id:
                 posthog.set_context_session(session_id)
             start = time.monotonic()
             with _provider.get_tracer("browseawesome").start_as_current_span(

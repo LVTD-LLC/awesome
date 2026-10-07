@@ -110,3 +110,17 @@ def test_failed_queue_job_omits_arguments_and_result(monkeypatch):
     assert capture.call_count == 1
     assert "secret result" not in str(capture.call_args)
     assert "private@example.com" not in str(capture.call_args)
+
+
+@override_settings(POSTHOG_API_KEY="phc_test")
+def test_identity_uses_cookie_and_rejects_malformed_values():
+    from urllib.parse import quote
+
+    request = RequestFactory().get("/")
+    request.user = SimpleNamespace(is_authenticated=True)
+    request.COOKIES["ph_phc_test_posthog"] = quote(
+        '{"distinct_id":"anon-123","$sesid":[1,"session-123",0]}'
+    )
+    assert telemetry.request_identity(request) == ("anon-123", "session-123")
+    request.COOKIES["ph_phc_test_posthog"] = '{"distinct_id":[],"$sesid":null}'
+    assert telemetry.request_identity(request) == ("", "")
