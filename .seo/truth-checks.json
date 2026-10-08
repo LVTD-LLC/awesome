@@ -1,0 +1,17 @@
+[
+  {
+    "claim": "Error pages do not publish website schema or load trackers",
+    "paths": [
+      "frontend/templates/404.html"
+    ],
+    "must_not_match": [
+      "base_landing",
+      "posthog",
+      "plausible",
+      "application/ld\\+json"
+    ],
+    "must_match": [
+      "noindex, follow"
+    ]
+  }
+]
