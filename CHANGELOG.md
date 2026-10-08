@@ -2,6 +2,8 @@
 
 ## 2026-10-08
 
+- Keep missing-page responses independent of database-backed layout context so unknown URLs return 404 and slashless catalog URLs redirect correctly; omit trackers and schema on error pages.
+
 - Set up IndexNow ownership verification, hourly paginated-sitemap change notifications, and post-deploy resubmissions with batching, retries, and success-only checkpoints.
 
 ## 2026-10-07

@@ -26,6 +26,8 @@ from apps.pages.indexnow_views import indexnow_key
 from apps.pages.views import AccountSignupByPasskeyView, AccountSignupView
 from awesome_repos.sitemaps import configured_sitemap_index, sitemaps
 
+handler404 = "apps.pages.error_views.page_not_found"
+
 
 def robots_txt(_request):
     site_url = settings.SITE_URL.rstrip("/")

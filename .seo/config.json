@@ -1,8 +1,10 @@
 {
-  "mode": "initialize",
+  "mode": "daily",
   "initialized_at": "2026-07-27",
-  "domain": "https://awesome.lvtd.dev",
-  "stack": "django-templates-markdown-content",
+  "domain": "https://browseawesome.com",
+  "stack": {
+    "kind": "django-templates-markdown-content"
+  },
   "adapter": "markdown-fallback-with-django-routing",
   "language": "python-django-html",
   "marketing_route_prefix": "apps/pages and apps/repos",
@@ -15,53 +17,159 @@
   "keyword_data_source": "dataforseo",
   "dataforseo_location": "United States",
   "dataforseo_language": "English",
-  "gsc_property": "https://awesome.lvtd.dev/",
+  "gsc_property": "sc-domain:browseawesome.com",
   "ahrefs_project_id": null,
   "plausible_site_id": "awesome.lvtd.dev",
-  "posthog_project_id": null,
+  "posthog_project_id": 651928,
   "roadmap_path": "docs/seo-sprint.md",
   "tool_evidence": {
+    "as_of": "2026-10-08",
     "gsc": {
       "status": "connected",
-      "credential_evidence": "Infisical /services/google-search-console",
-      "call_evidence": "Property list, 90-day query/page report, and sitemap list succeeded",
-      "reason": "The service account has full-user access to the URL-prefix property."
+      "scope": "Actual sc-domain:browseawesome.com binding verified; finalized page and query/page windows read."
     },
-    "ahrefs": {
-      "status": "missing",
-      "credential_evidence": "Loaded tools, runtime environment, TOOLS.md, repo config, and Infisical checked",
-      "call_evidence": "Not attempted because no usable Ahrefs credential or MCP was found",
-      "reason": "DataForSEO supplied measured market data instead."
-    },
-    "dataforseo": {
+    "openseo": {
       "status": "connected",
-      "credential_evidence": "Infisical /services/dataforseo",
-      "call_evidence": "Keyword overview, ranked keywords, SERPs, and backlink summary succeeded",
-      "reason": "Used for volume, KD, CPC, SERP shape, rank baseline, and backlinks."
-    },
-    "plausible": {
-      "status": "connected",
-      "credential_evidence": "Runtime PLAUSIBLE_API_KEY and workspace TOOLS.md",
-      "call_evidence": "90-day aggregate, channel, organic landing-page, and event queries succeeded",
-      "reason": "Used for traffic and engagement weighting."
+      "scope": "Project context and saved keywords read; initially empty."
     },
     "posthog": {
-      "status": "attempted_failed",
-      "credential_evidence": "Runtime management API key and workspace TOOLS.md",
-      "call_evidence": "Project listing succeeded, but no Awesome project was visible",
-      "reason": "No accessible project could be joined to Awesome conversion events."
+      "status": "access_verified",
+      "scope": "Project 651928 visible; conversion and field-CWV attribution not established."
     },
-    "search_discovery": {
+    "rowset": {
       "status": "connected",
-      "credential_evidence": "Runtime EXA_API_KEY and self-hosted SearXNG documented in TOOLS.md",
-      "call_evidence": "Exa competitor and category discovery queries succeeded",
-      "reason": "Used to identify current discovery tools and source pages."
+      "scope": "Private dataset schema, privacy, migrated history and observation readbacks verified."
     },
-    "extraction": {
+    "browser": {
       "status": "connected",
-      "credential_evidence": "Runtime FIRECRAWL_API_KEY, JINA_READER_API_KEY, and OpenClaw WebFetch",
-      "call_evidence": "Firecrawl, Jina Reader, and WebFetch extractions succeeded",
-      "reason": "Used to verify Awesome, Star History, Awesome Lists, and category pages."
+      "scope": "browserless Chromium reproduced live failures."
+    },
+    "bing": {
+      "status": "unchecked"
+    },
+    "speed": {
+      "status": "unchecked",
+      "reason": "Network-variable crawl timings are not field CWV."
+    },
+    "paid_research": {
+      "status": "deferred",
+      "reason": "Live reachability override; no paid calls needed."
     }
-  }
+  },
+  "gsc": {
+    "site_url": "sc-domain:browseawesome.com"
+  },
+  "posthog": {
+    "project_id": 651928,
+    "host": "https://us.posthog.com",
+    "api_key_env": "POSTHOG_API_KEY"
+  },
+  "research_store": {
+    "backend": "rowset",
+    "project_key": "124f217f-8c90-4d69-9ae7-963f13025d93",
+    "section_key": "d4f1a5e0-fabd-4ba0-a6ad-8e3b22589be0",
+    "datasets": {
+      "evidence_runs": "c3ed745c-5336-4f89-8022-4990c3ecc5d5"
+    },
+    "index_column": "record_id",
+    "legacy_prefix": "awesome.lvtd.dev:legacy:2026-07-27:",
+    "history_note": "July source files retained unchanged and copied with exact readback to private Rowset. New measurement history belongs in Rowset, not Git."
+  },
+  "radar": {
+    "seeds": [
+      "awesome lists",
+      "find maintained GitHub repositories",
+      "compare open source projects",
+      "self hosted software",
+      "GitHub repository activity"
+    ],
+    "communities": [
+      "github.com/sindresorhus/awesome"
+    ],
+    "cadence_days": 7
+  },
+  "repo": {
+    "_comment": "Product-change panel (measure.md 4b). scripts/repo_changes.py lists commits since the last run that touch these globs; a shipped feature, a price change or a removed route is the freshest demand signal the site has. Fill with this repo's real paths.",
+    "watch_paths": [
+      "CHANGELOG.md",
+      "apps/repos/**",
+      "apps/pages/**",
+      "apps/blog/posts/**",
+      "frontend/templates/**",
+      "awesome_repos/**"
+    ]
+  },
+  "serp": {
+    "_comment": "SERP-feature panel (measure.md 3d). Weekly serp_organic_live_advanced on the top N queries by clicks; serp_features.py records which features appeared and whether the AI Overview cites us.",
+    "top_queries": 20
+  },
+  "distribute": {
+    "_comment": "Restore the full distribute lane: discovery push, Postiz owned-channel drafts, and one third-party brief. Postiz scheduling/posting uses the user's explicit channel/content authorization; site-shipping autonomy is not blanket social/outreach permission.",
+    "social_skill": "postiz",
+    "window_days": 14
+  },
+  "cadence": {
+    "_comment": "Freshness windows in hours; a panel younger than its window is read from cache. See measure.md section 0. Weekly (168) and monthly (720) panels: competitor delta, SERP features, backlinks new/lost, link opportunities, seasonality, on-site search.",
+    "gsc_hours": 20,
+    "health_hours": 6,
+    "link_check_hours": 20,
+    "radar_free_hours": 20,
+    "bing_hours": 20,
+    "outcomes_hours": 20,
+    "competitor_hours": 168,
+    "serp_hours": 168,
+    "backlinks_hours": 168,
+    "link_opportunities_hours": 168,
+    "seasonality_hours": 720,
+    "site_search_hours": 168,
+    "url_inspection_hours": 168
+  },
+  "site": {
+    "domain": "https://browseawesome.com",
+    "sitemap_url": "https://browseawesome.com/sitemap.xml"
+  },
+  "paths": {
+    "roadmap": "docs/seo-sprint.md",
+    "ledger": ".seo/content-ledger.md",
+    "truth": ".seo/truth.md",
+    "needs_you": ".seo/needs-you.md",
+    "runs": ".seo/runs/",
+    "health": ".seo/health/",
+    "briefs": ".seo/briefs/",
+    "evidence": ".seo/evidence/"
+  },
+  "budget": {
+    "per_run_usd": 0,
+    "ai_panel_cadence_days": 14,
+    "health_diff_cadence_days": 7,
+    "claim_reverify_sample": 3,
+    "_comment": "Unattended runs stay under per_run_usd. Cost never overrides a quality gate \u2014 if a decision needs a number, buy it or say you couldn't and why.",
+    "link_check_cadence_days": 7
+  },
+  "select": {
+    "floor": 9,
+    "_comment": "Growth-first rubric: floor 9 of 40. Cooldown is same target/intervention from verified deployment, not outcome-read timing. After 2 no-public-change runs, require fresh opportunity or concrete blocker work; never force publication.",
+    "cooldown_days": 2,
+    "no_change_research_after": 2
+  },
+  "bing": {
+    "api_key_env": null,
+    "site_url": null,
+    "_comment": "Optional. api_key_env names the environment variable holding the Bing Webmaster API key; never store the key itself. The AI Performance report is UI-only \u2014 no API. Record Bing as a separate panel, never summed with Google."
+  },
+  "_legacy_keys_note": "Flat pre-v2 keys are kept for anything that still reads them. The nested blocks above are authoritative. `stack` was a string in v1; its value now lives at stack.kind.",
+  "version": "2.2",
+  "openseo": {
+    "project_id": "68a606d9-1c38-44c3-8f42-cb46a906a4c1"
+  },
+  "git": {
+    "mode": "pr",
+    "merge_policy": "autonomous"
+  },
+  "crawl_hubs": [
+    "https://browseawesome.com/",
+    "https://browseawesome.com/repos/",
+    "https://browseawesome.com/lists/",
+    "https://browseawesome.com/blog/"
+  ]
 }
