@@ -7,7 +7,7 @@ on:
 
 env:
   PROJECT_NAME: awesome_repos
-  CAPROVER_APP_NAME: awesome-repos
+  CAPROVER_APP_NAME: browseawesome
 
 permissions:
   contents: read
