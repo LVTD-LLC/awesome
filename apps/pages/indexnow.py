@@ -183,6 +183,9 @@ def submit_changes(site_url, state_path, expected_revision="", dry_run=False, fo
     """Advance the checkpoint only after every notification batch succeeds."""
     key = deployment_key(site_url, expected_revision)
     current = sitemap_state(site_url)
+    if expected_revision:
+        # A failed deploy-wide refresh must also retry on the next hourly run.
+        current = {url: f"{expected_revision}:{stamp}" for url, stamp in current.items()}
     previous = json.loads(state_path.read_text()) if state_path.exists() else {}
     if not isinstance(previous, dict):
         raise IndexNowError("Invalid sitemap checkpoint")

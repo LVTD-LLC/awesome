@@ -306,3 +306,18 @@ def test_partial_batch_failure_preserves_checkpoint(monkeypatch, tmp_path):
         indexnow.submit_changes(SITE, state)
     assert [len(post["urlList"]) for post in posts] == [10_000, 1]
     assert state.read_text() == "{}"
+
+
+def test_hourly_run_retries_failed_deployment_revision(monkeypatch, tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({SITE + "/": "old:"}))
+    posts = transport(
+        monkeypatch, [SITE + "/"], statuses=(403, 200), revisions=("new", "new", "new")
+    )
+    with pytest.raises(indexnow.IndexNowError):
+        indexnow.submit_changes(SITE, state, expected_revision="new", force=True)
+    assert json.loads(state.read_text()) == {SITE + "/": "old:"}
+    indexnow.submit_changes(SITE, state, expected_revision="new")
+    assert len(posts) == 2
+    assert json.loads(state.read_text()) == {SITE + "/": "new:"}
+    assert "No changed" in indexnow.submit_changes(SITE, state, expected_revision="new")

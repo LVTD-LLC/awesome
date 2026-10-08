@@ -13,7 +13,7 @@ URLs that disappear. Empty optional sections are allowed; failed/invalid section
 abort the entire scan before any removals are inferred. It never enumerates
 private database records or sends page contents.
 
-Hourly runs compare full sitemap lastmod timestamps. Deploy runs resubmit all
+Hourly runs compare full sitemap lastmod timestamps and the deployment revision. Deploy runs resubmit all
 current and previously observed URLs to cover template/static/blog changes.
 Transient failures retry with bounded backoff; failed runs stay visible in Actions
 and the next hourly run retries. A cache checkpoint advances only after every
