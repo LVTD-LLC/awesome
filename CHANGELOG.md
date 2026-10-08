@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-08
+
+- Set up IndexNow ownership verification, hourly paginated-sitemap change notifications, and post-deploy resubmissions with batching, retries, and success-only checkpoints.
+
 ## 2026-10-07
 
 - Use the loaded PostHog SDK client, not its bootstrap queue, for browser navigation events.

@@ -22,6 +22,7 @@ from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from django.views.generic import TemplateView
 
+from apps.pages.indexnow_views import indexnow_key
 from apps.pages.views import AccountSignupByPasskeyView, AccountSignupView
 from awesome_repos.sitemaps import configured_sitemap_index, sitemaps
 
@@ -59,6 +60,7 @@ urlpatterns += [
     path("api/", include("apps.api.urls")),
     path("blog/", include("apps.blog.urls")),
     path("robots.txt", robots_txt, name="robots_txt"),
+    path("indexnow-key.txt", indexnow_key, name="indexnow_key"),
     path("", include("apps.repos.urls")),
     path("", include("apps.pages.urls")),
     path("", include("apps.core.urls")),

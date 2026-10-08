@@ -112,7 +112,11 @@ class RepositorySitemap(ConfiguredDomainSitemap):
         )
 
     def lastmod(self, item):
-        return item.github_pushed_at or item.last_synced_at or item.updated_at
+        return max(
+            value
+            for value in (item.github_pushed_at, item.last_synced_at, item.updated_at)
+            if value
+        )
 
 
 class AwesomeListSitemap(ConfiguredDomainSitemap):
@@ -133,7 +137,11 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
         )
 
     def lastmod(self, item):
-        return item.last_scanned_at or item.github_pushed_at or item.updated_at
+        return max(
+            value
+            for value in (item.github_pushed_at, item.last_scanned_at, item.updated_at)
+            if value
+        )
 
 
 class BlogPostSitemap(ConfiguredDomainSitemap):

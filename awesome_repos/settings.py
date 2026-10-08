@@ -770,3 +770,7 @@ SUPPORTED_AI_MODELS = {
 NEWSLETTER_LISTMONK_URL = env("NEWSLETTER_LISTMONK_URL", default="")
 NEWSLETTER_LIST_UUID = env("NEWSLETTER_LIST_UUID", default="")
 NEWSLETTER_TRUST_PROXY = env.bool("NEWSLETTER_TRUST_PROXY", default=False)
+
+# Public IndexNow ownership proof; not an authentication credential.
+INDEXNOW_KEY = (BASE_DIR / "indexnow-key.txt").read_text().strip()
+DEPLOYMENT_REVISION = env("DEPLOYMENT_REVISION", default="")

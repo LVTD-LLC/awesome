@@ -42,6 +42,7 @@ jobs:
           context: .
           push: true
           file: deployment/Dockerfile
+          build-args: DEPLOYMENT_REVISION=${{ github.sha }}
           tags: |
             ${{ steps.image.outputs.image_name }}:latest
             ${{ steps.image.outputs.image_name }}:${{ github.sha }}
