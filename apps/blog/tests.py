@@ -1,4 +1,6 @@
 import json
+import re
+from datetime import datetime
 
 import pytest
 from django.apps import apps as django_apps
@@ -7,7 +9,13 @@ from django.test import override_settings
 from django.urls import reverse
 
 from apps.blog.markdown import render_blog_markdown
-from apps.blog.services import blog_post_schema, get_blog_post, json_ld, list_blog_posts
+from apps.blog.services import (
+    BlogPostValidationError,
+    blog_post_schema,
+    get_blog_post,
+    json_ld,
+    list_blog_posts,
+)
 from awesome_repos.sitemaps import BlogPostSitemap
 
 pytestmark = pytest.mark.django_db
@@ -296,3 +304,104 @@ def test_blog_post_reading_time_uses_rendered_plain_text(blog_posts_dir):
     post = get_blog_post("reading-time-post")
 
     assert post.reading_time_minutes == 1
+
+
+@pytest.mark.parametrize("author_type", ["Person", "Organization"])
+def test_blog_author_schema_supports_people_and_editorial_teams(blog_posts_dir, author_type):
+    write_post(
+        blog_posts_dir,
+        "editorial-post",
+        {
+            "title": "Editorial post",
+            "description": "A guide.",
+            "published_at": "2026-10-10",
+            "author": "Browse Awesome Team",
+            "author_type": author_type,
+        },
+        "Guide body.",
+    )
+
+    assert blog_post_schema(get_blog_post("editorial-post"))["author"] == {
+        "@type": author_type,
+        "name": "Browse Awesome Team",
+    }
+
+
+def test_blog_rejects_invalid_author_type(blog_posts_dir):
+    write_post(
+        blog_posts_dir,
+        "invalid-author",
+        {
+            "title": "Invalid author",
+            "description": "A guide.",
+            "published_at": "2026-10-10",
+            "author_type": "Product",
+        },
+        "Guide body.",
+    )
+
+    with pytest.raises(BlogPostValidationError, match="author_type must be Person or Organization"):
+        get_blog_post("invalid-author")
+
+
+@override_settings(SITE_URL="https://browseawesome.com")
+def test_published_repository_shortlist_guide_renders_body_and_structured_data(client):
+    path = reverse("blog:post_detail", kwargs={"slug": "how-to-shortlist-github-repositories"})
+    response = client.get(path)
+
+    assert response.status_code == 200
+    content = response_text(response)
+    assert '<link rel="canonical" href="https://browseawesome.com' + path + '"' in content
+    assert '<meta name="robots" content="index, follow"' in content
+    assert "How to shortlist GitHub repositories</h1>" in content
+    assert "<table>" in content
+    assert '<a href="/repos/' in content
+    assert '<a href="/lists/' in content
+    schemas = [
+        json.loads(value)
+        for value in re.findall(
+            r'<script type="application/ld\+json">(.*?)</script>', content, re.DOTALL
+        )
+    ]
+    article = next(value for value in schemas if value.get("@type") == "BlogPosting")
+    assert article["author"] == {"@type": "Organization", "name": "Browse Awesome Team"}
+    published_at = datetime.fromisoformat("2026-10-10T01:20:00+03:00")
+    assert datetime.fromisoformat(article["datePublished"]) == published_at
+    assert datetime.fromisoformat(article["dateModified"]) == published_at
+    assert article["articleBody"]
+    graph = next(value["@graph"] for value in schemas if "@graph" in value)
+    how_to = next(value for value in graph if value["@type"] == "HowTo")
+    assert [step["name"] for step in how_to["step"]] == [
+        "Define the job",
+        "Build a shortlist",
+        "Read the signals",
+        "Check upstream evidence",
+        "Test the smallest real use case",
+    ]
+    for number, step in enumerate(how_to["step"], start=1):
+        assert f"<h2>{number}. {step['name']}</h2>" in content
+    breadcrumbs = next(value for value in graph if value["@type"] == "BreadcrumbList")
+    assert [item["item"] for item in breadcrumbs["itemListElement"]] == [
+        "https://browseawesome.com/",
+        "https://browseawesome.com/blog/",
+        "https://browseawesome.com" + path,
+    ]
+
+
+@override_settings(SITE_URL="https://browseawesome.com")
+def test_published_repository_shortlist_guide_is_in_blog_sitemap(client):
+    response = client.get(reverse("sitemap_section", kwargs={"section": "blog_posts"}))
+
+    assert response.status_code == 200
+    assert (
+        "<loc>https://browseawesome.com/blog/how-to-shortlist-github-repositories/</loc>"
+        in response_text(response)
+    )
+
+
+@pytest.mark.parametrize("page_name", ["landing", "repos:search", "blog:post_list"])
+def test_published_repository_shortlist_guide_has_discovery_links(client, page_name):
+    response = client.get(reverse(page_name))
+
+    assert response.status_code == 200
+    assert 'href="/blog/how-to-shortlist-github-repositories/"' in response_text(response)

@@ -43,6 +43,7 @@ class BlogPost:
     published_at: datetime
     updated_at: datetime
     author: str
+    author_type: str
     seo_title: str
     meta_description: str
     keywords: tuple[str, ...]
@@ -208,6 +209,9 @@ def load_blog_post(source_path: Path, content_dir: Path | None = None) -> BlogPo
     )
 
     html = render_blog_markdown(content)
+    author_type = _coerce_string(metadata.get("author_type")) or "Person"
+    if author_type not in {"Person", "Organization"}:
+        raise BlogPostValidationError(f"{source_path}: author_type must be Person or Organization.")
 
     return BlogPost(
         slug=slug,
@@ -218,6 +222,7 @@ def load_blog_post(source_path: Path, content_dir: Path | None = None) -> BlogPo
         published_at=published_at,
         updated_at=updated_at,
         author=_coerce_string(metadata.get("author")) or BLOG_DEFAULT_AUTHOR,
+        author_type=author_type,
         seo_title=_coerce_string(metadata.get("seo_title")),
         meta_description=_coerce_string(metadata.get("meta_description")),
         keywords=_coerce_list(metadata.get("keywords")),
@@ -287,7 +292,7 @@ def blog_post_schema(post: BlogPost) -> dict:
         "url": post.canonical_url,
         "datePublished": post.published_at.isoformat(),
         "dateModified": post.updated_at.isoformat(),
-        "author": {"@type": "Person", "name": post.author},
+        "author": {"@type": post.author_type, "name": post.author},
         "publisher": {
             "@type": "Organization",
             "name": BLOG_PUBLISHER_NAME,
@@ -302,6 +307,47 @@ def blog_post_schema(post: BlogPost) -> dict:
     if post.categories:
         schema["articleSection"] = list(post.categories)
     return schema
+
+
+def repository_shortlist_schema(post: BlogPost) -> dict:
+    return {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "HowTo",
+                "name": post.title,
+                "description": post.description,
+                "url": post.canonical_url,
+                "step": [
+                    {"@type": "HowToStep", "position": position, "name": name}
+                    for position, name in enumerate(
+                        (
+                            "Define the job",
+                            "Build a shortlist",
+                            "Read the signals",
+                            "Check upstream evidence",
+                            "Test the smallest real use case",
+                        ),
+                        start=1,
+                    )
+                ],
+            },
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": position, "name": name, "item": url}
+                    for position, (name, url) in enumerate(
+                        (
+                            ("Home", build_absolute_public_url(reverse("landing"))),
+                            ("Blog", blog_index_url()),
+                            (post.title, post.canonical_url),
+                        ),
+                        start=1,
+                    )
+                ],
+            },
+        ],
+    }
 
 
 def blog_index_schema(posts: list[BlogPost]) -> dict:

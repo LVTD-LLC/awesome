@@ -40,6 +40,14 @@
             {% endif %}
         </div>
     </header>
+    <aside class="mx-auto mb-12 max-w-3xl rounded-2xl border border-gray-200 p-6 dark:border-gray-800">
+        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Choosing a project for real work?</h2>
+        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+            Turn catalog discoveries into a shortlist, then check fit, maintenance, and licensing upstream.
+            <a href="{% url 'blog:post_detail' slug='how-to-shortlist-github-repositories' %}"
+               class="font-semibold text-green-700 hover:underline dark:text-green-300">How to shortlist GitHub repositories →</a>
+        </p>
+    </aside>
     {% if newsletter_enabled %}
         <section id="newsletter"
                  aria-labelledby="newsletter-heading"

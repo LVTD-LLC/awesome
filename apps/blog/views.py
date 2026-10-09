@@ -13,6 +13,7 @@ from apps.blog.services import (
     get_blog_post,
     json_ld,
     list_blog_posts,
+    repository_shortlist_schema,
 )
 
 
@@ -45,5 +46,10 @@ def post_detail(request, slug):
             "post": post,
             "canonical_url": post.canonical_url,
             "schema_json": json_ld(blog_post_schema(post)),
+            "supplementary_schema_json": (
+                json_ld(repository_shortlist_schema(post))
+                if post.slug == "how-to-shortlist-github-repositories"
+                else None
+            ),
         },
     )

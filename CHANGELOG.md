@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-10
+
+- Publish a practical GitHub repository-shortlisting guide with checked filter explanations, an evidence worksheet, and catalog discovery links.
+- Add organization-author metadata and structured steps for the guide while retaining the existing Markdown safety boundary.
+
 ## 2026-10-08
 
 - Keep missing-page responses independent of database-backed layout context so unknown URLs return 404 and slashless catalog URLs redirect correctly; omit trackers and schema on error pages.

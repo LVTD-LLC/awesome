@@ -18,6 +18,7 @@ Optional frontmatter:
 ```yaml
 updated_at: 2026-07-04
 author: Rasul Kireev
+author_type: Person
 seo_title: Best Django Repositories - Awesome
 meta_description: Find maintained Django repositories from awesome lists.
 keywords:
@@ -35,3 +36,6 @@ robots: index, follow
 
 Use lowercase filename slugs such as `best-django-repositories.md`. There is no
 draft status or database sync path; keep unfinished posts outside this folder.
+
+`author_type` defaults to `Person`; use `Organization` for an editorial-team
+byline. These are the only accepted values.
