@@ -46,6 +46,9 @@
             <h1 class="mt-4 text-4xl font-bold text-gray-950 dark:text-white">{{ post.title }}</h1>
             <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">{{ post.description }}</p>
         </header>
+        {% if post.slug == "how-to-shortlist-github-repositories" %}
+            {% include "blog/includes/shortlist_process.html" %}
+        {% endif %}
         <div class="prose prose-gray mt-8 max-w-none dark:prose-invert">{{ post.html|safe }}</div>
         {% if post.tags %}
             <footer class="mt-10 flex flex-wrap gap-2 border-t border-gray-200 pt-6 dark:border-gray-800">
@@ -57,7 +60,8 @@
     </article>
 {% endblock content %}
 {% block schema %}
-    <script type="application/ld+json">
-        {{ schema_json|safe }}
-    </script>
+    <script type="application/ld+json">{{ schema_json|safe }}</script>
+    {% if supplementary_schema_json %}
+        <script type="application/ld+json">{{ supplementary_schema_json|safe }}</script>
+    {% endif %}
 {% endblock schema %}

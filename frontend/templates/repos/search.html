@@ -92,6 +92,11 @@
                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
                         Start broad, then narrow by ecosystem, freshness, health, and growth.
                     </p>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Unsure which signals matter?
+                        <a href="{% url 'blog:post_detail' slug='how-to-shortlist-github-repositories' %}"
+                           class="font-semibold text-green-700 hover:underline dark:text-green-300">Read the repository shortlisting guide.</a>
+                    </p>
                 </div>
                 {% if active_repository_filter_count %}
                     <a href="{{ search_reset_url }}"
