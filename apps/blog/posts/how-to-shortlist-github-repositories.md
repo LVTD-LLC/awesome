@@ -11,6 +11,8 @@ published_at: 2026-10-10T01:20:00+03:00
 updated_at: 2026-10-10T01:20:00+03:00
 author: Browse Awesome Team
 author_type: Organization
+image: /static/brand/awesome-repos-social.png
+image_alt: Browse Awesome repository discovery
 categories:
   - Repository discovery
 tags:
