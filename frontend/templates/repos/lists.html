@@ -12,7 +12,9 @@
                 <p class="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Awesome Lists</p>
                 <h1 class="mt-2 text-4xl font-bold tracking-tight text-gray-950 dark:text-white">Find the right awesome list</h1>
                 <p class="mt-3 max-w-3xl text-gray-600 dark:text-gray-300">
-                    Compare list activity, audience size, and README coverage before deciding where a project might fit.
+                    Find curated awesome lists for the software you want to build or use. Start with a task below,
+                    or search by name, owner, description, or topic. Open a list to filter its indexed repositories,
+                    then check a candidate's documentation and license on GitHub before choosing it.
                 </p>
             </div>
             <div class="flex flex-col gap-3 sm:flex-row">
@@ -169,6 +171,9 @@
                 </div>
             </div>
         </form>
+        {% if list_starting_points %}
+            {% include "repos/_list_starting_points.html" %}
+        {% endif %}
         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <div class="text-sm font-semibold text-gray-950 dark:text-white">

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-11
+
+- Add task-based starting points to the awesome-list directory, with current catalog links, signal explanations, and a repository-shortlisting guide link; keep filtered and paginated results focused.
+
 ## 2026-10-10
 
 - Add a relevant Djass background-task comparison to the repository-shortlisting guide’s Django example.

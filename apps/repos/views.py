@@ -25,6 +25,7 @@ from apps.repos.cache import (
     PUBLIC_REPOSITORY_FILTER_OPTIONS_CACHE_KEY,
     PUBLIC_REPOSITORY_FILTER_OPTIONS_CACHE_TIMEOUT_SECONDS,
 )
+from apps.repos.discovery import awesome_list_starting_points
 from apps.repos.forms import AwesomeListRequestForm, NewsletterSubscriptionForm
 from apps.repos.models import (
     AwesomeList,
@@ -1039,6 +1040,11 @@ class AwesomeListListView(ListView):
         context["active_list_filters"] = active_filters
         context["active_list_filter_count"] = len(active_filters)
         context["selected_list_sort_label"] = selected_sort_label
+        context["list_starting_points"] = (
+            awesome_list_starting_points()
+            if not active_filters and context["page_obj"].number == 1
+            else []
+        )
         context["total_lists"] = totals["total_lists"]
         context["total_indexed_links"] = totals["total_indexed_links"]
         context["total_readme_repositories"] = totals["total_readme_repositories"]
