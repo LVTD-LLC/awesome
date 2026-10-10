@@ -38,6 +38,8 @@ Write one sentence describing what the project must do. Add the constraints that
 
 For a worked example, suppose you need a Django-compatible background-task library for an existing application. That is an illustrative requirement, not a recommendation for a particular library. Write down your Django and Python versions, whether adding a separate broker is acceptable, and what should happen when a task fails. Those details give you something concrete to check later.
 
+For a concrete comparison, [Djass’s background-task guide](https://djass.dev/blog/django-background-tasks) shows how workload, broker requirements, and failure behavior shape the choice of queue.
+
 Finish this step with a short requirement statement and a rejection rule. For example: “Reject candidates whose documentation does not establish support for our runtime, unless we can resolve that uncertainty before the trial.” A catalog search cannot settle that requirement for you.
 
 ## 2. Build a shortlist

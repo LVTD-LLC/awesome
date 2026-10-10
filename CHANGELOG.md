@@ -2,6 +2,8 @@
 
 ## 2026-10-10
 
+- Add a relevant Djass background-task comparison to the repository-shortlisting guide’s Django example.
+
 - Publish a practical GitHub repository-shortlisting guide with checked filter explanations, an evidence worksheet, and catalog discovery links.
 - Add organization-author metadata and structured steps for the guide while retaining the existing Markdown safety boundary.
 
