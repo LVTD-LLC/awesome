@@ -46,11 +46,11 @@ def test_side_ad_rails_use_current_products_and_assets():
 
     assert "cleanapp.dev" not in right_rail
     assert "osig.app" not in right_rail
-    assert right_rail.count("Your company could be here") == 3
-    assert right_rail.count("data-ad-empty-slot=") == 3
+    assert right_rail.count("Your company could be here") == 1
+    assert right_rail.count("data-ad-empty-slot=") == 1
 
 
-def test_side_ad_rail_keeps_paid_sponsor_beside_two_open_slots():
+def test_side_ad_rail_keeps_paid_sponsor_beside_product_ads():
     right_rail = render_to_string(
         "components/side_ad_rail.html",
         {
@@ -65,5 +65,32 @@ def test_side_ad_rail_keeps_paid_sponsor_beside_two_open_slots():
     )
 
     assert "Paid sponsor" in right_rail
-    assert right_rail.count("Your company could be here") == 2
-    assert right_rail.count("data-ad-empty-slot=") == 2
+    assert right_rail.count("Your company could be here") == 0
+    assert right_rail.count("data-ad-empty-slot=") == 0
+
+
+@pytest.mark.parametrize("external_assets", [False, True])
+def test_updated_ad_products_and_destinations(external_assets):
+    content = "".join(
+        render_to_string(
+            "components/side_ad_rail.html",
+            {"side": side, "external_marketing_assets_enabled": external_assets},
+        )
+        for side in ("left", "right")
+    )
+    for name, domain in (
+        ("ShipRust", "shiprust.com"),
+        ("TastefulKit", "tastefulkit.com"),
+        ("nitpick", "nitpick.sh"),
+        ("PGSandbox", "pgsandbox-mcp.lvtd.dev"),
+        ("CiteGuild", "citeguild.com"),
+        ("Staleaway", "staleaway.com"),
+    ):
+        assert name in content
+        assert f"https://{domain}/?ref=awesome_repos" in content
+        assert f"utm_content={name.lower()}" in content
+    for removed in ("askhndigests.com", "gettjalerts.com", "gettalentleads.com"):
+        assert removed not in content
+    slots = re.findall(r'data-ad-slot="([^"]+)"', content)
+    assert len(slots) == len(set(slots)) == 11
+    assert 'data-ad-empty-slot="global-right-5"' in content
