@@ -2,6 +2,8 @@
 
 ## 2026-10-11
 
+- Refresh side-rail ads with ShipRust, TastefulKit, nitpick, PGSandbox, CiteGuild, and Staleaway; remove Ask HN Digest, Tech Job Alerts, and TalentLeads while retaining the paid sponsor placement.
+
 - Add task-based starting points to the awesome-list directory, with current catalog links, signal explanations, and a repository-shortlisting guide link; keep filtered and paginated results focused.
 
 ## 2026-10-10
