@@ -1356,5 +1356,10 @@ class AwesomeListDetailView(DetailView):
         )
         context["awesome_list_history_chart_data"] = awesome_list_history_chart_data(self.object)
         context["page_obj"] = Paginator(repos, 50).get_page(self.request.GET.get("page"))
+        context["show_bookmark_discovery"] = (
+            self.object.repo_full_name == "awesome-selfhosted/awesome-selfhosted"
+            and not repository_filters_applied(self.request.GET, include_sort=True)
+            and self.request.GET.get("page", "1") in ("", "1")
+        )
         context["hide_side_ad_rails"] = True
         return context
