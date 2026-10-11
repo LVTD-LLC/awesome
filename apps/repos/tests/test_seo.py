@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.repos.models import (
     AwesomeList,
+    AwesomeListItem,
     NewsletterCadence,
     Repository,
     RepositoryNewsletterIssue,
@@ -96,6 +97,83 @@ def test_awesome_list_detail_has_page_specific_metadata_and_schema(client):
     assert '<link rel="canonical" href="https://testserver/lists/awesome-django/" />' in content
     assert '"@type": "CollectionPage"' in content
     assert '"url": "https://testserver/lists/awesome-django/"' in content
+
+
+def test_selfhosted_bookmark_discovery_uses_current_list_route_and_scoped_search(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Selfhosted",
+        slug="selfhosted-current-slug",
+        source_url="https://github.com/awesome-selfhosted/awesome-selfhosted",
+        repo_full_name="awesome-selfhosted/awesome-selfhosted",
+    )
+    for name, description, in_list in (
+        ("bookmarks", "A bookmark manager", True),
+        ("calendar", "A calendar server", True),
+        ("other-bookmarks", "A bookmark manager outside this list", False),
+    ):
+        repository = Repository.objects.create(
+            full_name=f"example/{name}",
+            owner="example",
+            name=name,
+            url=f"https://github.com/example/{name}",
+            description=description,
+        )
+        if in_list:
+            AwesomeListItem.objects.create(awesome_list=awesome_list, repository=repository)
+
+    list_path = awesome_list.get_absolute_url()
+    response = client.get(list_path)
+
+    assert response.status_code == 200
+    content = response_text(response)
+    assert "Looking for a bookmark manager?" in content
+    assert f'href="{list_path}?q=bookmark"' in content
+    assert 'href="/blog/how-to-shortlist-github-repositories/"' in content
+
+    search_response = client.get(list_path, {"q": "bookmark"})
+
+    assert search_response.status_code == 200
+    assert [repo.full_name for repo in search_response.context["page_obj"]] == ["example/bookmarks"]
+    assert "Looking for a bookmark manager?" not in response_text(search_response)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"language": "Python"},
+        {"topic": "bookmarks"},
+        {"mode": "semantic"},
+        {"sort": "recent"},
+        {"page": "2"},
+        {"page": "last"},
+    ],
+)
+def test_selfhosted_bookmark_discovery_does_not_interrupt_refined_browsing(client, params):
+    awesome_list = AwesomeList.objects.create(
+        name="Awesome Selfhosted",
+        slug="awesome-selfhosted",
+        source_url="https://github.com/awesome-selfhosted/awesome-selfhosted",
+        repo_full_name="awesome-selfhosted/awesome-selfhosted",
+    )
+
+    response = client.get(awesome_list.get_absolute_url(), params)
+
+    assert response.status_code == 200
+    assert "Looking for a bookmark manager?" not in response_text(response)
+
+
+def test_bookmark_discovery_matches_list_source_not_reused_slug(client):
+    awesome_list = AwesomeList.objects.create(
+        name="Another list",
+        slug="awesome-selfhosted",
+        source_url="https://github.com/example/another-list",
+        repo_full_name="example/another-list",
+    )
+
+    response = client.get(awesome_list.get_absolute_url())
+
+    assert response.status_code == 200
+    assert "Looking for a bookmark manager?" not in response_text(response)
 
 
 @override_settings(SITE_URL="https://testserver")

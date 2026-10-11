@@ -297,6 +297,44 @@ def test_local_catalog_edits_advance_lastmod_without_upstream_commit():
     assert AwesomeListSitemap().lastmod(item) == edited
 
 
+@pytest.mark.parametrize(
+    ("repo_full_name", "metadata_time", "expected_lastmod"),
+    [
+        (
+            "awesome-selfhosted/awesome-selfhosted",
+            "2026-10-10T09:00:00+00:00",
+            "2026-10-11T22:15:00+00:00",
+        ),
+        (
+            "example/another-list",
+            "2026-10-10T09:00:00+00:00",
+            "2026-10-10T09:00:00+00:00",
+        ),
+        (
+            "awesome-selfhosted/awesome-selfhosted",
+            "2026-10-12T09:00:00+00:00",
+            "2026-10-12T09:00:00+00:00",
+        ),
+    ],
+)
+def test_list_page_content_lastmod_is_scoped_and_preserves_newer_metadata(
+    repo_full_name, metadata_time, expected_lastmod
+):
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    from awesome_repos.sitemaps import AwesomeListSitemap
+
+    item = SimpleNamespace(
+        repo_full_name=repo_full_name,
+        github_pushed_at=None,
+        last_scanned_at=None,
+        updated_at=datetime.fromisoformat(metadata_time),
+    )
+
+    assert AwesomeListSitemap().lastmod(item) == datetime.fromisoformat(expected_lastmod)
+
+
 def test_partial_batch_failure_preserves_checkpoint(monkeypatch, tmp_path):
     state = tmp_path / "state.json"
     state.write_text("{}")

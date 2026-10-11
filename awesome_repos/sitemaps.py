@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 
@@ -9,6 +10,12 @@ from django.urls import reverse
 
 from apps.blog.services import list_blog_posts
 from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
+
+# Source-controlled list-page content changes are independent of catalog refreshes.
+# Keep these as actual edit timestamps, never the current build or request time.
+AWESOME_LIST_CONTENT_UPDATED_AT = {
+    "awesome-selfhosted/awesome-selfhosted": datetime(2026, 10, 11, 22, 15, tzinfo=UTC),
+}
 
 
 class ConfiguredDomainSitemap(sitemaps.Sitemap):
@@ -129,6 +136,7 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
             .only(
                 "id",
                 "slug",
+                "repo_full_name",
                 "last_scanned_at",
                 "github_pushed_at",
                 "updated_at",
@@ -139,7 +147,12 @@ class AwesomeListSitemap(ConfiguredDomainSitemap):
     def lastmod(self, item):
         return max(
             value
-            for value in (item.github_pushed_at, item.last_scanned_at, item.updated_at)
+            for value in (
+                item.github_pushed_at,
+                item.last_scanned_at,
+                item.updated_at,
+                AWESOME_LIST_CONTENT_UPDATED_AT.get(getattr(item, "repo_full_name", "")),
+            )
             if value
         )
 

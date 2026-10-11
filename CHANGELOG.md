@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-12
+
+- Add a bookmark-project discovery shortcut and repository evaluation guide to the self-hosted list; keep filtered and paginated views focused.
+
 ## 2026-10-11
 
 - Refresh side-rail ads with ShipRust, TastefulKit, nitpick, PGSandbox, CiteGuild, and Staleaway; remove Ask HN Digest, Tech Job Alerts, and TalentLeads while retaining the paid sponsor placement.
