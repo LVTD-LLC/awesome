@@ -14,6 +14,27 @@
     } catch { return ""; }
   };
   let lastUrl = null;
+  // Only fixed, first-party task labels: never link text, search input, or a URL.
+  const discoveryActions = new Map([
+    ["awesome-selfhosted/awesome-selfhosted", "directory_self_hosted"],
+    ["vinta/awesome-python", "directory_python"],
+    ["agarrharr/awesome-cli-apps", "directory_cli"],
+    ["public-apis/public-apis", "directory_apis"],
+    ["directory_checklist", "directory_checklist"],
+    ["selfhosted_bookmarks", "selfhosted_bookmarks"],
+    ["selfhosted_checklist", "selfhosted_checklist"],
+  ]);
+  const catalogFilters = new Set([
+    "mode", "list", "language", "topic", "generated_tag", "framework", "stack",
+    "package_manager", "has_file", "min_stars", "updated_days", "unmaintained_days",
+    "min_age_years", "min_velocity_percent", "min_star_growth_percent",
+    "min_liability_percent", "archived", "ai_development", "sort_direction", "sort", "page",
+  ]);
+  const catalogSorts = new Set([
+    "stars", "forks", "recent", "created", "oldest", "commits", "velocity",
+    "commits_growth_7d", "star_growth", "stars_growth_7d", "liability", "awesome",
+    "least_awesome", "name", "repos", "indexed", "scanned",
+  ]);
   ph.init(config.posthogKey, {
     api_host: config.posthogHost,
     defaults: "2025-05-24",
@@ -64,12 +85,13 @@
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     if (path === "/repos/" || path === "/lists/") {
+      const page = Number(params.get("page"));
       ph.capture("catalog_browsed", {
         catalog: path === "/repos/" ? "repositories" : "lists",
         has_query: Boolean(params.get("q")),
-        filter_names: [...params.keys()].filter((key) => key !== "q").sort(),
-        sort: params.get("sort") || "default",
-        page: Number(params.get("page")) || 1,
+        filter_names: [...new Set(params.keys())].filter((key) => catalogFilters.has(key)).sort(),
+        sort: catalogSorts.has(params.get("sort")) ? params.get("sort") : "default",
+        page: Number.isSafeInteger(page) && page > 0 ? page : 1,
       });
     } else if (/^\/repos\/[^/]+\/[^/]+\/$/.test(path)) {
       ph.capture("repository_viewed", { repository: path.split("/").slice(2, 4).join("/") });
@@ -86,6 +108,10 @@
     const link = event.target.closest("a[href]");
     if (!link) return;
     const url = new URL(link.href, window.location.origin);
+    const action = discoveryActions.get(link.dataset?.discoveryAction);
+    if (action && url.origin === window.location.origin) {
+      ph.capture("discovery_action_clicked", { action });
+    }
     if (url.hostname === "github.com") {
       ph.capture("github_link_clicked", { destination: safeUrl(url.href) });
     } else if (url.origin !== window.location.origin && /^https?:$/.test(url.protocol)) {

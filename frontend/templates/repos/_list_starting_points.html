@@ -7,6 +7,7 @@
     <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {% for entry in list_starting_points %}
             <a href="{{ entry.awesome_list.get_absolute_url }}"
+               data-discovery-action="{{ entry.awesome_list.repo_full_name }}"
                class="rounded-xl border border-gray-200 bg-white p-4 transition hover:border-green-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:focus-visible:ring-offset-gray-950">
                 <h3 class="font-bold text-gray-950 dark:text-white">{{ entry.title }}</h3>
                 <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{{ entry.description }}</p>
@@ -46,6 +47,7 @@
                     Open a list to narrow its repositories by language or freshness, then verify fit upstream.
                     Use the
                     <a href="{% url 'blog:post_detail' slug='how-to-shortlist-github-repositories' %}"
+                       data-discovery-action="directory_checklist"
                        class="font-semibold text-green-700 underline underline-offset-4 dark:text-green-400">repository shortlisting guide</a>
                     for a candidate worksheet and the limits of each signal.
                 </dd>

@@ -127,6 +127,8 @@ def test_selfhosted_bookmark_discovery_uses_current_list_route_and_scoped_search
     assert response.status_code == 200
     content = response_text(response)
     assert "Looking for a bookmark manager?" in content
+    assert 'data-discovery-action="selfhosted_bookmarks"' in content
+    assert 'data-discovery-action="selfhosted_checklist"' in content
     assert f'href="{list_path}?q=bookmark"' in content
     assert 'href="/blog/how-to-shortlist-github-repositories/"' in content
 

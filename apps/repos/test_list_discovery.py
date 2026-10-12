@@ -57,6 +57,8 @@ def test_directory_starting_points_do_not_displace_search_results(client):
     assert response.status_code == 200
     assert b"Start with what you want to do" in response.content
     assert b'href="/lists/python-tools/"' in response.content
+    assert b'data-discovery-action="vinta/awesome-python"' in response.content
+    assert b'data-discovery-action="directory_checklist"' in response.content
     assert b'href="/blog/how-to-shortlist-github-repositories/"' in response.content
     assert response.content.index(b"Search lists") < response.content.index(b"Start with what")
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-13
+
+- Measure list-discovery shortcuts with fixed task labels, without search text or link labels; allowlist catalog telemetry parameters to keep arbitrary URL input out of those events.
+
 ## 2026-10-12
 
 - Add a bookmark-project discovery shortcut and repository evaluation guide to the self-hosted list; keep filtered and paginated views focused.
