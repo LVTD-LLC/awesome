@@ -21,7 +21,7 @@ development/tests. No personal API key is required by the application.
 
 - **Web analytics:** pageviews, visitors, referrers, entry pages, web vitals.
 - **Product analytics:** `catalog_browsed`, `repository_viewed`, `github_link_clicked`,
-  `outbound_link_clicked`, and existing server-side conversion events.
+  `discovery_action_clicked`, `outbound_link_clicked`, and existing server-side conversion events.
 - **Logs:** web/worker structured application and Django logs, INFO and above.
 - **Error tracking:** JavaScript errors, Django view exceptions, logged application
   exceptions, and uncaught Python exceptions. Existing Sentry remains configured.
@@ -35,7 +35,9 @@ development/tests. No personal API key is required by the application.
 
 No AI prompts/completions or embedding text/vectors are sent. Form text/attributes are
 masked; query strings are stripped from page/referrer URLs; sensitive account URLs are
-collapsed. Search telemetry includes only query presence, filter names, sort and page.
+collapsed. Search telemetry includes only query presence, allowlisted filter names and
+sort values, and a positive safe-integer page number. Unknown parameter names and raw
+filter values are not captured by `catalog_browsed`.
 Identified users use profile IDs, not email addresses. Session recording is disabled.
 Server traces use route names, not request bodies, query strings or credentials. Exported
 logs/events redact sensitive property keys, common key formats and email addresses.
@@ -45,6 +47,25 @@ keep credentials and personal data out of application log messages at their sour
 Logs/spans use bounded asynchronous SDK queues. HTTP traces currently capture all routes;
 review volume before enabling broader database or network instrumentation. Telemetry is
 not part of business transaction success and should never gate it.
+
+### Discovery shortcut measurement
+
+`discovery_action_clicked` records only a fixed `action` label: `directory_self_hosted`,
+`directory_python`, `directory_cli`, `directory_apis`, `directory_checklist`,
+`selfhosted_bookmarks`, or `selfhosted_checklist`. It uses the existing delegated click
+listener, including keyboard-activated links and content inserted by HTMX. It does not
+send the link label, destination URL, query text, or a new persistent identifier.
+Links work normally without analytics or JavaScript. Unknown labels and external
+destinations do not emit this task event.
+
+For outcome reads, restrict events to the production host and exclude
+`telemetry_test=true` plus known QA/bot traffic. Join by the existing session ID with
+ordered timestamps: task click, `repository_viewed`, then `github_link_clicked` whose
+destination matches that repository. This measures onward exploration, not adoption,
+successful installation, or revenue. Ordinary list visits cannot establish which
+shortcut was clicked; list-detail pageviews still omit raw search queries. Cross-tab
+activity within a session and small samples limit attribution. Do not infer causal
+uplift from this observational sequence or mix synthetic checks into its denominator.
 
 ## Verification and rollback
 
