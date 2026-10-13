@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-14
+
+- Publish a tested MCP awesome-list search guide with pagination, README limits, upstream verification, and homepage discovery links.
+
 ## 2026-10-13
 
 - Measure list-discovery shortcuts with fixed task labels, without search text or link labels; allowlist catalog telemetry parameters to keep arbitrary URL input out of those events.

@@ -49,6 +49,9 @@
         {% if post.slug == "how-to-shortlist-github-repositories" %}
             {% include "blog/includes/shortlist_process.html" %}
         {% endif %}
+        {% if post.slug == "search-awesome-lists-with-mcp" %}
+            {% include "blog/includes/mcp_discovery_process.html" %}
+        {% endif %}
         <div class="prose prose-gray mt-8 max-w-none dark:prose-invert">{{ post.html|safe }}</div>
         {% if post.tags %}
             <footer class="mt-10 flex flex-wrap gap-2 border-t border-gray-200 pt-6 dark:border-gray-800">

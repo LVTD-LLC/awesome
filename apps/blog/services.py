@@ -350,6 +350,59 @@ def repository_shortlist_schema(post: BlogPost) -> dict:
     }
 
 
+def mcp_discovery_schema(post: BlogPost) -> dict:
+    schema = repository_shortlist_schema(post)
+    schema["@graph"][0]["step"] = [
+        {"@type": "HowToStep", "position": position, "name": name}
+        for position, name in enumerate(
+            (
+                "Connect to the public catalog",
+                "Find the list before searching its projects",
+                "Search a bounded set, not an imaginary complete list",
+                "Inspect the repository without hiding missing context",
+                "Turn the response into a checkable decision",
+            ),
+            start=1,
+        )
+    ]
+    schema["@graph"].append(
+        {
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": question,
+                    "acceptedAnswer": {"@type": "Answer", "text": answer},
+                }
+                for question, answer in (
+                    (
+                        "Why not ask the agent to search GitHub directly?",
+                        "Do that when you need a repository outside this index or current source, "
+                        "issues, and release information. Browse Awesome is useful when "
+                        "curated-list membership and consistent catalog filters help narrow "
+                        "the search. The two approaches can complement each other.",
+                    ),
+                    (
+                        "Does a successful tool call mean the search is complete?",
+                        "No. Check the returned pagination and state how many pages you examined. "
+                        "Scope, query terms, and filters also exclude possibilities. Stop when you "
+                        "have enough evidence for the next decision, not when you can claim "
+                        "to have reviewed every project.",
+                    ),
+                    (
+                        "What should I do if the tools are unavailable?",
+                        "Check the endpoint and your client's remote Streamable HTTP support. "
+                        "Do not silently replace a failed lookup with invented tool results. "
+                        "You can continue the same task in the public catalog, then reconnect "
+                        "the agent when the client issue is resolved.",
+                    ),
+                )
+            ],
+        }
+    )
+    return schema
+
+
 def blog_index_schema(posts: list[BlogPost]) -> dict:
     return {
         "@context": "https://schema.org",
