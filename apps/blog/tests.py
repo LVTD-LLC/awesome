@@ -405,3 +405,50 @@ def test_published_repository_shortlist_guide_has_discovery_links(client, page_n
 
     assert response.status_code == 200
     assert 'href="/blog/how-to-shortlist-github-repositories/"' in response_text(response)
+
+
+@override_settings(SITE_URL="https://browseawesome.com")
+def test_published_mcp_search_guide_renders_body_and_metadata(client):
+    path = reverse("blog:post_detail", kwargs={"slug": "search-awesome-lists-with-mcp"})
+    response = client.get(path)
+
+    assert response.status_code == 200
+    content = response_text(response)
+    canonical_url = "https://browseawesome.com" + path
+    assert f'<link rel="canonical" href="{canonical_url}"' in content
+    assert f'<meta property="og:url" content="{canonical_url}"' in content
+    assert '<meta name="robots" content="index, follow"' in content
+    assert "Search awesome lists with MCP</h1>" in content
+    assert "https://browseawesome.com/mcp" in content
+    assert "search_awesome_list_repositories" in content
+    assert '<a href="/lists/' in content
+    assert '<a href="/repos/' in content
+    schemas = [
+        json.loads(value)
+        for value in re.findall(
+            r'<script type="application/ld\+json">(.*?)</script>', content, re.DOTALL
+        )
+    ]
+    article = next(value for value in schemas if value.get("@type") == "BlogPosting")
+    assert article["author"] == {"@type": "Organization", "name": "Browse Awesome Team"}
+    assert article["mainEntityOfPage"]["@id"] == canonical_url
+    assert "search_awesome_list_repositories" in article["articleBody"]
+
+
+@override_settings(SITE_URL="https://browseawesome.com")
+def test_published_mcp_search_guide_is_in_blog_sitemap(client):
+    response = client.get(reverse("sitemap_section", kwargs={"section": "blog_posts"}))
+
+    assert response.status_code == 200
+    assert (
+        "<loc>https://browseawesome.com/blog/search-awesome-lists-with-mcp/</loc>"
+        in response_text(response)
+    )
+
+
+@pytest.mark.parametrize("page_name", ["landing", "blog:post_list"])
+def test_published_mcp_search_guide_has_discovery_links(client, page_name):
+    response = client.get(reverse(page_name))
+
+    assert response.status_code == 200
+    assert 'href="/blog/search-awesome-lists-with-mcp/"' in response_text(response)

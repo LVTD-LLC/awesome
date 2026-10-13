@@ -13,6 +13,7 @@ from apps.blog.services import (
     get_blog_post,
     json_ld,
     list_blog_posts,
+    mcp_discovery_schema,
     repository_shortlist_schema,
 )
 
@@ -49,6 +50,8 @@ def post_detail(request, slug):
             "supplementary_schema_json": (
                 json_ld(repository_shortlist_schema(post))
                 if post.slug == "how-to-shortlist-github-repositories"
+                else json_ld(mcp_discovery_schema(post))
+                if post.slug == "search-awesome-lists-with-mcp"
                 else None
             ),
         },
