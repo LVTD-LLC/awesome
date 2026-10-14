@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from html import unescape
 from xml.etree import ElementTree
 
@@ -79,7 +80,7 @@ def test_archive_guide_is_discoverable_in_blog_and_sitemap(client):
         item.find("s:loc", ns).text: item.find("s:lastmod", ns).text
         for item in root.findall("s:url", ns)
     }
-    assert entries[post.canonical_url] == post.updated_at.date().isoformat()
+    assert datetime.fromisoformat(entries[post.canonical_url]) == post.updated_at
 
 
 def test_archive_guide_diagram_has_accessible_name_description_and_caption():
