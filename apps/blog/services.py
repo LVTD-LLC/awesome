@@ -403,6 +403,56 @@ def mcp_discovery_schema(post: BlogPost) -> dict:
     return schema
 
 
+def archive_testing_schema(post: BlogPost) -> dict:
+    schema = repository_shortlist_schema(post)
+    schema["@graph"][0]["step"] = [
+        {"@type": "HowToStep", "position": position, "name": name}
+        for position, name in enumerate(
+            (
+                "Choose what must survive",
+                "Save the page and record the capture",
+                "Reopen without the original site",
+                "Check recovery separately",
+            ),
+            start=1,
+        )
+    ]
+    schema["@graph"].append(
+        {
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": question,
+                    "acceptedAnswer": {"@type": "Answer", "text": answer},
+                }
+                for question, answer in (
+                    (
+                        "Does saving a bookmark save the page?",
+                        "Not necessarily. A bookmark can store only the original URL. Check "
+                        "whether your chosen tool also captures the page content, and test "
+                        "the saved result without access to the original site.",
+                    ),
+                    (
+                        "Does an offline copy prove that my backups work?",
+                        "No. Opening a saved page tests that capture. Backup recovery is a "
+                        "separate test: restore a copy into a clean location or instance, "
+                        "then check that you can find and open it.",
+                    ),
+                    (
+                        "Should every part of a saved page work offline?",
+                        "Only if that is part of your requirement. Text, images, downloadable "
+                        "files, links, and interactive features have different dependencies. "
+                        "Record what must survive before testing, and report missing behavior "
+                        "instead of assuming it was captured.",
+                    ),
+                )
+            ],
+        }
+    )
+    return schema
+
+
 def blog_index_schema(posts: list[BlogPost]) -> dict:
     return {
         "@context": "https://schema.org",

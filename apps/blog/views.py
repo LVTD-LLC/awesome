@@ -6,6 +6,7 @@ from apps.blog.services import (
     BLOG_TITLE,
     BlogPostNotFound,
     BlogPostValidationError,
+    archive_testing_schema,
     blog_index_schema,
     blog_index_url,
     blog_post_schema,
@@ -52,6 +53,8 @@ def post_detail(request, slug):
                 if post.slug == "how-to-shortlist-github-repositories"
                 else json_ld(mcp_discovery_schema(post))
                 if post.slug == "search-awesome-lists-with-mcp"
+                else json_ld(archive_testing_schema(post))
+                if post.slug == "test-saved-webpages-offline"
                 else None
             ),
         },

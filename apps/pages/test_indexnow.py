@@ -303,7 +303,7 @@ def test_local_catalog_edits_advance_lastmod_without_upstream_commit():
         (
             "awesome-selfhosted/awesome-selfhosted",
             "2026-10-10T09:00:00+00:00",
-            "2026-10-11T22:15:00+00:00",
+            "2026-10-14T22:18:00+00:00",
         ),
         (
             "example/another-list",
@@ -312,8 +312,8 @@ def test_local_catalog_edits_advance_lastmod_without_upstream_commit():
         ),
         (
             "awesome-selfhosted/awesome-selfhosted",
-            "2026-10-12T09:00:00+00:00",
-            "2026-10-12T09:00:00+00:00",
+            "2026-10-16T09:00:00+00:00",
+            "2026-10-16T09:00:00+00:00",
         ),
     ],
 )

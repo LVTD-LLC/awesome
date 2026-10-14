@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description"
+              content="Synthetic saved-page fixture for checking offline capture boundaries. No personal data or tracking.">
+        <meta name="robots" content="noindex, follow">
+        <title>Archive test — separate linked document</title>
+    </head>
+    <body>
+        <!-- Static fixture, not a Django template: relative paths are the test boundary. -->
+        <!-- djlint:off D018 -->
+        <h1>This is a separate document</h1>
+        <p>Opening this live URL is not evidence that your saved snapshot included it. Fixture version 1.</p>
+        <p>
+            <a href="page.html">Back to the archive test page</a>
+        </p>
+        <!-- djlint:on -->
+    </body>
+</html>

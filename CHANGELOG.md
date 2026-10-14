@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-15
+
+- Add a tested offline saved-page guide and reusable archive fixture, linked from self-hosted discovery; distinguish capture checks from application backup recovery.
+
 ## 2026-10-14
 
 - Stop sending exceptions to PostHog error tracking from the browser, Django views, logs, and background jobs; Sentry remains the error tracker.

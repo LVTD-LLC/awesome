@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="180" viewBox="0 0 480 180" role="img" aria-labelledby="archive-fixture-title">
+<title id="archive-fixture-title">Green circle and blue square, labelled Saved together</title>
+<rect width="480" height="180" rx="12" fill="#ffffff"/>
+<circle cx="140" cy="64" r="36" fill="#15803d"/>
+<rect x="280" y="28" width="72" height="72" fill="#2563eb"/>
+<text x="240" y="150" text-anchor="middle" font-family="system-ui,sans-serif" font-size="24" fill="#0f172a">Saved together</text>
+</svg>

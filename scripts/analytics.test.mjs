@@ -71,6 +71,7 @@ test("task shortcuts emit fixed labels without link text, URLs or query input", 
     directory_checklist: "directory_checklist",
     selfhosted_bookmarks: "selfhosted_bookmarks",
     selfhosted_checklist: "selfhosted_checklist",
+    selfhosted_offline_test: "selfhosted_offline_test",
   };
   for (const [input, output] of Object.entries(actions)) {
     const link = {
@@ -83,7 +84,7 @@ test("task shortcuts emit fixed labels without link text, URLs or query input", 
     assert.equal(captured.event, "discovery_action_clicked");
     assert.deepEqual(JSON.parse(JSON.stringify(captured.properties)), { action: output });
   }
-  assert.equal(events.filter((e) => e.event === "discovery_action_clicked").length, 7);
+  assert.equal(events.filter((e) => e.event === "discovery_action_clicked").length, 8);
   assert.ok(!JSON.stringify(events).includes("secret@example.com"));
   assert.ok(!JSON.stringify(events).includes("private link label"));
 });
