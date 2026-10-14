@@ -13,7 +13,7 @@ Set these on both the web and worker CapRover apps:
 - `POSTHOG_SERVICE_NAME=browseawesome-web` / `browseawesome-worker`
 
 The key enables existing queued domain events (signup, likes, newsletter subscriptions,
-checkout/fulfillment, API/MCP activity), browser pageviews/autocapture, and exceptions.
+checkout/fulfillment, API/MCP activity) and browser pageviews/autocapture.
 The three switches independently control new export pipelines. Leave the key empty in
 development/tests. No personal API key is required by the application.
 
@@ -23,8 +23,10 @@ development/tests. No personal API key is required by the application.
 - **Product analytics:** `catalog_browsed`, `repository_viewed`, `github_link_clicked`,
   `discovery_action_clicked`, `outbound_link_clicked`, and existing server-side conversion events.
 - **Logs:** web/worker structured application and Django logs, INFO and above.
-- **Error tracking:** JavaScript errors, Django view exceptions, logged application
-  exceptions, and uncaught Python exceptions. Existing Sentry remains configured.
+- **Error tracking:** not sent to PostHog. Sentry owns error tracking; the PostHog
+  browser and Python SDKs have exception capture turned off so 404s and other errors do not
+  bill as PostHog exceptions. Failed background jobs are still logged as
+  `background_job_failed` without task arguments or results.
 - **Tracing:** request route, method, status and duration; MCP tool spans; AI agent spans.
   This is scoped instrumentation, not complete database/network auto-instrumentation.
 - **AI observability:** PydanticAI generations (tagging, newsletters) and OpenRouter
@@ -76,8 +78,8 @@ agent call and confirm AI model, usage and latency. Mark synthetic verification 
 with `telemetry_test=true`; do not mistake those for real user engagement.
 
 `awesome_repos.telemetry.flush()` flushes queues for short-lived operator smoke commands.
-Never deliberately break a live user request just to test error tracking: capture a
-handled synthetic exception from an operator command instead.
+Never deliberately break a live user request just to test error tracking: send a
+handled synthetic exception to Sentry from an operator command instead.
 
 To disable export, restore the previous CapRover env snapshot or clear
 `POSTHOG_API_KEY` on both apps. To disable only logs/traces/AI, set the corresponding
