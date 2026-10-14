@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description"
+              content="Synthetic saved-page fixture for checking offline capture boundaries. No personal data or tracking.">
+        <meta name="robots" content="noindex, follow">
+        <title>Browse Awesome archive test page — version 1</title>
+        <style>body{font:18px/1.6 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:0 1rem;color:#0f172a;background:#f8fafc}img{display:block;max-width:100%;height:auto}a{color:#2563eb}</style>
+    </head>
+    <body>
+        <!-- Static fixture, not a Django template: relative paths are the test boundary. -->
+        <!-- djlint:off D018 -->
+        <h1>Archive test page</h1>
+        <p>Fixture version 1. This is synthetic content for a saved-page check, not a real article or benchmark.</p>
+        <h2>Text checkpoint</h2>
+        <p>The copper heron keeps a paper map.</p>
+        <p>Find and select that sentence in your saved copy. It should remain readable without access to this website.</p>
+        <h2>Image checkpoint</h2>
+        <p>
+            The image below is a separate SVG file: a green circle, a blue square, and the label “Saved together”. Its description alone does not count as a loaded image.
+        </p>
+        <img src="picture.svg"
+             width="480"
+             height="180"
+             alt="Green circle and blue square, labelled Saved together">
+        <h2>Link checkpoint</h2>
+        <p>
+            <a href="linked-page.html">Open the separate linked page</a>. This is intentionally another document. A single-page snapshot need not include it.
+        </p>
+        <p>
+            Open your saved artifact, not the original bookmark URL. Test in a fresh offline browser context to avoid mistaking cached resources for captured content.
+        </p>
+        <p>
+            <a href="https://browseawesome.com/blog/test-saved-webpages-offline/">Read the test instructions on Browse Awesome</a>.
+        </p>
+        <!-- djlint:on -->
+    </body>
+</html>

@@ -23,6 +23,7 @@
     ["directory_checklist", "directory_checklist"],
     ["selfhosted_bookmarks", "selfhosted_bookmarks"],
     ["selfhosted_checklist", "selfhosted_checklist"],
+    ["selfhosted_offline_test", "selfhosted_offline_test"],
   ]);
   const catalogFilters = new Set([
     "mode", "list", "language", "topic", "generated_tag", "framework", "stack",

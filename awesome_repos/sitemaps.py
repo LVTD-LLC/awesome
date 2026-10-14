@@ -14,7 +14,7 @@ from apps.repos.models import AwesomeList, Repository, RepositoryNewsletterIssue
 # Source-controlled list-page content changes are independent of catalog refreshes.
 # Keep these as actual edit timestamps, never the current build or request time.
 AWESOME_LIST_CONTENT_UPDATED_AT = {
-    "awesome-selfhosted/awesome-selfhosted": datetime(2026, 10, 11, 22, 15, tzinfo=UTC),
+    "awesome-selfhosted/awesome-selfhosted": datetime(2026, 10, 14, 22, 18, tzinfo=UTC),
 }
 
 

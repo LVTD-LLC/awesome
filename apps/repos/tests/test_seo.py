@@ -131,12 +131,15 @@ def test_selfhosted_bookmark_discovery_uses_current_list_route_and_scoped_search
     assert 'data-discovery-action="selfhosted_checklist"' in content
     assert f'href="{list_path}?q=bookmark"' in content
     assert 'href="/blog/how-to-shortlist-github-repositories/"' in content
+    assert 'href="/blog/test-saved-webpages-offline/"' in content
+    assert 'data-discovery-action="selfhosted_offline_test"' in content
 
     search_response = client.get(list_path, {"q": "bookmark"})
 
     assert search_response.status_code == 200
     assert [repo.full_name for repo in search_response.context["page_obj"]] == ["example/bookmarks"]
     assert "Looking for a bookmark manager?" not in response_text(search_response)
+    assert 'href="/blog/test-saved-webpages-offline/"' not in response_text(search_response)
 
 
 @pytest.mark.parametrize(
@@ -162,6 +165,7 @@ def test_selfhosted_bookmark_discovery_does_not_interrupt_refined_browsing(clien
 
     assert response.status_code == 200
     assert "Looking for a bookmark manager?" not in response_text(response)
+    assert 'href="/blog/test-saved-webpages-offline/"' not in response_text(response)
 
 
 def test_bookmark_discovery_matches_list_source_not_reused_slug(client):
@@ -176,6 +180,7 @@ def test_bookmark_discovery_matches_list_source_not_reused_slug(client):
 
     assert response.status_code == 200
     assert "Looking for a bookmark manager?" not in response_text(response)
+    assert 'href="/blog/test-saved-webpages-offline/"' not in response_text(response)
 
 
 @override_settings(SITE_URL="https://testserver")
