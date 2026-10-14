@@ -1,5 +1,6 @@
 import inspect
 import logging
+import sys
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -75,15 +76,25 @@ def test_disabled_middleware_is_noop(monkeypatch):
     assert telemetry.TelemetryMiddleware(lambda request: response)(request) is response
 
 
+def test_view_exceptions_are_left_to_sentry():
+    # Sentry owns error tracking; PostHog must not bill for exceptions.
+    assert not hasattr(telemetry.TelemetryMiddleware, "process_exception")
+    assert posthog.enable_exception_autocapture is False
+
+
 @override_settings(POSTHOG_API_KEY="phc_test")
-def test_view_exception_is_captured(monkeypatch):
+def test_logged_exceptions_are_not_sent_to_posthog(monkeypatch):
     capture = Mock()
     monkeypatch.setattr(posthog, "capture_exception", capture)
-    request = RequestFactory().get("/")
-    request.resolver_match = SimpleNamespace(view_name="repos:search")
-    error = ValueError("synthetic")
-    telemetry.TelemetryMiddleware(lambda request: HttpResponse()).process_exception(request, error)
-    capture.assert_called_once_with(error, properties={"route": "repos:search"})
+    try:
+        raise ValueError("synthetic")
+    except ValueError:
+        record = logging.LogRecord(
+            "awesome_repos", logging.ERROR, __file__, 1, "failed", (), exc_info=sys.exc_info()
+        )
+    safe = telemetry.SafeLogFilter().filter(record)
+    assert safe.exc_info is None
+    capture.assert_not_called()
 
 
 def test_real_sdk_signature_accepts_current_capture_contract():
@@ -91,25 +102,31 @@ def test_real_sdk_signature_accepts_current_capture_contract():
     inspect.signature(posthog.capture).bind("repository_liked", distinct_id="123", properties={})
 
 
-@override_settings(POSTHOG_API_KEY="phc_test")
-def test_failed_queue_job_omits_arguments_and_result(monkeypatch):
+def test_failed_queue_job_is_logged_without_arguments_or_result(monkeypatch, caplog):
     from apps.core.telemetry_tasks import capture_task_failure
 
     capture = Mock()
     monkeypatch.setattr(posthog, "capture_exception", capture)
-    capture_task_failure(
-        None,
-        {
-            "success": False,
-            "func": "apps.repos.tasks.sync_repository",
-            "id": "task-1",
-            "args": ["private@example.com"],
-            "result": "secret result",
-        },
-    )
-    assert capture.call_count == 1
-    assert "secret result" not in str(capture.call_args)
-    assert "private@example.com" not in str(capture.call_args)
+    logger = logging.getLogger("awesome_repos.telemetry")
+    logger.addHandler(caplog.handler)
+    try:
+        capture_task_failure(
+            None,
+            {
+                "success": False,
+                "func": "apps.repos.tasks.sync_repository",
+                "id": "task-1",
+                "args": ["private@example.com"],
+                "result": "secret result",
+            },
+        )
+    finally:
+        logger.removeHandler(caplog.handler)
+    capture.assert_not_called()
+    [record] = caplog.records
+    assert record.task_function == "apps.repos.tasks.sync_repository"
+    assert "secret result" not in str(record.__dict__)
+    assert "private@example.com" not in str(record.__dict__)
 
 
 @override_settings(POSTHOG_API_KEY="phc_test")

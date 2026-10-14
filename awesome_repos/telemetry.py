@@ -63,14 +63,8 @@ def configure():
     posthog.host = settings.POSTHOG_HOST
     posthog.debug = False
     posthog.before_send = before_send
-    posthog.enable_exception_autocapture = True
-    # Initialize now so the process-level exception hooks are installed.
-    posthog.default_client = posthog.Posthog(
-        settings.POSTHOG_API_KEY,
-        host=settings.POSTHOG_HOST,
-        before_send=before_send,
-        enable_exception_autocapture=True,
-    )
+    # Sentry owns error tracking; PostHog never captures exceptions.
+    posthog.enable_exception_autocapture = False
     resource = Resource.create(
         {
             "service.name": settings.POSTHOG_SERVICE_NAME,
@@ -163,8 +157,6 @@ class SafeLogFilter(logging.Filter):
             safe.posthogDistinctId = get_context_distinct_id()
         if get_context_session_id():
             safe.sessionId = get_context_session_id()
-        if record.exc_info and record.exc_info[1] and record.name != "django.request":
-            posthog.capture_exception(record.exc_info[1], properties={"logger": record.name})
         return safe
 
 
@@ -231,15 +223,6 @@ class TelemetryMiddleware(MiddlewareMixin):
     # Sync-only middleware is adapted by Django on ASGI, preserving contextvars.
     sync_capable = True
     async_capable = False
-
-    def process_exception(self, request, exception):
-        if settings.POSTHOG_API_KEY:
-            posthog.capture_exception(
-                exception,
-                properties={
-                    "route": getattr(request.resolver_match, "view_name", "unmatched"),
-                },
-            )
 
 
 def flush():

@@ -2,6 +2,7 @@
 
 ## 2026-10-14
 
+- Stop sending exceptions to PostHog error tracking from the browser, Django views, logs, and background jobs; Sentry remains the error tracker.
 - Publish a tested MCP awesome-list search guide with pagination, README limits, upstream verification, and homepage discovery links.
 
 ## 2026-10-13

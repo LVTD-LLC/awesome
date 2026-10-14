@@ -41,7 +41,7 @@
     person_profiles: "identified_only",
     capture_pageview: false,
     capture_pageleave: true,
-    capture_exceptions: true,
+    capture_exceptions: false,
     capture_performance: { web_vitals: true },
     disable_session_recording: true,
     autocapture: { mask_all_text: true, mask_all_element_attributes: true },
