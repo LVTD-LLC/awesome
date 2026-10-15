@@ -13,5 +13,20 @@
     "must_match": [
       "noindex, follow"
     ]
+  },
+  {
+    "claim": "Repository archive status is not a maintenance certification",
+    "paths": [
+      "frontend/templates/repos/detail.html"
+    ],
+    "must_not_match": [
+      "Actively maintained"
+    ],
+    "must_match": [
+      "Archive status not checked",
+      "Not archived",
+      "not a maintenance assessment",
+      "how-to-shortlist-github-repositories"
+    ]
   }
 ]
