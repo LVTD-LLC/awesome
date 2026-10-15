@@ -2,6 +2,7 @@
 
 ## 2026-10-15
 
+- Replace the repository detail page's unsupported “Actively maintained” badge with stored archive status, show unchecked metadata explicitly, and link to the repository shortlisting checklist.
 - Add a tested offline saved-page guide and reusable archive fixture, linked from self-hosted discovery; distinguish capture checks from application backup recovery.
 
 ## 2026-10-14

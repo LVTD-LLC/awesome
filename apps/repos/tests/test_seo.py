@@ -79,6 +79,45 @@ def test_repository_detail_has_page_specific_metadata_and_schema(client):
     assert '"url": "https://testserver/repos/django/django/"' in content
 
 
+@pytest.mark.parametrize(
+    ("archived", "synced", "status_label", "metadata_label"),
+    [
+        (False, True, "Not archived", "No"),
+        (True, True, "Archived", "Yes"),
+        (False, False, "Archive status not checked", "Not checked"),
+        (True, False, "Archive status not checked", "Not checked"),
+    ],
+)
+def test_repository_archive_status_does_not_assert_maintenance(
+    client, archived, synced, status_label, metadata_label
+):
+    # Even stale, high-star records must not imply current maintenance.
+    repository = Repository.objects.create(
+        full_name="example/project",
+        owner="example",
+        name="project",
+        url="https://github.com/example/project",
+        stars=100_000,
+        is_archived=archived,
+        last_synced_at=timezone.now() - timedelta(days=180) if synced else None,
+        github_pushed_at=timezone.now() - timedelta(days=365),
+    )
+
+    response = client.get(repository.get_absolute_url())
+    content = response_text(response)
+
+    assert response.status_code == 200
+    assert f">{status_label}</span>" in content
+    assert f">{metadata_label}</dd>" in content
+    assert "Actively maintained" not in content
+    assert "not a maintenance assessment" in content
+    checklist_path = reverse(
+        "blog:post_detail", kwargs={"slug": "how-to-shortlist-github-repositories"}
+    )
+    assert f'href="{checklist_path}"' in content
+    assert client.get(checklist_path).status_code == 200
+
+
 @override_settings(SITE_URL="https://testserver")
 def test_awesome_list_detail_has_page_specific_metadata_and_schema(client):
     awesome_list = AwesomeList.objects.create(

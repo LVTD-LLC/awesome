@@ -15,3 +15,13 @@ MCP claims reverified October 13, 2026 UTC against revision 0f1e49c and live too
 - List-scoped repository search requires `slug`; global repository search uses optional `list`. Search results expose pagination; use `has_next`, since out-of-range pages can resolve to the last page.
 - `get_repository` takes `full_name`; README text is opt-in and bounded, with explicit truncation when applicable. Repository, README, list-scan and stored GitHub push timestamps describe different observations.
 - Catalog matches, upstream documentation and locally tested behavior are distinct evidence levels. No installation, security or production-readiness claim follows from discovery.
+
+Archive-status claim reverified October 15, 2026 UTC:
+
+- `Repository.is_archived` stores GitHub's archive flag, not a maintenance
+  assessment. A false flag cannot substantiate “Actively maintained.”
+- `last_synced_at` is nullable and `is_archived` defaults to false. When no sync
+  is recorded, the detail header and metadata must say the status is not checked.
+- Source: `apps/repos/models.py`, repository metadata sync, and GitHub's
+  [archiving documentation](https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories).
+  Verify upstream releases, issue responses and project fit independently.
