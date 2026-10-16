@@ -189,11 +189,11 @@ def test_incremental_failure_and_dry_run_preserve_checkpoint(monkeypatch, tmp_pa
     assert state.read_text() == "{}"
 
 
-def test_incremental_missing_checkpoint_submits_baseline(monkeypatch, tmp_path):
+def test_incremental_missing_checkpoint_initializes_without_submission(monkeypatch, tmp_path):
     state = tmp_path / "state.json"
     posts = transport(monkeypatch, [SITE + "/"])
-    indexnow.submit_changes(SITE, state)
-    assert posts[0]["urlList"] == [SITE + "/"]
+    assert "Initialized" in indexnow.submit_changes(SITE, state)
+    assert not posts
     assert json.loads(state.read_text()) == {SITE + "/": ""}
 
 
@@ -346,16 +346,93 @@ def test_partial_batch_failure_preserves_checkpoint(monkeypatch, tmp_path):
     assert state.read_text() == "{}"
 
 
-def test_hourly_run_retries_failed_deployment_revision(monkeypatch, tmp_path):
+def test_hourly_run_retries_changed_content_after_failed_deploy(monkeypatch, tmp_path):
     state = tmp_path / "state.json"
-    state.write_text(json.dumps({SITE + "/": "old:"}))
-    posts = transport(
-        monkeypatch, [SITE + "/"], statuses=(403, 200), revisions=("new", "new", "new")
-    )
+    old_stamp = "2026-10-10T09:00:00+00:00"
+    current = {SITE + "/": "2026-10-16T09:00:00+00:00"}
+    previous = {SITE + "/": "a" * 40 + ":" + old_stamp}
+    state.write_text(json.dumps(previous))
+    posts = transport(monkeypatch, [SITE + "/"], statuses=(403, 200), revisions=("new",) * 3)
+    monkeypatch.setattr(indexnow, "sitemap_state", lambda _: current)
     with pytest.raises(indexnow.IndexNowError):
-        indexnow.submit_changes(SITE, state, expected_revision="new", force=True)
-    assert json.loads(state.read_text()) == {SITE + "/": "old:"}
+        indexnow.submit_changes(SITE, state, expected_revision="new")
+    assert json.loads(state.read_text()) == previous
     indexnow.submit_changes(SITE, state, expected_revision="new")
     assert len(posts) == 2
-    assert json.loads(state.read_text()) == {SITE + "/": "new:"}
+    assert json.loads(state.read_text()) == current
     assert "No changed" in indexnow.submit_changes(SITE, state, expected_revision="new")
+
+
+def test_new_revision_migrates_legacy_checkpoint_without_resubmitting(monkeypatch, tmp_path):
+    state = tmp_path / "state.json"
+    current = {SITE + "/": "2026-10-10T09:30:00+00:00", SITE + "/no-date/": ""}
+    state.write_text(json.dumps({url: "a" * 40 + ":" + date for url, date in current.items()}))
+    posts = transport(monkeypatch, list(current), revisions=("b" * 40, "c" * 40))
+    monkeypatch.setattr(indexnow, "sitemap_state", lambda _: current)
+    assert "No changed" in indexnow.submit_changes(SITE, state, expected_revision="b" * 40)
+    assert json.loads(state.read_text()) == current
+    assert "No changed" in indexnow.submit_changes(SITE, state, expected_revision="c" * 40)
+    assert not posts
+
+
+def test_legacy_checkpoint_preserves_real_additions_removals_and_edits(monkeypatch, tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text(
+        json.dumps(
+            {
+                SITE + "/unchanged/": "a" * 40 + ":2026-10-10T09:30:00+00:00",
+                SITE + "/edit/": "a" * 40 + ":2026-10-10",
+                SITE + "/removed/": "a" * 40 + ":",
+            }
+        )
+    )
+    current = {
+        SITE + "/unchanged/": "2026-10-10T09:30:00+00:00",
+        SITE + "/edit/": "2026-10-16",
+        SITE + "/new/": "2026-10-16",
+    }
+    posts = transport(monkeypatch, list(current))
+    monkeypatch.setattr(indexnow, "sitemap_state", lambda _: current)
+    indexnow.submit_changes(SITE, state, expected_revision="new")
+    assert posts[0]["urlList"] == [SITE + "/edit/", SITE + "/new/", SITE + "/removed/"]
+    assert json.loads(state.read_text()) == current
+
+
+def test_dry_run_without_checkpoint_does_not_create_or_submit(monkeypatch, tmp_path):
+    state = tmp_path / "state.json"
+    posts = transport(monkeypatch, [SITE + "/"])
+    assert "0 changed" in indexnow.submit_changes(SITE, state, dry_run=True)
+    assert not state.exists()
+    assert not posts
+
+
+@pytest.mark.parametrize("invalid", [[], {SITE + "/": None}, {SITE + "/": 123}])
+def test_invalid_checkpoint_fails_closed(monkeypatch, tmp_path, invalid):
+    state = tmp_path / "state.json"
+    original = json.dumps(invalid)
+    state.write_text(original)
+    posts = transport(monkeypatch, [SITE + "/"])
+    with pytest.raises(indexnow.IndexNowError, match="checkpoint"):
+        indexnow.submit_changes(SITE, state)
+    assert state.read_text() == original
+    assert not posts
+
+
+def test_workflow_is_rename_safe_and_never_forces_catalog_submission():
+    from pathlib import Path
+
+    import yaml
+
+    workflow = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / ".github/workflows/indexnow.yml").read_text()
+    )
+    job = workflow["jobs"]["notify"]
+    assert "github.repository_id == '1246113400'" in job["if"]
+    assert "github.repository ==" not in job["if"]
+    assert "github.event.workflow_run.conclusion == 'success'" in job["if"]
+    scripts = "\n".join(step.get("run", "") for step in job["steps"])
+    assert "--force" not in scripts
+    assert '--state indexnow-state.json --expected-revision "$EXPECTED_REVISION"' in scripts
+    cache_steps = [step for step in job["steps"] if "actions/cache/" in step.get("uses", "")]
+    assert len(cache_steps) == 2
+    assert all(step["with"]["key"].startswith("indexnow-v1-") for step in cache_steps)

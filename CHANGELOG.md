@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-16
+
+- Restore IndexNow after the repository rename; notify only sitemap changes across deployments, migrate cached checkpoints, and avoid full-catalog submissions when a cache is missing.
+
 ## 2026-10-15
 
 - Replace the repository detail page's unsupported “Actively maintained” badge with stored archive status, show unchecked metadata explicitly, and link to the repository shortlisting checklist.

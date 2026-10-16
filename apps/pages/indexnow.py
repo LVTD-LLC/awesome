@@ -179,25 +179,36 @@ def submit_urls(site_url, key, urls):
     )
 
 
-def submit_changes(site_url, state_path, expected_revision="", dry_run=False, force=False):
-    """Advance the checkpoint only after every notification batch succeeds."""
-    key = deployment_key(site_url, expected_revision)
-    current = sitemap_state(site_url)
-    if expected_revision:
-        # A failed deploy-wide refresh must also retry on the next hourly run.
-        current = {url: f"{expected_revision}:{stamp}" for url, stamp in current.items()}
-    previous = json.loads(state_path.read_text()) if state_path.exists() else {}
-    if not isinstance(previous, dict):
+def read_checkpoint(site_url, state_path):
+    previous = json.loads(state_path.read_text())
+    if not isinstance(previous, dict) or any(
+        not isinstance(stamp, str) for stamp in previous.values()
+    ):
         raise IndexNowError("Invalid sitemap checkpoint")
     validate_urls(site_url, list(previous))
+    # Migrate the old full Git SHA prefix without changing timestamp colons.
+    return {url: re.sub(r"^[a-f0-9]{40}:", "", stamp) for url, stamp in previous.items()}
+
+
+def submit_changes(site_url, state_path, expected_revision="", dry_run=False, force=False):
+    """Compare content dates, not deploy IDs; commit only after all batches succeed."""
+    key = deployment_key(site_url, expected_revision)
+    current = sitemap_state(site_url)
+    baseline = not state_path.exists() and not force
+    previous = read_checkpoint(site_url, state_path) if state_path.exists() else {}
     changed = sorted(
         url
         for url in current.keys() | previous.keys()
-        if force or url not in current or url not in previous or current[url] != previous[url]
+        if not baseline
+        and (force or url not in current or url not in previous or current[url] != previous[url])
     )
     if dry_run:
         return f"Dry run: {len(changed)} changed public URLs; no submission sent"
-    result = submit_urls(site_url, key, changed)
+    result = (
+        "Initialized sitemap checkpoint; no submission sent"
+        if baseline
+        else submit_urls(site_url, key, changed)
+    )
     temporary = state_path.with_suffix(".tmp")
     temporary.write_text(json.dumps(current, sort_keys=True), encoding="utf-8")
     temporary.replace(state_path)
